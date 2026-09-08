@@ -70,12 +70,13 @@ Entry point: http://localhost:5173/login
    - Per-SKU price and MAP side by side in the inline SKU table
    - Per-SKU stock badges: green ≥ 10, orange 1–9, red 0
    - Incoming stock shown in blue
-4. **Sidebar filters**:
+4. **Active filters** — a removable tag per active filter (search term, category, price range) sits above the results, with **Clear all and show every product** beside them. The same button appears in the no-results empty state. Clearing the header search box (×) or submitting it empty also lands on the full catalog.
+5. **Sidebar filters**:
    - Category tree — click any leaf node to filter; click "All categories" to reset
    - Price range — enter min/max, click Apply; Clear resets both fields
-5. **Sort** — dropdown in top-right of results: Relevance, Price ↑, Price ↓, Name A–Z
-6. **Product detail** (`/products/:spuCode`) — full image gallery, attributes table, complete SKU table with MAP, Volume Price and UPC columns, CSV export button, last-synced timestamp
-7. **Sign out** — top-right header button → redirected to login
+6. **Sort** — dropdown in top-right of results: Relevance, Price ↑, Price ↓, Name A–Z
+7. **Product detail** (`/products/:spuCode`) — full image gallery, attributes table, complete SKU table with MAP, Volume Price and UPC columns, CSV export button, last-synced timestamp
+8. **Sign out** — top-right header button → redirected to login
 
 ### Verifying tier pricing
 

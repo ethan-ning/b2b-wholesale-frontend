@@ -12,9 +12,10 @@ export default function Layout() {
   const { user, logout } = useAuthStore();
 
   function handleSearch(value: string) {
-    if (value.trim()) {
-      navigate(`/search?q=${encodeURIComponent(value.trim())}`);
-    }
+    const term = value.trim();
+    // An empty term is a real intent — clearing the box (or submitting it empty)
+    // means "show me everything", not "do nothing".
+    navigate(term ? `/search?q=${encodeURIComponent(term)}` : '/search');
   }
 
   function handleLogout() {

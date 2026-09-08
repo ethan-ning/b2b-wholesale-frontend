@@ -8,7 +8,11 @@ import {
   Spin,
   Empty,
   Divider,
+  Button,
+  Space,
+  Tag,
 } from 'antd';
+import { CloseCircleOutlined } from '@ant-design/icons';
 import client from '../api/client';
 import type { Product, PagedResult } from '../api/types';
 import ProductCard from '../components/ProductCard';
@@ -26,7 +30,7 @@ const SORT_OPTIONS = [
 ];
 
 export default function SearchPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') ?? '';
   const [prevQuery, setPrevQuery] = useState(query);
   const [categoryId, setCategoryId] = useState<number | null>(null);
@@ -77,6 +81,23 @@ export default function SearchPage() {
     setPage(0);
   }
 
+  /** Drop the search term but keep the sidebar filters. */
+  function clearSearchTerm() {
+    setSearchParams({}, { replace: true });
+    setPage(0);
+  }
+
+  /** Back to the unfiltered catalog — term, category and price range all dropped. */
+  function clearAll() {
+    setSearchParams({}, { replace: true });
+    setCategoryId(null);
+    setPriceMin(undefined);
+    setPriceMax(undefined);
+    setPage(0);
+  }
+
+  const hasFilters = Boolean(query) || categoryId !== null || priceMin !== undefined || priceMax !== undefined;
+
   return (
     <Layout style={{ minHeight: 'calc(100vh - 64px)', background: '#f0f2f5' }}>
       <Sider
@@ -119,12 +140,45 @@ export default function SearchPage() {
           />
         </div>
 
+        {/* Active filters — each removable on its own, plus one reset back to the
+            full catalog. Without this there is no way out of a search term: the
+            term lives in the URL, so the sidebar's own resets cannot clear it. */}
+        {hasFilters && (
+          <Space size={[8, 8]} wrap style={{ marginBottom: 12 }}>
+            {query && (
+              <Tag closable onClose={clearSearchTerm} color="blue">
+                Search: {query}
+              </Tag>
+            )}
+            {categoryId !== null && (
+              <Tag closable onClose={() => handleCategoryChange(null)} color="blue">
+                Category filtered
+              </Tag>
+            )}
+            {(priceMin !== undefined || priceMax !== undefined) && (
+              <Tag closable onClose={() => handlePriceApply(undefined, undefined)} color="blue">
+                Price: {priceMin !== undefined ? `$${priceMin}` : 'any'} –{' '}
+                {priceMax !== undefined ? `$${priceMax}` : 'any'}
+              </Tag>
+            )}
+            <Button size="small" type="link" icon={<CloseCircleOutlined />} onClick={clearAll}>
+              Clear all and show every product
+            </Button>
+          </Space>
+        )}
+
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60 }}>
             <Spin size="large" />
           </div>
         ) : result?.content.length === 0 ? (
-          <Empty description="No products match your filters." />
+          <Empty description="No products match your filters.">
+            {hasFilters && (
+              <Button type="primary" icon={<CloseCircleOutlined />} onClick={clearAll}>
+                Clear all and show every product
+              </Button>
+            )}
+          </Empty>
         ) : (
           <>
             {result?.content.map((p) => (

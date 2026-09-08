@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Input, Typography, Space } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../store/authStore';
@@ -10,9 +10,8 @@ export default function HomePage() {
   const user = useAuthStore((s) => s.user);
 
   function handleSearch(value: string) {
-    if (value.trim()) {
-      navigate(`/search?q=${encodeURIComponent(value.trim())}`);
-    }
+    const term = value.trim();
+    navigate(term ? `/search?q=${encodeURIComponent(term)}` : '/search');
   }
 
   return (
@@ -44,7 +43,8 @@ export default function HomePage() {
         />
 
         <Text type="secondary" style={{ fontSize: 12 }}>
-          Tip: try "jacket", "exhaust", or a SKU like "PL001-BLK"
+          Tip: try "jacket", "exhaust", or a SKU like "PL001-BLK" — or{' '}
+          <Link to="/search">browse the full catalog</Link>
         </Text>
       </Space>
     </div>
