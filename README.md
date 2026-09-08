@@ -140,12 +140,28 @@ Shows live stat cards:
 
 | Section | Editable? | Notes |
 |---|---|---|
-| Basic info | ✅ | Name, brand, description, base price, location code, status (MAP is per SKU — see Variants) |
-| Display attributes | ✅ | Free-form key-value pairs; add/remove rows |
+| Product identity | ❌ Read-only | SPU code, name, brand, description, variant axis — **synced from Sellfox**, rendered as text |
+| Catalog settings | ✅ | Base wholesale price, location code, status |
+| Display attributes | ✅ | Free-form key-value pairs; seeded from Sellfox at import, ours thereafter |
 | Images | ✅ | URL list; ↑/↓ buttons reorder; first URL = primary thumbnail |
 | Categories | ✅ | Checkbox tree; click "Set primary" to mark the primary category |
-| Tier pricing | Price only | One row per SKU × tier, in variant order, with the SKU cell merged down its group. Price is editable |
+| Tier pricing | Price only | One row per SKU × tier, in variant order, with the SKU cell merged down its group |
 | SKU variants | MAP only | SKU code, variant value, UPC, weight, stock are synced from Sellfox and read-only; **MAP is editable per SKU** |
+
+### Who owns which field
+
+Sellfox is the system of record for **what a thing is and how many there are**; the portal owns **what a dealer pays and what they see**. Every field belongs to exactly one of them — a field owned by both is a field that loses data. Full table in architecture doc §3.7.7.
+
+- **Sellfox-owned, read-only here:** name, brand, description, SKU code, variant value, pack quantity, UPC, weight, and all stock figures.
+- **Portal-owned:** tier prices, MAP, base wholesale price, status, categories, images, variant sort order.
+- **Seeded from Sellfox, then ours:** display attributes and the variant axis — set at import, editable after, never overwritten by a later sync.
+
+Two rules follow:
+
+1. **Read-only fields render as text, never as a disabled input.** A greyed-out box still reads as "editable, just not right now".
+2. **There is no manual stock override**, and `/admin/inventory` is read-only. An admin-entered stock figure would be silently reverted by the next 15-minute sync — worse than not offering it, because the admin would believe the correction stuck. Stock is corrected in Sellfox.
+
+The mock `PUT /api/admin/products/:id` **rejects** Sellfox-owned fields with a 400 rather than ignoring them, so a client that tries to edit one fails loudly instead of appearing to work until the next sync.
 
 Click **Save Changes** → success toast → back to product list.
 
@@ -169,6 +185,7 @@ Click **Save Changes** → success toast → back to product list.
 - Warehouse dropdown: filter to a single warehouse or show all
 - **Low stock only** checkbox: show only rows where available stock < 5
 - Columns: SKU, Product, SPU Code, Warehouse, Available (stock badge), Incoming (blue), Reserved (orange tag), Defective (red tag), Last Updated
+- **Read-only by design** — stock is Sellfox's, and a manual override would be reverted by the next sync. Corrections are made in Sellfox.
 - Sign out — header button → redirected to `/admin/login`
 
 ---

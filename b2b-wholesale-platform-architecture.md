@@ -786,6 +786,66 @@ The import creates `product_variant` rows, maps `commodityAttributeValueRelaList
 
 Admin endpoint: `POST /api/admin/sellfox/sync-sku-catalog` — triggers a Spring Batch job that reads pages from Sellfox and upserts into the product catalog.
 
+#### 3.7.7 Field Ownership — What Syncs and What the Portal Owns
+
+Sellfox is the system of record for what a thing *is* and how many there are. The portal
+is the system of record for what a dealer *pays* and what they *see*. Every field belongs
+to exactly one of them; a field owned by both is a field that loses data.
+
+**Sellfox-owned — overwritten on every sync, read-only in the admin**
+
+| Field | Table | Why |
+|---|---|---|
+| `name` | `product` | `commodityName`; the ERP names the goods |
+| `brand` | `product` | from the Sellfox commodity record |
+| `description` | `product` | from the Sellfox commodity record |
+| `sku`, `variant_value`, `pack_quantity` | `product_variant` | `commoditySku` and its pack encoding define the SKU |
+| `upc` | `product_variant` | GS1 barcode, assigned upstream of us |
+| `weight` | `product_variant` | physical fact, measured in the warehouse |
+| `available_stock`, `incoming_stock`, `reserved_stock`, `defective_stock` | `inventory` | Sellfox is the stock system of record (§3.7.1) |
+| `updated_at` | `inventory` | sync freshness, shown to dealers as "last synced" |
+
+**Portal-owned — Sellfox never writes these**
+
+| Field | Table | Why |
+|---|---|---|
+| `price`, `min_qty` | `tier_price` | Sellfox holds cost, not dealer pricing (§3.7.6) |
+| `map_price` | `product_variant` | advertised-price policy is a commercial decision, not an ERP fact |
+| `base_wholesale_price` | `product` | our list price |
+| `status` | `product` | dealer visibility; a SKU can exist in Sellfox and stay unpublished here |
+| `product_category` rows | — | our merchandising taxonomy, not Sellfox's |
+| `product_image` rows | — | admin uploads to Cloud Storage (§2.1) |
+| `sort_order` | `product_variant` | display order (S < M < L < XL); Sellfox has no opinion |
+
+**Seeded from Sellfox, then portal-owned**
+
+| Field | Behaviour |
+|---|---|
+| `attributes_jsonb` | Populated from `commodityAttributeValueRelaList` at initial import (§3.7.6), then editable and never overwritten. They are display copy, and the ERP's attribute names are rarely presentable as-is. |
+| `variant_axis` | Inferred at import from whether SKUs vary by size or pack, then confirmable by an admin. |
+
+**Consequences for the sync job**
+
+- The inventory sync writes only the four stock columns plus `updated_at`. It must never
+  touch a `product` or `product_variant` row's portal-owned columns.
+- A catalog re-sync updates Sellfox-owned product fields in place; it must leave
+  `attributes_jsonb`, `status`, pricing, MAP and images alone.
+- **There is no manual stock override.** An admin-entered stock figure would be silently
+  reverted within 15 minutes by the next incremental sync, which is worse than not
+  offering it — the admin would believe the correction stuck. Stock is corrected in
+  Sellfox. `GET /api/admin/inventory` is read-only.
+
+**Open question — `location_code`.** Modelled as a warehouse bin (`B6-1`), which is
+physical and therefore arguably Sellfox's. It is portal-owned and editable for now
+because it is unconfirmed whether Sellfox exposes bin codes. If it does, move it to the
+Sellfox-owned table above and make the field read-only. Leaving it editable is the safer
+default: a field wrongly left editable is a one-line flip later, whereas a field wrongly
+locked to a source that never populates it is permanently blank.
+
+**UI rule.** Read-only fields render as text, never as a disabled input. A greyed-out box
+still reads as "editable, just not right now" and invites the admin to look for the
+unlock; plain text with a "Synced from Sellfox" tag on the section says who owns it.
+
 ### 3.8 Key API Endpoints (MVP Scope)
 
 **Auth** — public
@@ -814,12 +874,11 @@ Admin endpoint: `POST /api/admin/sellfox/sync-sku-catalog` — triggers a Spring
 | CRUD | `/api/admin/customers` | create dealer, assign tier, reset password |
 | POST | `/api/admin/customers/{id}/reset-password` | sets temp password, forces change on next login |
 | CRUD | `/api/admin/tiers` | manage pricing tiers |
-| CRUD | `/api/admin/products`, `/api/admin/categories` | product + category management |
-| CRUD | `/api/admin/products/{id}/variants` | variant + attribute editing |
+| CRUD | `/api/admin/categories` | category management (portal-owned taxonomy) |
+| PUT | `/api/admin/products/{id}` | portal-owned product fields only — pricing, MAP, status, categories, images, attributes. Sellfox-owned fields are rejected, not silently ignored (§3.7.7) |
 | GET | `/api/admin/pricing/export?productId=` | CSV export of pricing matrix |
 | POST | `/api/admin/pricing/bulk-upload` | multipart CSV → Spring Batch job |
-| GET/PUT | `/api/admin/inventory/{variantId}` | manual stock override |
-| POST | `/api/admin/inventory/bulk-upload` | CSV bulk stock update (Spring Batch) |
+| GET | `/api/admin/inventory` | read-only stock view; no manual override — see §3.7.7 |
 | GET | `/api/admin/sellfox/sync-logs` | recent sync run history |
 | POST | `/api/admin/sellfox/trigger-sync` | manually trigger an immediate full sync |
 | CRUD | `/api/admin/sellfox/sku-mappings` | manage Sellfox SKU ↔ variant mappings |

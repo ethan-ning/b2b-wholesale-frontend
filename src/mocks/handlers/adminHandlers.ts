@@ -136,13 +136,39 @@ export const adminHandlers = [
     return HttpResponse.json(product);
   }),
 
-  // PUT /api/admin/products/:id
+  // PUT /api/admin/products/:id — portal-owned fields only (architecture doc §3.7.7).
+  // Sellfox-owned fields are rejected rather than ignored, so a client that tries to
+  // edit one fails loudly here instead of appearing to work until the next sync.
   http.put('/api/admin/products/:id', async ({ request, params }) => {
     if (!requireAdmin(request)) return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 });
     const body = (await request.json()) as Partial<AdminProduct>;
     const idx = mutableProducts.findIndex((p) => p.id === Number(params.id));
     if (idx === -1) return HttpResponse.json({ message: 'Not found' }, { status: 404 });
-    mutableProducts = mutableProducts.map((p, i) => (i === idx ? { ...p, ...body } : p));
+
+    const sellfoxOwned = ['name', 'brand', 'description', 'spuCode', 'variantAxis'];
+    const offending = sellfoxOwned.filter((f) => f in body);
+    if (offending.length) {
+      return HttpResponse.json(
+        { message: `Synced from Sellfox, not editable here: ${offending.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    // Variants: only mapPrice is ours. Merge it onto the stored variant rather than
+    // taking the client's copy, so stock and SKU identity cannot be overwritten.
+    const incomingMaps = new Map((body.variants ?? []).map((v) => [v.id, v.mapPrice]));
+    const { variants: _ignored, ...rest } = body;
+    mutableProducts = mutableProducts.map((p, i) =>
+      i === idx
+        ? {
+            ...p,
+            ...rest,
+            variants: p.variants.map((v) =>
+              incomingMaps.has(v.id) ? { ...v, mapPrice: incomingMaps.get(v.id) ?? null } : v
+            ),
+          }
+        : p
+    );
     return HttpResponse.json(mutableProducts[idx]);
   }),
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Form, Input, InputNumber, Select, Button, Card, Typography, Space, Table,
-  Spin, Alert, Divider, Tag, message, Checkbox, Row, Col,
+  Spin, Alert, Divider, Tag, message, Checkbox, Row, Col, Descriptions,
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -63,10 +63,9 @@ export default function ProductFormPage() {
         setSelectedCatIds(catIds);
         setPrimaryCatId(p.categories.find((c) => c.isPrimary)?.id ?? catIds[0] ?? null);
         setCategories(flattenCats(cRes.data));
+        // Only portal-owned fields go into the form. Sellfox-owned ones are read
+        // straight off `product` and rendered as text.
         form.setFieldsValue({
-          name: p.name,
-          brand: p.brand,
-          description: p.description,
           baseWholesalePrice: p.baseWholesalePrice,
           locationCode: p.locationCode,
           status: p.status,
@@ -77,7 +76,6 @@ export default function ProductFormPage() {
   }, [id, form]);
 
   async function onFinish(values: {
-    name: string; brand: string; description: string;
     baseWholesalePrice: number;
     locationCode: string; status: string;
   }) {
@@ -209,24 +207,32 @@ export default function ProductFormPage() {
 
       <Form form={form} layout="vertical" onFinish={onFinish}>
 
-        {/* Section 1: Basic info */}
-        <Card title="Basic Info" size="small" style={{ marginBottom: 16 }}>
+        {/* Section 1a: Sellfox-owned identity. Rendered as text, not disabled inputs —
+            a greyed-out box still reads as "editable, just not right now", and these
+            are overwritten on every sync. */}
+        <Card
+          title="Product Identity"
+          size="small"
+          style={{ marginBottom: 16 }}
+          extra={<Tag color="default">Synced from Sellfox — overwritten on next sync</Tag>}
+        >
+          <Descriptions size="small" column={2} bordered items={[
+            { key: 'spu', label: 'SPU Code', children: <code>{product.spuCode}</code> },
+            { key: 'brand', label: 'Brand', children: product.brand ?? '—' },
+            { key: 'name', label: 'Product Name', span: 2, children: product.name },
+            { key: 'desc', label: 'Description', span: 2, children: product.description ?? '—' },
+            {
+              key: 'axis', label: 'Variant Axis', span: 2,
+              children: product.variantAxis
+                ? <>{product.variantAxis} <Text type="secondary">({product.variants.length} SKUs)</Text></>
+                : '—',
+            },
+          ]} />
+        </Card>
+
+        {/* Section 1b: Ours. Sellfox has no opinion on any of these. */}
+        <Card title="Catalog Settings" size="small" style={{ marginBottom: 16 }}>
           <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="name" label="Product Name" rules={[{ required: true }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="brand" label="Brand">
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={24}>
-              <Form.Item name="description" label="Description">
-                <Input.TextArea rows={3} />
-              </Form.Item>
-            </Col>
             <Col span={8}>
               <Form.Item name="baseWholesalePrice" label="Base Wholesale Price" rules={[{ required: true }]}>
                 <InputNumber prefix="$" style={{ width: '100%' }} min={0} precision={2} />
@@ -235,12 +241,16 @@ export default function ProductFormPage() {
             {/* No SPU-level MAP — it is set per SKU in the Variants section below,
                 since a pack SKU's MAP scales with its quantity. */}
             <Col span={8}>
-              <Form.Item name="locationCode" label="Location Code">
+              <Form.Item
+                name="locationCode"
+                label="Location Code"
+                tooltip="Warehouse bin. Editable until we confirm Sellfox exposes bin codes — see architecture doc §3.7.7."
+              >
                 <Input placeholder="A1-1" />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="status" label="Status" rules={[{ required: true }]}>
+              <Form.Item name="status" label="Status" rules={[{ required: true }]} tooltip="Controls dealer visibility. Ours, not Sellfox's.">
                 <Select options={[
                   { value: 'ACTIVE', label: 'Active' },
                   { value: 'DRAFT', label: 'Draft' },
@@ -385,12 +395,13 @@ export default function ProductFormPage() {
           />
         </Card>
 
-        {/* Section 6: Variants (read-only, synced from Sellfox) */}
+        {/* Section 6: Variants — Sellfox owns the SKU itself and its stock; MAP is the
+            one portal-owned field here, so it is the one input. */}
         <Card
           title="SKU Variants"
           size="small"
           style={{ marginBottom: 16 }}
-          extra={<Tag>Synced from Sellfox — read only</Tag>}
+          extra={<Tag color="default">Synced from Sellfox — except MAP, which is ours</Tag>}
         >
           <Table<Variant>
             columns={variantColumns}
