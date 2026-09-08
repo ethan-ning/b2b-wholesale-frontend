@@ -117,33 +117,36 @@ export default function ProductFormPage() {
     );
   }
 
-  // Rows arrive sorted by SKU, so merge each SKU's cell down over its tier rows —
-  // the grouping is the point: every price belongs to one SKU.
-  const skuRowSpans = new Map<string, number>();
-  tierRows.forEach((r) => skuRowSpans.set(r.sku, (skuRowSpans.get(r.sku) ?? 0) + 1));
-  const firstRowForSku = new Set<string>();
+  // Rows arrive sorted by SKU, so merge each SKU's cell down over its tier rows — the
+  // grouping is the point: every price belongs to one SKU. Precomputed by index and
+  // kept pure; onCell can fire more than once per row, so it must not mutate.
+  const skuRowSpans = tierRows.map((row, i) =>
+    i > 0 && tierRows[i - 1].sku === row.sku
+      ? 0
+      : tierRows.filter((r) => r.sku === row.sku).length
+  );
 
   const tierPriceColumns: ColumnsType<TierPrice> = [
     {
       title: 'SKU',
       dataIndex: 'sku',
       key: 'sku',
-      width: 160,
+      width: 170,
       render: (sku: string) => <code style={{ fontSize: 12 }}>{sku}</code>,
-      onCell: (row) => {
-        if (firstRowForSku.has(row.sku)) return { rowSpan: 0 };
-        firstRowForSku.add(row.sku);
-        return { rowSpan: skuRowSpans.get(row.sku) ?? 1 };
-      },
+      onCell: (_row, index) => ({ rowSpan: skuRowSpans[index ?? 0] ?? 1 }),
     },
-    { title: 'Tier', dataIndex: 'tierName', key: 'tierName', width: 90 },
     {
-      title: 'Min Qty', dataIndex: 'minQty', key: 'minQty', width: 100, align: 'right',
-      render: (minQty: number, row) => (
-        <InputNumber
-          size="small" min={1} style={{ width: '100%' }} value={minQty}
-          onChange={(v) => updateTierRow(row, { minQty: v ?? 1 })}
-        />
+      // Volume breaks ride along with the tier rather than taking their own column —
+      // most rows are plain qty-1 prices, so a Min Qty column was mostly noise.
+      title: 'Tier',
+      dataIndex: 'tierName',
+      key: 'tierName',
+      width: 150,
+      render: (tierName: string, row) => (
+        <Space size={6}>
+          <span>{tierName}</span>
+          {row.minQty > 1 && <Tag color="blue" style={{ fontSize: 11, marginInlineEnd: 0 }}>{row.minQty}+</Tag>}
+        </Space>
       ),
     },
     {

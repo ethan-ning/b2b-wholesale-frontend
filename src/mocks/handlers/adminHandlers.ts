@@ -14,6 +14,8 @@ const baseProducts = getProducts(1);
 let mutableProducts: AdminProduct[] = baseProducts.map((p) => ({
   ...p,
   // Real tier_price rows for this SPU's SKUs, grouped SKU-first for the editor.
+  // Ordered by the SPU's own variant order, not the SKU string — sizes are not
+  // lexical, so sorting by code would list a jacket run as L, M, S, XL.
   tierPrices: getTierPriceRowsForSkus(p.variants.map((v) => v.sku))
     .map((r) => ({
       tierId: r.tierId,
@@ -22,7 +24,10 @@ let mutableProducts: AdminProduct[] = baseProducts.map((p) => ({
       price: r.price,
       minQty: r.minQty,
     }))
-    .sort((a, b) => a.sku.localeCompare(b.sku) || a.tierId - b.tierId || a.minQty - b.minQty),
+    .sort((a, b) => {
+      const order = (sku: string) => p.variants.findIndex((v) => v.sku === sku);
+      return order(a.sku) - order(b.sku) || a.tierId - b.tierId || a.minQty - b.minQty;
+    }),
 }));
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function requireAdmin(request: Request): boolean {

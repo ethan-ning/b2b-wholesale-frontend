@@ -863,27 +863,29 @@ Last synced: 4 min ago   [Export to CSV]
 
 ### 4.4 Admin: Pricing Matrix Editor
 
-One editable row per `tier_price` row — SKU × tier × volume break. The SKU cell is
-merged down its group so the grouping is legible at a glance: every price on this
-screen belongs to exactly one SKU.
+One editable row per `tier_price` row — SKU × tier × volume break — listed in the
+SPU's variant order, not by SKU string (sizes are not lexical). The SKU cell is merged
+down its group so the grouping is legible at a glance: every price on this screen
+belongs to exactly one SKU. A break rides as a tag beside its tier rather than taking
+a Min Qty column of its own, since most rows are plain single-quantity prices.
 
 ```
 Product: JK400-BLK — Motorcycle Leather Jacket, Black
                               [ Priced per SKU — a pack SKU's price is the whole pack ]
 
-┌────────────────┬─────────┬──────────┬─────────────┐
-│ SKU            │ Tier    │ Min Qty  │ Price       │
-├────────────────┼─────────┼──────────┼─────────────┤
-│                │ Gold    │ [   1  ] │ [  69.50  ] │
-│ JK400-BLK-M    │ Gold    │ [   6  ] │ [  65.00  ] │
-│                │ Silver  │ [   1  ] │ [  82.00  ] │
-│                │ Silver  │ [   6  ] │ [  78.00  ] │
-├────────────────┼─────────┼──────────┼─────────────┤
-│                │ Gold    │ [   1  ] │ [  73.50  ] │
-│ JK400-BLK-XL   │ Gold    │ [   6  ] │ [  69.00  ] │
-│                │ Silver  │ [   1  ] │ [  86.00  ] │
-│                │ Silver  │ [   6  ] │ [  82.00  ] │
-└────────────────┴─────────┴──────────┴─────────────┘
+┌────────────────┬───────────────┬─────────────┐
+│ SKU            │ Tier          │ Price       │
+├────────────────┼───────────────┼─────────────┤
+│                │ Gold          │ [  69.50  ] │
+│ JK400-BLK-M    │ Gold    ⟨6+⟩  │ [  65.00  ] │
+│                │ Silver        │ [  82.00  ] │
+│                │ Silver  ⟨6+⟩  │ [  78.00  ] │
+├────────────────┼───────────────┼─────────────┤
+│                │ Gold          │ [  73.50  ] │
+│ JK400-BLK-XL   │ Gold    ⟨6+⟩  │ [  69.00  ] │
+│                │ Silver        │ [  86.00  ] │
+│                │ Silver  ⟨6+⟩  │ [  82.00  ] │
+└────────────────┴───────────────┴─────────────┘
 [Export CSV]  [Import CSV]  [Save All]
 ```
 

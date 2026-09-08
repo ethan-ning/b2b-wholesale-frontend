@@ -137,7 +137,7 @@ Shows live stat cards:
 | Display attributes | ✅ | Free-form key-value pairs; add/remove rows |
 | Images | ✅ | URL list; ↑/↓ buttons reorder; first URL = primary thumbnail |
 | Categories | ✅ | Checkbox tree; click "Set primary" to mark the primary category |
-| Tier pricing | ✅ | One row per SKU × tier × volume break; the SKU cell merges down its group. Min qty and price are editable |
+| Tier pricing | Price only | One row per SKU × tier × volume break, in variant order, with the SKU cell merged down its group. Volume breaks show as a `6+` tag beside the tier; price is editable, min qty is not |
 | SKU variants | MAP only | SKU code, variant value, UPC, weight, stock are synced from Sellfox and read-only; **MAP is editable per SKU** |
 
 Click **Save Changes** → success toast → back to product list.
