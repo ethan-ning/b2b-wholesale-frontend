@@ -388,7 +388,7 @@ b2b-wholesale/
 │   └── src/main/kotlin/com/acme/b2b/domain/
 │       ├── model/                  (Customer, Product, ProductVariant, Tier — data classes)
 │       ├── pricing/
-│       │   ├── PricingEngine.kt    (resolve_price with 3-step fallback)
+│       │   ├── PricingEngine.kt    (resolve_price, per-SKU tier rows)
 │       │   └── PricingEvent.kt
 │       ├── inventory/
 │       │   ├── InventoryService.kt
@@ -782,7 +782,7 @@ POST /api/commodity/pageList.json                 → paginate all SKUs with att
             commodityAttributeValueRelaList (attribute key+value pairs)
 ```
 
-The import creates `product_variant` rows, maps `commodityAttributeValueRelaList` to `variant_attribute` EAV entries, and populates `attributes_jsonb`. The admin still sets pricing tiers after import — Sellfox only provides cost/stock, not dealer pricing.
+The import creates `product_variant` rows and seeds `attributes_jsonb` from `commodityAttributeValueRelaList` (see §3.7.7 — seeded once, portal-owned thereafter). The admin still sets pricing tiers and MAP after import; Sellfox provides cost and stock, not dealer pricing.
 
 Admin endpoint: `POST /api/admin/sellfox/sync-sku-catalog` — triggers a Spring Batch job that reads pages from Sellfox and upserts into the product catalog.
 
@@ -894,33 +894,42 @@ unlock; plain text with a "Synced from Sellfox" tag on the section says who owns
 |------|--------|-----------|
 | Build | Vite | Fast dev server, lean bundles |
 | Language | TypeScript | Type-safe API integration |
-| Router | React Router v6 | SPA routing |
+| Router | React Router v7 | SPA routing |
 | State | Zustand | Lightweight global state (auth, session) |
-| UI Library | Ant Design 5 | Data-dense B2B tables, editable grids, form validation |
-| HTTP | Axios | JWT interceptor (auto-refresh, 401 redirect to `/login`) |
-| API Types | OpenAPI Generator | TypeScript client from Springdoc `/v3/api-docs` |
+| UI Library | Ant Design 6 | Data-dense B2B tables, editable grids, form validation |
+| HTTP | Axios | Separate dealer/admin instances; JWT interceptor, 401 redirect |
+| Mocking | MSW | Full API mocked in the browser, so the frontend runs with no backend |
+| API Types | OpenAPI Generator | TypeScript client from Springdoc `/v3/api-docs` (post-MVP; hand-written today) |
+
+**Swapping the mock for the real backend**: every call goes through `api/catalog.ts`
+(dealer) or `api/adminApi.ts` (admin), which wrap the two axios instances in
+`api/http.ts`. Point `VITE_API_BASE_URL` at the service and stop starting the MSW
+worker in `main.tsx`; no page or component changes. If a response shape differs from
+`api/types.ts`, that one service module is where it is reconciled.
 
 ### 4.2 Page Map (MVP Scope)
 
-```
-/login                              (public)
-/change-password                    (forced for new accounts)
+Built today:
 
+```
 — Dealer —
-/catalog                            product grid, category sidebar, attribute filters, search
-/catalog/:productId                 product detail + VariantGrid (pricing + stock per variant)
-/quick-lookup                       SKU/part number search → jump to product
+/login                              (public)
+/                                   search home
+/search?q=                          results: category + price filters, sort, active-filter tags
+/products/:spuCode                  detail + VariantGrid, CSV export
 
 — Admin —
-/admin                              dashboard: low stock alerts, recent Sellfox sync status
-/admin/customers                    dealer list, create/edit, tier assignment
-/admin/tiers                        tier CRUD
+/admin/login                        (public)
+/admin                              dashboard: product/dealer counts, low-stock alerts
 /admin/products                     product list
-/admin/products/:id                 edit product + manage variants + attributes
-/admin/products/:id/pricing         tier pricing matrix editor
-/admin/inventory                    stock view, manual override, bulk CSV upload
-/admin/sellfox                      sync log viewer, manual trigger, SKU mapping editor
+/admin/products/:id/edit            edit portal-owned fields (§3.7.7) + tier pricing + per-SKU MAP
+/admin/categories                   category tree CRUD
+/admin/customers                    dealer list, create/edit, tier assignment
+/admin/inventory                    read-only stock view
 ```
+
+Not yet built: `/change-password` (forced on first login), `/admin/tiers` (tier CRUD),
+`/admin/sellfox` (sync log, manual trigger, SKU mapping editor).
 
 ### 4.3 Key Component: VariantGrid
 
@@ -1104,7 +1113,7 @@ jobs:
 | Project scaffolding | Gradle multi-module, Flyway, Docker, K8s manifests, GitHub Actions | 3 |
 | Auth system | Spring Security 6 OAuth2 RS, JWT issue/validate, forced password change | 3 |
 | Admin: customer + tier management | CRUD dealers, tier assignment, reset password | 2–3 |
-| Product + attribute system | Category tree, products, EAV + JSONB attributes, variants | 5–6 |
+| Product + attribute system | Category tree, products, JSONB attributes, variants | 5–6 |
 | Pricing engine + cache | Tier × variant × qty resolution, `@Cacheable`, cache eviction via Spring Events | 3–4 |
 | Inventory management | Stock display, manual override, bulk CSV via Spring Batch | 2–3 |
 | Sellfox sync integration | SellfoxApiClient (auth signing), sync scheduler, SKU mapping, sync log | 4–5 |
@@ -1119,8 +1128,9 @@ jobs:
 
 | Risk | Mitigation |
 |------|-----------|
-| **EAV read performance** | `attributes_jsonb` on `product_variant` is the read path; EAV is write-only source of truth. GIN index handles containment queries. Audit with `EXPLAIN ANALYZE` before launch. |
+| **Unpriced SKUs fall back to list price** | With no SPU-level tier row (§2.2), a SKU missing its `tier_price` rows quietly resolves to `base_wholesale_price`. Surface unpriced SKUs in the admin and alert on them after a catalog sync. |
 | **Pricing cache staleness** | Spring Events + `@CacheEvict` invalidate on every admin price change. 10-min TTL is a safety net, not primary eviction. |
+| **Sync clobbering portal-owned fields** | The ownership split (§3.7.7) is only as good as the sync job's column list. Cover it with a test that runs a sync over an edited product and asserts pricing, MAP, status, categories, images and attributes are untouched. |
 | **Sellfox API rate limiting** | Incremental sync with 15-min interval keeps request volume low. Batch up to 100 SKUs per call. Back off exponentially on 429 responses. |
 | **Sellfox auth token expiry** | `SellfoxApiClient` uses `AtomicReference<SellfoxToken>` with TTL check; refreshes proactively before expiry. Thread-safe for concurrent scheduled jobs. |
 | **Sellfox SKU mapping gaps** | New Sellfox SKUs not in `sellfox_sku_mapping` are silently skipped during sync. Admin UI shows unmatched Sellfox SKUs so they can be mapped or imported. |

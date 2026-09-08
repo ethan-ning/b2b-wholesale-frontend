@@ -81,29 +81,18 @@ Entry point: http://localhost:5173/login
 
 ### Verifying tier pricing
 
-Login as `dealer1@example.com` (Gold) and note the unit prices. Sign out, login as `dealer2@example.com` (Silver) — the same products show higher prices.
+Login as `dealer1@example.com` (Gold) and note the prices. Sign out, login as
+`dealer2@example.com` (Silver) — the same products cost more.
 
-Pricing is **not** a blanket percentage. `src/mocks/data/tierPrices.ts` mocks the `tier_price` table, in which **every row prices one SKU** — there is no SPU-level row to inherit from, the same as MAP. One row per SKU per tier, 50 rows across 25 SKUs.
+Pricing is not a blanket percentage: `src/mocks/data/tierPrices.ts` holds one row per
+SKU per tier (50 rows, 25 SKUs). Spreads vary by margin — exhaust parts ~10%
+Gold-to-Silver, apparel ~15–16% — and `JK400-BLK-S` is an overstock closeout priced
+flat below the rest of its size run.
 
-Spreads vary by margin: commodity exhaust parts run ~10% Gold-to-Silver, apparel ~15–16%. `JK400-BLK-S` is an overstock closeout priced flat at $62.00 / $74.00, below the rest of its size run.
+### The pricing model in one table
 
-### Quantity-based pricing is out of MVP scope
-
-Volume breaks ("$16.25 each at 6+") are deliberately **not** implemented: there is no cart for a dealer to act on them, and for parts, bulk buying is already expressed by pack SKUs. See architecture doc §2.2.1.
-
-It's deferred rather than designed out — turning it on is **INSERT-only**:
-
-- `minQty` stays on the row, pinned to 1. Dropping it would mean adding the column back *and* widening the unique key to include it — a change to an existing constraint rather than an additive one.
-- `resolvePrice` keeps its `quantity` argument and still picks the highest `minQty ≤ quantity`. With only `minQty: 1` rows that always resolves to the single row, so the function is correct now and correct unchanged once breaks exist.
-- The admin editor renders its `6+` tag conditionally on `minQty > 1`, so it's inert today and correct the moment such a row appears.
-
-Adding breaks then means inserting rows and adding a `priceBreaks` field to the variant payload — no schema migration, no resolution rewrite.
-
-### MAP at SKU level
-
-**MAP lives only on the SKU — there is no SPU-level MAP.** A pack SKU's advertised price scales with its quantity, so there is nothing its SKUs could inherit; rather than inherit on the `Size` axis but not on `Pack Qty`, MAP is always stated per SKU.
-
-**Money on a SKU row is per SKU, not per unit.** One SKU is one purchasable thing — a garment, or a whole 6-pack — so price and MAP are both totals for it and compare directly:
+Money on a SKU row is **per SKU, not per unit**: one SKU is one purchasable thing, a
+garment or a whole 6-pack, so price and MAP are both totals for it and compare directly.
 
 | SKU | Pack | Price | MAP | Margin |
 |---|---|---|---|---|
@@ -112,9 +101,17 @@ Adding breaks then means inserting rows and adding a `priceBreaks` field to the 
 | `JK400-BLK-M` | 1 | $69.50 | $179.99 | 61% |
 | `JK400-BLK-XL` | 1 | $73.50 | $189.99 | 61% |
 
-Tier price rows are stated on that same basis — the row for `PL001-BLK-06` is $93.60, the price of the pack. Pack rows print the per-unit figure beneath both totals (`$15.60/ea`, `$39.99/ea`) so a 6-pack stays comparable to a single.
+Pack rows also print the per-unit figure (`$15.60/ea`) so a 6-pack stays comparable to
+a single.
 
-MAP is edited per SKU in the admin product form's **Variants** table — it's the one column there that isn't read-only, since MAP is ours rather than synced from Sellfox.
+Three decisions behind that, each recorded in the architecture doc rather than repeated
+here:
+
+| Decision | Where |
+|---|---|
+| Each SPU has one variant axis — `Size` or `Pack Qty`; size never goes in the SPU code | §2.1, §2.1.1 |
+| Tier pricing and MAP are both stated per SKU, with no SPU-level row to inherit from | §2.2, §2.1.2 |
+| Quantity-based pricing is deferred, and kept INSERT-only to re-enable | §2.2.1 |
 
 ---
 
@@ -150,20 +147,20 @@ Shows live stat cards:
 
 ### Who owns which field
 
-Sellfox is the system of record for **what a thing is and how many there are**; the portal owns **what a dealer pays and what they see**. Every field belongs to exactly one of them — a field owned by both is a field that loses data. Full table in architecture doc §3.7.7.
+Sellfox is the system of record for **what a thing is and how many there are**; the
+portal owns **what a dealer pays and what they see**. A field owned by both is a field
+that loses data. Full table in architecture doc §3.7.7.
 
-- **Sellfox-owned, read-only here:** name, brand, description, SKU code, variant value, pack quantity, UPC, weight, and all stock figures.
-- **Portal-owned:** tier prices, MAP, base wholesale price, status, categories, images, variant sort order.
-- **Seeded from Sellfox, then ours:** display attributes and the variant axis — set at import, editable after, never overwritten by a later sync.
+Two rules follow, and both are visible in the admin:
 
-Two rules follow:
+1. **Read-only fields render as text, never as a disabled input** — a greyed-out box
+   still reads as "editable, just not right now".
+2. **There is no manual stock override**, and `/admin/inventory` is read-only. An
+   admin-entered figure would be reverted by the next 15-minute sync, and the admin
+   would believe it stuck.
 
-1. **Read-only fields render as text, never as a disabled input.** A greyed-out box still reads as "editable, just not right now".
-2. **There is no manual stock override**, and `/admin/inventory` is read-only. An admin-entered stock figure would be silently reverted by the next 15-minute sync — worse than not offering it, because the admin would believe the correction stuck. Stock is corrected in Sellfox.
-
-The mock `PUT /api/admin/products/:id` **rejects** Sellfox-owned fields with a 400 rather than ignoring them, so a client that tries to edit one fails loudly instead of appearing to work until the next sync.
-
-Click **Save Changes** → success toast → back to product list.
+The mock `PUT /api/admin/products/:id` **rejects** Sellfox-owned fields with a 400
+rather than ignoring them, so a client that tries to edit one fails loudly.
 
 ### Categories (`/admin/categories`)
 
@@ -196,6 +193,7 @@ Click **Save Changes** → success toast → back to product list.
 |---|---|
 | SPUs (products) | 10 (Auto Parts > Exhaust/Lighting, Apparel > Jackets/Gloves, Tools > Hand Tools) |
 | SKUs (variants) | 25 total, 1–4 per SPU |
+| Tier price rows | 50 — one per SKU per tier, all at `minQty: 1` |
 | Variant axes | Apparel SPUs vary by `Size` (`GL100-BLK-M`); parts and tools vary by `Pack Qty` (`PL001-BLK-06`) |
 | Categories | 3 top-level, 2 sub-levels each |
 | Dealer accounts | 2 (Gold, Silver) |
@@ -211,48 +209,31 @@ MSW mock state is **in-memory per page load** — edits made in the admin panel 
 ```
 src/
 ├── api/
-│   ├── client.ts          # Axios instance for dealer routes (uses auth_token)
-│   ├── adminClient.ts     # Axios instance for admin routes (uses admin_token)
-│   └── types.ts           # All TypeScript interfaces
-├── store/
-│   ├── authStore.ts       # Zustand: dealer auth
-│   └── adminAuthStore.ts  # Zustand: admin auth
+│   ├── http.ts            # The two axios instances (dealer / admin) + base URL
+│   ├── catalog.ts         # Every dealer endpoint, as typed functions
+│   ├── adminApi.ts        # Every admin endpoint, as typed functions
+│   └── types.ts           # The API contract — all shared interfaces
+├── hooks/
+│   └── usePagedQuery.ts   # Filter + page + fetch state for every list screen
+├── store/                 # Zustand: authStore, adminAuthStore
 ├── mocks/
 │   ├── browser.ts         # MSW worker setup
-│   ├── data/
-│   │   ├── products.ts    # 10 mock SPUs / 25 SKUs, size or pack-qty variant axis
-│   │   ├── tierPrices.ts  # tier_price rows + resolve_price 3-step fallback
-│   │   ├── categories.ts  # Category tree
-│   │   ├── users.ts       # Dealer accounts
-│   │   └── admin.ts       # Admin account, tiers, warehouses, customers
-│   └── handlers/
-│       ├── dealerHandlers.ts  # POST /api/auth/login, GET /api/products, etc.
-│       ├── adminHandlers.ts   # All /api/admin/* endpoints (CRUD + mutable state)
-│       └── index.ts           # Combines both handler arrays
-├── components/
-│   ├── Layout.tsx             # Dealer shell (sticky header, search bar, outlet)
-│   ├── ProtectedRoute.tsx
-│   ├── CategoryTree.tsx
-│   ├── PriceRangeFilter.tsx
-│   ├── ProductCard.tsx        # Inline-expanded search result card
-│   ├── SkuTable.tsx           # Reusable SKU/stock table
-│   └── admin/
-│       ├── AdminLayout.tsx        # Collapsible sidebar + header
-│       └── AdminProtectedRoute.tsx
-├── pages/
-│   ├── LoginPage.tsx
-│   ├── HomePage.tsx
-│   ├── SearchPage.tsx
-│   ├── ProductDetailPage.tsx
-│   └── admin/
-│       ├── AdminLoginPage.tsx
-│       ├── DashboardPage.tsx
-│       ├── ProductListPage.tsx
-│       ├── ProductFormPage.tsx    # Edit-only (products synced from Sellfox)
-│       ├── CategoryPage.tsx
-│       ├── CustomerListPage.tsx
-│       ├── CustomerFormPage.tsx
-│       └── InventoryPage.tsx
-└── utils/
-    └── stockBadge.tsx         # Green/orange/red stock indicator
+│   ├── data/              # products, tierPrices, categories, users, admin
+│   └── handlers/          # dealerHandlers, adminHandlers, index
+├── components/            # Layout, ProductCard, SkuTable, CategoryTree, …
+│   └── admin/             # AdminLayout, AdminProtectedRoute
+├── pages/                 # Login, Home, Search, ProductDetail
+│   └── admin/             # Dashboard, Product/Customer list+form, Category, Inventory
+└── utils/                 # money.ts (formatting), stockBadge.tsx
 ```
+
+## Switching to a real backend
+
+Pages never call axios directly — everything goes through `api/catalog.ts` or
+`api/adminApi.ts`. To run against a real service:
+
+1. Set `VITE_API_BASE_URL` to its base URL.
+2. Stop starting the MSW worker in `main.tsx` (it is already dev-only).
+
+No page or component changes. If a response shape differs from `api/types.ts`, the
+service module is the single place to reconcile it.
