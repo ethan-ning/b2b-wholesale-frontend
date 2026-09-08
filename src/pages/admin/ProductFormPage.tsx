@@ -136,8 +136,9 @@ export default function ProductFormPage() {
       onCell: (_row, index) => ({ rowSpan: skuRowSpans[index ?? 0] ?? 1 }),
     },
     {
-      // Volume breaks ride along with the tier rather than taking their own column —
-      // most rows are plain qty-1 prices, so a Min Qty column was mostly noise.
+      // Every MVP row is minQty 1, so the tag never renders today. Kept so that
+      // switching quantity-based pricing on is an insert of rows, not a UI change —
+      // break rows would show as "Gold 6+" beside their base row automatically.
       title: 'Tier',
       dataIndex: 'tierName',
       key: 'tierName',

@@ -76,21 +76,28 @@ Entry point: http://localhost:5173/login
    - Price range — enter min/max, click Apply; Clear resets both fields
    - Submitting a **new search term clears both sidebar filters**, since stale ones silently narrow the results. The reverse doesn't apply — applying a filter refines the current search and keeps the term. Clearing the term isn't a new search, so it leaves the sidebar alone.
 6. **Sort** — dropdown in top-right of results: Relevance, Price ↑, Price ↓, Name A–Z
-7. **Product detail** (`/products/:spuCode`) — full image gallery, attributes table, complete SKU table with MAP, Volume Price and UPC columns, CSV export button, last-synced timestamp
+7. **Product detail** (`/products/:spuCode`) — full image gallery, attributes table, complete SKU table with MAP and UPC columns, CSV export button, last-synced timestamp
 8. **Sign out** — top-right header button → redirected to login
 
 ### Verifying tier pricing
 
 Login as `dealer1@example.com` (Gold) and note the unit prices. Sign out, login as `dealer2@example.com` (Silver) — the same products show higher prices.
 
-Pricing is **not** a blanket percentage. `src/mocks/data/tierPrices.ts` mocks the `tier_price` table, in which **every row prices one SKU** — there is no SPU-level row to inherit from, the same as MAP. Resolution is just "highest volume break that applies":
+Pricing is **not** a blanket percentage. `src/mocks/data/tierPrices.ts` mocks the `tier_price` table, in which **every row prices one SKU** — there is no SPU-level row to inherit from, the same as MAP. One row per SKU per tier, 50 rows across 25 SKUs.
 
-1. The SKU's tier row with the highest `minQty` ≤ the ordered quantity
-2. `(baseWholesalePrice + priceAdjustment) × packQuantity` only if that SKU has never been priced
+Spreads vary by margin: commodity exhaust parts run ~10% Gold-to-Silver, apparel ~15–16%. `JK400-BLK-S` is an overstock closeout priced flat at $62.00 / $74.00, below the rest of its size run.
 
-Spreads vary by margin: commodity exhaust parts run ~10% Gold-to-Silver, apparel ~15–16%. `JK400-BLK-S` is an overstock closeout priced flat at $62.00 / $74.00, below the rest of its size run and with no volume break.
+### Quantity-based pricing is out of MVP scope
 
-`minQty` counts **that SKU**, so `PL001-BLK-06` at `minQty: 2` means "order two 6-packs". Breaks show in the **Volume Price** column on the product detail page — Gold pays $69.50 for a `JK400-BLK-M`, or $65.00 each at 6+.
+Volume breaks ("$16.25 each at 6+") are deliberately **not** implemented: there is no cart for a dealer to act on them, and for parts, bulk buying is already expressed by pack SKUs. See architecture doc §2.2.1.
+
+It's deferred rather than designed out — turning it on is **INSERT-only**:
+
+- `minQty` stays on the row, pinned to 1. Dropping it would mean adding the column back *and* widening the unique key to include it — a change to an existing constraint rather than an additive one.
+- `resolvePrice` keeps its `quantity` argument and still picks the highest `minQty ≤ quantity`. With only `minQty: 1` rows that always resolves to the single row, so the function is correct now and correct unchanged once breaks exist.
+- The admin editor renders its `6+` tag conditionally on `minQty > 1`, so it's inert today and correct the moment such a row appears.
+
+Adding breaks then means inserting rows and adding a `priceBreaks` field to the variant payload — no schema migration, no resolution rewrite.
 
 ### MAP at SKU level
 
@@ -105,7 +112,7 @@ Spreads vary by margin: commodity exhaust parts run ~10% Gold-to-Silver, apparel
 | `JK400-BLK-M` | 1 | $69.50 | $179.99 | 61% |
 | `JK400-BLK-XL` | 1 | $73.50 | $189.99 | 61% |
 
-Tier price rows stay authored per unit; a SKU's price is the resolved unit price × `packQuantity`. Pack rows print the per-unit figure beneath both totals (`$15.60/ea`, `$39.99/ea`) so a 6-pack stays comparable to a single, and volume breaks are labelled `/ea` for the same reason.
+Tier price rows are stated on that same basis — the row for `PL001-BLK-06` is $93.60, the price of the pack. Pack rows print the per-unit figure beneath both totals (`$15.60/ea`, `$39.99/ea`) so a 6-pack stays comparable to a single.
 
 MAP is edited per SKU in the admin product form's **Variants** table — it's the one column there that isn't read-only, since MAP is ours rather than synced from Sellfox.
 
@@ -137,7 +144,7 @@ Shows live stat cards:
 | Display attributes | ✅ | Free-form key-value pairs; add/remove rows |
 | Images | ✅ | URL list; ↑/↓ buttons reorder; first URL = primary thumbnail |
 | Categories | ✅ | Checkbox tree; click "Set primary" to mark the primary category |
-| Tier pricing | Price only | One row per SKU × tier × volume break, in variant order, with the SKU cell merged down its group. Volume breaks show as a `6+` tag beside the tier; price is editable, min qty is not |
+| Tier pricing | Price only | One row per SKU × tier, in variant order, with the SKU cell merged down its group. Price is editable |
 | SKU variants | MAP only | SKU code, variant value, UPC, weight, stock are synced from Sellfox and read-only; **MAP is editable per SKU** |
 
 Click **Save Changes** → success toast → back to product list.

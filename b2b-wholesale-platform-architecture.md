@@ -204,7 +204,9 @@ CREATE TRIGGER trg_customer_updated_at
 -- Tiered pricing: always defined at SKU level — there is no SPU-level row.
 -- price is what the dealer pays for ONE of this SKU, so a pack SKU's price is the
 -- whole pack, matching product_variant.map_price (§2.1.2).
--- min_qty counts units OF THIS SKU: (PL001-BLK-06, min_qty 2) = "order two 6-packs".
+--
+-- MVP invariant: exactly one row per (variant_id, tier_id), always min_qty = 1.
+-- min_qty is present but pinned — quantity-based pricing is deferred (§2.2.1).
 CREATE TABLE tier_price (
     id          BIGSERIAL PRIMARY KEY,
     variant_id  BIGINT NOT NULL REFERENCES product_variant(id),  -- SKU
@@ -275,6 +277,42 @@ own row, and pricing a new SKU means adding them rather than inheriting.
 Step 2 exists only for a SKU nobody has priced yet; in a healthy catalog every active
 SKU has a row per tier. Surface unpriced SKUs in the admin rather than letting them
 quietly fall back to list price.
+
+### 2.2.1 Quantity-Based Pricing Is Deferred — and Kept Cheap to Add
+
+Volume breaks ("$16.25 each at 6+") are **not in the MVP**. The portal is a lookup with
+no cart, so a price conditional on ordering N is something a dealer cannot act on here;
+and for parts, bulk buying is already expressed by pack SKUs — a 6-pack SKU is the bulk
+option, so a further break on top would be a second discount mechanism doing the same
+job. Apparel is the only place a break would say something new, which is not enough to
+carry the feature.
+
+**It is deferred, not designed out.** Enabling it later is INSERT-only:
+
+| | MVP | With volume breaks |
+|---|---|---|
+| `tier_price` rows | one per (SKU, tier), `min_qty = 1` | additional rows at `min_qty > 1` |
+| Schema | — | **unchanged** |
+| `resolve_price` | — | **unchanged** |
+| Admin editor | shows tier + price | break rows appear tagged `6+` beside their base row |
+| Dealer VariantGrid | price, MAP | add a volume column |
+
+Three decisions keep that true, and are the reason `min_qty` survives in a release that
+never sets it above 1:
+
+1. **`min_qty` stays in the table, `NOT NULL DEFAULT 1`.** Dropping it would mean adding
+   the column back *and* widening `UNIQUE (variant_id, tier_id)` to include it — a
+   change to an existing constraint on a table holding live pricing, rather than an
+   additive one.
+2. **`resolve_price` keeps its `quantity` argument** and still selects
+   `min_qty <= quantity ORDER BY min_qty DESC LIMIT 1`. With only `min_qty = 1` rows
+   that always resolves to the single row, so the query is correct today and correct
+   unchanged once breaks exist. Collapsing it to a plain lookup would have to be undone.
+3. **The admin editor renders a break tag conditionally on `min_qty > 1`**, so it is
+   inert now and correct the moment such a row appears.
+
+The API response gains a `priceBreaks` array on each variant at that point — an additive
+field, not a change to an existing one.
 
 ### 2.3 Sellfox Integration Tables
 
@@ -832,24 +870,24 @@ The central dealer UX — a table of SKUs under a single SPU. **The second colum
 ```
 SPU: GL100-BLK — Riding Gloves, Black  |  Category: Apparel > Gloves        [Gold tier]
 
-┌─────────────────┬──────────┬─────────┬─────────┬─────────────┬────────────┬────────────┐
-│ SKU             │ Size     │ Price   │ MAP     │ Volume      │ Available  │ Incoming   │
-├─────────────────┼──────────┼─────────┼─────────┼─────────────┼────────────┼────────────┤
-│ GL100-BLK-S     │ S        │ $14.00  │ $36.99  │12+:$13.20/ea│ ●●● 22     │ —          │
-│ GL100-BLK-M     │ M        │ $14.00  │ $36.99  │12+:$13.20/ea│ ●●● 14     │ —          │
-│ GL100-BLK-L     │ L        │ $14.00  │ $36.99  │12+:$13.20/ea│ ● 6        │ ↓ 10 (ETA) │
-│ GL100-BLK-XL    │ XL       │ $15.00  │ $39.99  │12+:$14.20/ea│ ○ 0        │ ↓ 15 (ETA) │
-└─────────────────┴──────────┴─────────┴─────────┴─────────────┴────────────┴────────────┘
+┌─────────────────┬──────────┬─────────┬─────────┬────────────┬────────────┐
+│ SKU             │ Size     │ Price   │ MAP     │ Available  │ Incoming   │
+├─────────────────┼──────────┼─────────┼─────────┼────────────┼────────────┤
+│ GL100-BLK-S     │ S        │ $14.00  │ $36.99  │ ●●● 22     │ —          │
+│ GL100-BLK-M     │ M        │ $14.00  │ $36.99  │ ●●● 14     │ —          │
+│ GL100-BLK-L     │ L        │ $14.00  │ $36.99  │ ● 6        │ ↓ 10 (ETA) │
+│ GL100-BLK-XL    │ XL       │ $15.00  │ $39.99  │ ○ 0        │ ↓ 15 (ETA) │
+└─────────────────┴──────────┴─────────┴─────────┴────────────┴────────────┘
 
 SPU: PL001-BLK — Muffler Extension Pipe, Black  |  Category: Auto Parts > Exhaust
 
-┌─────────────────┬──────────┬─────────┬─────────┬─────────────┬────────────┬────────────┐
-│ SKU             │ Pack Qty │ Price   │ MAP     │ Volume      │ Available  │ Incoming   │
-├─────────────────┼──────────┼─────────┼─────────┼─────────────┼────────────┼────────────┤
-│ PL001-BLK-01    │ 1        │ $17.10  │ $39.99  │6+:$16.25/ea │ ●●● 25     │ —          │
-│ PL001-BLK-06    │ 6        │ $93.60  │$239.94  │6+:$14.75/ea │ ● 4        │ ↓ 12 (ETA) │
-│                 │          │$15.60/ea│$39.99/ea│             │            │            │
-└─────────────────┴──────────┴─────────┴─────────┴─────────────┴────────────┴────────────┘
+┌─────────────────┬──────────┬─────────┬─────────┬────────────┬────────────┐
+│ SKU             │ Pack Qty │ Price   │ MAP     │ Available  │ Incoming   │
+├─────────────────┼──────────┼─────────┼─────────┼────────────┼────────────┤
+│ PL001-BLK-01    │ 1        │ $17.10  │ $39.99  │ ●●● 25     │ —          │
+│ PL001-BLK-06    │ 6        │ $93.60  │$239.94  │ ● 4        │ ↓ 12 (ETA) │
+│                 │          │$15.60/ea│$39.99/ea│            │            │
+└─────────────────┴──────────┴─────────┴─────────┴────────────┴────────────┘
 Last synced: 4 min ago   [Export to CSV]
 ```
 
@@ -863,11 +901,14 @@ Last synced: 4 min ago   [Export to CSV]
 
 ### 4.4 Admin: Pricing Matrix Editor
 
-One editable row per `tier_price` row — SKU × tier × volume break — listed in the
+One editable row per `tier_price` row — in the MVP that is SKU × tier, listed in the
 SPU's variant order, not by SKU string (sizes are not lexical). The SKU cell is merged
 down its group so the grouping is legible at a glance: every price on this screen
-belongs to exactly one SKU. A break rides as a tag beside its tier rather than taking
-a Min Qty column of its own, since most rows are plain single-quantity prices.
+belongs to exactly one SKU.
+
+There is no Min Qty column. If volume breaks are switched on (§2.2.1) the extra rows
+appear tagged `⟨6+⟩` beside their tier, which is why the tag is rendered conditionally
+rather than a column being reserved for a value that is always 1.
 
 ```
 Product: JK400-BLK — Motorcycle Leather Jacket, Black
@@ -876,24 +917,23 @@ Product: JK400-BLK — Motorcycle Leather Jacket, Black
 ┌────────────────┬───────────────┬─────────────┐
 │ SKU            │ Tier          │ Price       │
 ├────────────────┼───────────────┼─────────────┤
-│                │ Gold          │ [  69.50  ] │
-│ JK400-BLK-M    │ Gold    ⟨6+⟩  │ [  65.00  ] │
-│                │ Silver        │ [  82.00  ] │
-│                │ Silver  ⟨6+⟩  │ [  78.00  ] │
+│ JK400-BLK-S    │ Gold          │ [  62.00  ] │
+│                │ Silver        │ [  74.00  ] │
 ├────────────────┼───────────────┼─────────────┤
-│                │ Gold          │ [  73.50  ] │
-│ JK400-BLK-XL   │ Gold    ⟨6+⟩  │ [  69.00  ] │
+│ JK400-BLK-M    │ Gold          │ [  69.50  ] │
+│                │ Silver        │ [  82.00  ] │
+├────────────────┼───────────────┼─────────────┤
+│ JK400-BLK-XL   │ Gold          │ [  73.50  ] │
 │                │ Silver        │ [  86.00  ] │
-│                │ Silver  ⟨6+⟩  │ [  82.00  ] │
 └────────────────┴───────────────┴─────────────┘
 [Export CSV]  [Import CSV]  [Save All]
 ```
 
-A SKU × tier matrix (tiers as columns) reads more compactly, but it cannot show a
-variable number of volume breaks per SKU — `JK400-BLK-S` is a flat closeout with no
-break while its siblings have one. Rows keep that expressible. Revisit if the tier
-count grows enough to make the row list unwieldy; CSV import is the bulk path either
-way.
+A SKU × tier matrix (tiers as columns) reads more compactly and would suit the MVP,
+where every SKU has exactly one row per tier. Rows are kept because they absorb a
+variable number of volume breaks per SKU without a redesign; a matrix cannot. Revisit
+if the tier count grows enough to make the row list unwieldy — CSV import is the bulk
+path either way.
 
 ---
 
@@ -1063,7 +1103,7 @@ jobs:
 | Payment terms | NET30 invoice assumed; no payment gateway at MVP |
 | Tax calculation | Collect `tax_id` on customer profile; mark `tax_exempt`; actual calculation deferred to V2 |
 | Shipping rates | Not applicable at MVP (no orders) |
-| Minimum order quantity (MOQ) | `product_variant.pack_quantity` covers pack-size minimums; apparel SKUs are `pack_quantity = 1` and rely on `tier_price.min_qty` breaks instead |
+| Minimum order quantity (MOQ) | `product_variant.pack_quantity` covers pack-size minimums. Apparel SKUs are `pack_quantity = 1` with no MOQ at MVP; revisit alongside quantity-based pricing (§2.2.1) |
 | Concurrent stock reservation | Not needed at MVP (no cart/checkout); relevant in V2 |
 | Sellfox FBA / overseas warehouses | Warehouse type 2/3 excluded from MVP sync; extend `sellfox_sku_mapping` scope in V2 |
 | Sellfox product catalog completeness | If Sellfox SKU attributes lack English names, use `commodityAttributeValueRelaList` EN fields; fall back to manual admin mapping |

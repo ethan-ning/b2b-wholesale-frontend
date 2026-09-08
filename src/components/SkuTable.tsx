@@ -84,26 +84,10 @@ export default function SkuTable({ variants, variantAxis, compact = false }: Pro
           <span style={{ color: '#999' }}>—</span>
         ),
     },
+    // No volume-price column: quantity-based pricing is out of MVP scope (there is no
+    // cart to act on it, and pack SKUs already express bulk buying for parts).
     ...(!compact
       ? [
-          {
-            title: 'Volume Price',
-            key: 'priceBreaks',
-            width: 140,
-            align: 'right' as const,
-            render: (_: unknown, v: Variant) =>
-              v.priceBreaks.length === 0 ? (
-                <span style={{ color: '#999' }}>—</span>
-              ) : (
-                // minQty counts this SKU, and the break price is on the same basis as
-                // the Price column — what one of this SKU costs at that quantity.
-                v.priceBreaks.map((b) => (
-                  <div key={b.minQty} style={{ fontSize: 12 }}>
-                    {b.minQty}+: ${b.price.toFixed(2)}
-                  </div>
-                ))
-              ),
-          },
           {
             title: 'UPC',
             dataIndex: 'upc',

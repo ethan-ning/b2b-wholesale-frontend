@@ -49,8 +49,6 @@ export interface Variant {
    * MAP scales with its quantity and could never be inherited.
    */
   mapPrice: number | null;
-  /** Volume breaks for that tier, ascending by minQty. Empty when there are none. */
-  priceBreaks: { minQty: number; price: number }[];
   inventory: Inventory;
 }
 
@@ -149,8 +147,13 @@ export interface TierPrice {
   tierName: string;
   /** Pricing is stated per SKU — there is no SPU-level row. */
   sku: string;
-  /** Price for one of this SKU at `minQty`+. A pack SKU's price is the whole pack. */
+  /** Price for one of this SKU. A pack SKU's price is the whole pack. */
   price: number;
+  /**
+   * Volume-break threshold. Always 1 in the MVP — quantity-based pricing is out of
+   * scope, but the field is carried so enabling it later is additive (extra rows at
+   * minQty > 1) rather than a schema change.
+   */
   minQty: number;
 }
 

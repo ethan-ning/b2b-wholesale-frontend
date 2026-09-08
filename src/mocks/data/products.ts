@@ -1,5 +1,5 @@
 import type { Product } from '../../api/types';
-import { resolvePrice, getPriceBreaks } from './tierPrices';
+import { resolvePrice } from './tierPrices';
 
 const now = new Date().toISOString();
 
@@ -69,7 +69,6 @@ function makeProduct(
       // the whole pack — the same basis as its MAP. Per unit is derived for display.
       tierPrice: resolvePrice(v.sku, tierId, basePrice, v.priceAdj, v.packQty, 1),
       unitPrice: round2(resolvePrice(v.sku, tierId, basePrice, v.priceAdj, v.packQty, 1) / v.packQty),
-      priceBreaks: getPriceBreaks(v.sku, tierId, basePrice, v.priceAdj, v.packQty),
       inventory: {
         availableStock: v.available,
         incomingStock: v.incoming,
