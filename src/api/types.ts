@@ -25,6 +25,12 @@ export interface Inventory {
 export interface Variant {
   id: number;
   sku: string;
+  /**
+   * Display value of this SKU's differentiator, matching the SPU's `variantAxis` —
+   * "M" for an apparel size, "6" for a 6-unit pack. Also the SKU code's suffix.
+   */
+  variantValue: string | null;
+  /** Units per SKU. 1 for size-differentiated apparel; the pack size for parts. */
   packQuantity: number;
   priceAdjustment: number;
   upc: string | null;
@@ -49,6 +55,11 @@ export interface Product {
   baseWholesalePrice: number;
   mapPrice: number | null;
   locationCode: string | null;
+  /**
+   * What differentiates the SKUs under this SPU — "Size" for apparel, "Pack Qty" for
+   * parts. Used as the variant column header; null when the SPU has a single SKU.
+   */
+  variantAxis: string | null;
   attributes: Record<string, string>;
   status: string;
   categories: ProductCategory[];

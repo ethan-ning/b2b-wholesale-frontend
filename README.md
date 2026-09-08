@@ -142,7 +142,8 @@ Click **Save Changes** → success toast → back to product list.
 | Entity | Count |
 |---|---|
 | SPUs (products) | 10 (Auto Parts > Exhaust/Lighting, Apparel > Jackets/Gloves, Tools > Hand Tools) |
-| SKUs (variants) | 18 total, 1–3 per SPU |
+| SKUs (variants) | 25 total, 1–4 per SPU |
+| Variant axes | Apparel SPUs vary by `Size` (`GL100-BLK-M`); parts and tools vary by `Pack Qty` (`PL001-BLK-06`) |
 | Categories | 3 top-level, 2 sub-levels each |
 | Dealer accounts | 2 (Gold, Silver) |
 | Admin accounts | 1 (Super Admin) |

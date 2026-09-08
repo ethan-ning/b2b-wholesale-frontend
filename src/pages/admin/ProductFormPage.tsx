@@ -103,7 +103,11 @@ export default function ProductFormPage() {
 
   const variantColumns: ColumnsType<Variant> = [
     { title: 'SKU', dataIndex: 'sku', key: 'sku', render: (v: string) => <code style={{ fontSize: 12 }}>{v}</code> },
-    { title: 'Pack Qty', dataIndex: 'packQuantity', key: 'packQty', width: 80, align: 'right' },
+    {
+      title: product.variantAxis ?? 'Variant', dataIndex: 'variantValue', key: 'variantValue',
+      width: 80, align: 'right',
+      render: (value: string | null, v: Variant) => value ?? v.packQuantity,
+    },
     { title: 'UPC', dataIndex: 'upc', key: 'upc', render: (v: string | null) => v ?? '—' },
     { title: 'Weight', dataIndex: 'weight', key: 'weight', width: 80, align: 'right', render: (v: number | null) => v ? `${v} kg` : '—' },
     {

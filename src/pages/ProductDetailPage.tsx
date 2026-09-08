@@ -22,10 +22,10 @@ import SkuTable from '../components/SkuTable';
 const { Title, Text } = Typography;
 
 function exportCsv(product: Product) {
-  const headers = ['SKU', 'Pack Qty', 'Unit Price', 'Available Stock', 'Incoming Stock', 'UPC'];
+  const headers = ['SKU', product.variantAxis ?? 'Variant', 'Unit Price', 'Available Stock', 'Incoming Stock', 'UPC'];
   const rows = product.variants.map((v: Variant) => [
     v.sku,
-    v.packQuantity,
+    v.variantValue ?? v.packQuantity,
     v.tierPrice.toFixed(2),
     v.inventory.availableStock,
     v.inventory.incomingStock,
@@ -201,7 +201,7 @@ export default function ProductDetailPage() {
         </Button>
       </div>
 
-      <SkuTable variants={product.variants} compact={false} />
+      <SkuTable variants={product.variants} variantAxis={product.variantAxis} compact={false} />
 
       <div style={{ marginTop: 20 }}>
         <Link to="/search">

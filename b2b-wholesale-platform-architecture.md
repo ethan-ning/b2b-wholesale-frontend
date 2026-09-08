@@ -25,8 +25,17 @@ This document assesses the architecture for a wholesale B2B platform serving dea
 
 The catalog uses a **two-level hierarchy**: SPU (Standard Product Unit) and SKU (Stock Keeping Unit).
 
-- **SPU** (`product` table) — a specific style/color/variant of a product; identified by `spu_code` (e.g., `PL001-BLK`). This is what dealers browse and what carries the MAP price.
-- **SKU** (`product_variant` table) — a purchasable unit under an SPU, differentiated by pack quantity. The SKU code is the SPU code plus a pack-quantity suffix (e.g., `PL001-BLK-01` = 1-unit pack, `PL001-BLK-02` = 2-unit pack).
+- **SPU** (`product` table) — a specific style/color of a product; identified by `spu_code` (e.g., `PL001-BLK`, `GL100-BLK`). This is what dealers browse and what carries the MAP price.
+- **SKU** (`product_variant` table) — a purchasable unit under an SPU. The SKU code is the SPU code plus a suffix carrying the variant value (e.g., `PL001-BLK-06`, `GL100-BLK-M`).
+
+**Each SPU has exactly one variant axis** — the single dimension its SKUs vary along, named by `product.variant_axis`:
+
+| Category | Axis | SPU | SKUs |
+|---|---|---|---|
+| Apparel (jackets, gloves, chaps) | `Size` | `GL100-BLK` | `GL100-BLK-S`, `-M`, `-L`, `-XL` |
+| Parts, tools, accessories | `Pack Qty` | `PL001-BLK` | `PL001-BLK-01`, `-06` |
+
+Color is **not** an axis — it belongs to the SPU code, so a black and a brown jacket are two SPUs. This matches the MAP-per-color observation below, and keeps a single axis per SPU so the variant table stays a flat list rather than a matrix.
 
 No attribute EAV system is needed — style/color/material are implicitly encoded in the SPU code and name; catalog filtering is by category, brand, and SKU/SPU code search only.
 
@@ -60,6 +69,7 @@ CREATE TABLE product (
     base_wholesale_price  DECIMAL(10,2) NOT NULL,      -- SPU-level fallback price
     map_price             DECIMAL(10,2),               -- Minimum Advertised Price for this SPU
     location_code         TEXT,                        -- warehouse bin/shelf code at SPU level (e.g., "B6-1")
+    variant_axis          TEXT,                        -- what this SPU's SKUs vary along: "Size" | "Pack Qty"; NULL for single-SKU SPUs
     attributes_jsonb      JSONB,                       -- display-only key-value pairs, e.g. {"color":"Black","material":"Stainless Steel"}
     status                TEXT NOT NULL DEFAULT 'DRAFT'
                               CHECK (status IN ('ACTIVE','DRAFT','ARCHIVED')),
@@ -70,13 +80,15 @@ CREATE TRIGGER trg_product_updated_at
     BEFORE UPDATE ON product FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE INDEX idx_product_brand ON product (brand);
 
--- Product variant / SKU: one row per pack-quantity option under an SPU
--- sku = spu_code + pack suffix, e.g., "PL001-BLK" → "PL001-BLK-01", "PL001-BLK-02"
+-- Product variant / SKU: one row per value of the parent SPU's variant_axis
+-- sku = spu_code + variant suffix, e.g., "GL100-BLK" → "GL100-BLK-M"; "PL001-BLK" → "PL001-BLK-06"
 CREATE TABLE product_variant (
     id               BIGSERIAL PRIMARY KEY,
     product_id       BIGINT NOT NULL REFERENCES product(id),  -- FK to SPU
-    sku              TEXT NOT NULL UNIQUE,     -- full SKU code: "PL001-BLK-01"
-    pack_quantity    INT NOT NULL DEFAULT 1,   -- units per SKU; encoded in the SKU suffix
+    sku              TEXT NOT NULL UNIQUE,     -- full SKU code: "GL100-BLK-M"
+    variant_value    TEXT,                     -- value on the SPU's axis: "M", "XL", "6"; matches the SKU suffix
+    sort_order       INT NOT NULL DEFAULT 0,   -- sizes are not lexically ordered (S < M < L < XL), so order explicitly
+    pack_quantity    INT NOT NULL DEFAULT 1,   -- units per SKU; 1 for size-differentiated apparel
     price_adjustment DECIMAL(10,2) DEFAULT 0.00,  -- delta from SPU base/tier price
     upc              VARCHAR(14),              -- GS1 UPC/EAN; each pack size has its own
     weight           DECIMAL(8,3),            -- weight of this pack (kg or lb)
@@ -120,13 +132,15 @@ CREATE INDEX idx_product_category_cat ON product_category (category_id);
 **SPU/SKU code convention**: The `spu_code` on `product` and `sku` on `product_variant` follow a **structured prefix convention**:
 
 ```
-{base_model}-{style_suffix}         = spu_code    e.g. PL001-BLK
-{spu_code}-{pack_suffix}            = sku          e.g. PL001-BLK-01
+{base_model}-{style_suffix}         = spu_code    e.g. PL001-BLK,     GL100-BLK
+{spu_code}-{variant_suffix}         = sku          e.g. PL001-BLK-06,  GL100-BLK-M
 ```
 
 - `base_model` identifies the product family grouping (e.g., `PL001` = a specific muffler model). Used in search and display; not a formal FK — just a naming convention.
 - `style_suffix` encodes color/material/style (e.g., `-BLK`, `-SS`). Absent when there's only one style (e.g., `PL001` is itself a valid spu_code).
-- `pack_suffix` encodes the pack quantity (e.g., `-01` = 1-unit, `-02` = 2-unit). Application validates that `pack_suffix` is consistent with `pack_quantity`.
+- `variant_suffix` is the SKU's value on the parent SPU's `variant_axis` — a size code for apparel (`-S`, `-M`, `-XL`), a zero-padded pack count for parts (`-01`, `-06`). Application validates that the suffix matches `variant_value`, and that pack suffixes are consistent with `pack_quantity`.
+
+**Do not encode size in the `spu_code`.** `GL100-BLK-M` is a SKU under SPU `GL100-BLK`, not an SPU of its own. Promoting sizes to SPUs fragments one product into a dozen catalog entries, duplicates its images and MAP, and leaves each with a single meaningless SKU — dealers then can't see size availability side by side, which is the primary apparel lookup.
 
 **DealerLeather observations informing this model:**
 
@@ -136,7 +150,8 @@ CREATE INDEX idx_product_category_cat ON product_category (category_id);
 | Location code (e.g., "B6-1") is the same across all sizes of a product | `location_code` on `product` (SPU level) |
 | Internal supplier/ERP reference per variant | `internal_ref` on `product_variant` |
 | Each purchasable unit has its own UPC barcode | `upc` on `product_variant` |
-| Different pack sizes at different price points | `price_adjustment` on `product_variant`; `pack_quantity` as the SKU differentiator |
+| Apparel sold by size; parts sold by pack | `variant_axis` on `product` names the axis; `variant_value` on `product_variant` carries the value |
+| Larger sizes / smaller packs priced differently | `price_adjustment` on `product_variant` (e.g., XL +$4.00, 6-pack −$1.50/unit) |
 
 ### 2.2 Customer & Pricing
 
@@ -785,21 +800,32 @@ Admin endpoint: `POST /api/admin/sellfox/sync-sku-catalog` — triggers a Spring
 
 ### 4.3 Key Component: VariantGrid
 
-The central dealer UX — a table of SKUs under a single SPU, differentiated by pack quantity:
+The central dealer UX — a table of SKUs under a single SPU. **The second column is titled from the SPU's `variant_axis`**, so the same component serves both catalogs:
 
 ```
-SPU: PL001-BLK — Black Series A Muffler  |  MAP: $89.99  |  Category: Exhaust > Mufflers
+SPU: GL100-BLK — Riding Gloves, Black  |  MAP: $36.99  |  Category: Apparel > Gloves
+
+┌─────────────────┬──────────┬─────────┬────────────┬────────────┐
+│ SKU             │ Size     │ Price   │ Available  │ Incoming   │
+├─────────────────┼──────────┼─────────┼────────────┼────────────┤
+│ GL100-BLK-S     │ S        │ $15.30  │ ●●● 22     │ —          │
+│ GL100-BLK-M     │ M        │ $15.30  │ ●●● 14     │ —          │
+│ GL100-BLK-L     │ L        │ $15.30  │ ● 6        │ ↓ 10 (ETA) │
+│ GL100-BLK-XL    │ XL       │ $16.15  │ ○ 0        │ ↓ 15 (ETA) │
+└─────────────────┴──────────┴─────────┴────────────┴────────────┘
+
+SPU: PL001-BLK — Muffler Extension Pipe, Black  |  MAP: $39.99  |  Category: Auto Parts > Exhaust
 
 ┌─────────────────┬──────────┬─────────┬────────────┬────────────┐
 │ SKU             │ Pack Qty │ Price   │ Available  │ Incoming   │
 ├─────────────────┼──────────┼─────────┼────────────┼────────────┤
-│ PL001-BLK-01    │ 1        │ $45.00  │ ●● 12      │ —          │
-│ PL001-BLK-02    │ 2        │ $85.00  │ ● 5        │ ↓ 10 (ETA) │
-│ PL001-BLK-06    │ 6        │ $240.00 │ ●●● 30     │ —          │
+│ PL001-BLK-01    │ 1        │ $16.15  │ ●●● 25     │ —          │
+│ PL001-BLK-06    │ 6        │ $14.88  │ ● 4        │ ↓ 12 (ETA) │
 └─────────────────┴──────────┴─────────┴────────────┴────────────┘
 Last synced: 4 min ago   [Export to CSV]
 ```
 
+- Rows arrive in `product_variant.sort_order` — sizes are not lexically ordered, so the API returns them pre-sorted and the client does not re-sort
 - Price shown is dealer's tier price; recalculates if a quantity input is provided
 - Stock badge: green ≥ 10, yellow 1–9, red 0 (defective stock never shown)
 - `Last synced` from `inventory.updated_at` — tells dealer how fresh the stock data is
@@ -990,7 +1016,7 @@ jobs:
 | Payment terms | NET30 invoice assumed; no payment gateway at MVP |
 | Tax calculation | Collect `tax_id` on customer profile; mark `tax_exempt`; actual calculation deferred to V2 |
 | Shipping rates | Not applicable at MVP (no orders) |
-| Minimum order quantity (MOQ) | `product_variant.pack_quantity` covers pack-size minimums |
+| Minimum order quantity (MOQ) | `product_variant.pack_quantity` covers pack-size minimums; apparel SKUs are `pack_quantity = 1` and rely on `tier_price.min_qty` breaks instead |
 | Concurrent stock reservation | Not needed at MVP (no cart/checkout); relevant in V2 |
 | Sellfox FBA / overseas warehouses | Warehouse type 2/3 excluded from MVP sync; extend `sellfox_sku_mapping` scope in V2 |
 | Sellfox product catalog completeness | If Sellfox SKU attributes lack English names, use `commodityAttributeValueRelaList` EN fields; fall back to manual admin mapping |

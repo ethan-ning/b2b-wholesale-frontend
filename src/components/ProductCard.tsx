@@ -93,7 +93,7 @@ export default function ProductCard({ product }: Props) {
       </Row>
 
       {/* SKU table inline */}
-      <SkuTable variants={product.variants} compact />
+      <SkuTable variants={product.variants} variantAxis={product.variantAxis} compact />
     </Card>
   );
 }

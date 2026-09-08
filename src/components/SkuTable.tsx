@@ -5,10 +5,12 @@ import { StockBadge } from '../utils/stockBadge';
 
 interface Props {
   variants: Variant[];
+  /** SPU's variant axis — "Size", "Pack Qty". Titles the differentiator column. */
+  variantAxis?: string | null;
   compact?: boolean;
 }
 
-export default function SkuTable({ variants, compact = false }: Props) {
+export default function SkuTable({ variants, variantAxis, compact = false }: Props) {
   const columns: ColumnsType<Variant> = [
     {
       title: 'SKU',
@@ -17,11 +19,12 @@ export default function SkuTable({ variants, compact = false }: Props) {
       render: (sku: string) => <code style={{ fontSize: 12 }}>{sku}</code>,
     },
     {
-      title: 'Pack Qty',
-      dataIndex: 'packQuantity',
-      key: 'packQuantity',
+      title: variantAxis ?? 'Variant',
+      dataIndex: 'variantValue',
+      key: 'variantValue',
       width: 80,
       align: 'right',
+      render: (value: string | null, v: Variant) => value ?? v.packQuantity,
     },
     {
       title: 'Unit Price',
