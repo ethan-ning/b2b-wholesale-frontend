@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Layout,
@@ -13,8 +13,8 @@ import {
   Tag,
 } from 'antd';
 import { CloseCircleOutlined } from '@ant-design/icons';
-import client from '../api/client';
-import type { Product, PagedResult } from '../api/types';
+import { PAGE_SIZE, searchProducts } from '../api/catalog';
+import { usePagedQuery } from '../hooks/usePagedQuery';
 import ProductCard from '../components/ProductCard';
 import CategoryTree from '../components/CategoryTree';
 import PriceRangeFilter from '../components/PriceRangeFilter';
@@ -38,21 +38,14 @@ export default function SearchPage() {
   const [priceMin, setPriceMin] = useState<number | undefined>();
   const [priceMax, setPriceMax] = useState<number | undefined>();
   const [sort, setSort] = useState('relevance');
-  const [page, setPage] = useState(0);
 
-  const [result, setResult] = useState<PagedResult<Product> | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  // The query comes from the URL (header search box), so it can change without going
-  // through a handler. Reset the page during render rather than in an effect — an effect
-  // would let one fetch fire with the stale page before the reset triggers a second.
+  // A new search term starts a fresh lookup, so drop the sidebar filters — stale ones
+  // silently narrow the results, often to nothing. Not symmetric: applying a filter
+  // refines the current search and keeps the term. Clearing the term is not a new
+  // search, so it leaves the sidebar alone. Done during render, not in an effect, so
+  // no request fires against the filters being cleared.
   if (query !== prevQuery) {
     setPrevQuery(query);
-    setPage(0);
-    // A new search term starts a fresh lookup, so drop the sidebar filters — stale
-    // ones silently narrow the results, often to nothing. Not symmetric: applying a
-    // filter refines the current search and leaves the term alone. Clearing the term
-    // is not a new search either, so it leaves the sidebar untouched.
     if (query) {
       setCategoryId(null);
       setCategoryName(null);
@@ -61,42 +54,25 @@ export default function SearchPage() {
     }
   }
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, string> = { page: String(page), size: '10', sort };
-      if (query) params.search = query;
-      if (categoryId) params.category = String(categoryId);
-      if (priceMin !== undefined) params.priceMin = String(priceMin);
-      if (priceMax !== undefined) params.priceMax = String(priceMax);
-
-      const { data } = await client.get<PagedResult<Product>>('/products', { params });
-      setResult(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [query, categoryId, priceMin, priceMax, sort, page]);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+  // Paging resets itself whenever any of these change.
+  const { data: result, loading, page, setPage } = usePagedQuery(
+    (f, p) => searchProducts({ ...f, page: p }),
+    { search: query, category: categoryId, priceMin, priceMax, sort }
+  );
 
   function handleCategoryChange(id: number | null, name: string | null) {
     setCategoryId(id);
     setCategoryName(name);
-    setPage(0);
   }
 
   function handlePriceApply(min: number | undefined, max: number | undefined) {
     setPriceMin(min);
     setPriceMax(max);
-    setPage(0);
   }
 
   /** Drop the search term but keep the sidebar filters. */
   function clearSearchTerm() {
     setSearchParams({}, { replace: true });
-    setPage(0);
   }
 
   /** Back to the unfiltered catalog — term, category and price range all dropped. */
@@ -106,7 +82,6 @@ export default function SearchPage() {
     setCategoryName(null);
     setPriceMin(undefined);
     setPriceMax(undefined);
-    setPage(0);
   }
 
   const hasFilters = Boolean(query) || categoryId !== null || priceMin !== undefined || priceMax !== undefined;
@@ -147,7 +122,7 @@ export default function SearchPage() {
           <Select
             value={sort}
             options={SORT_OPTIONS}
-            onChange={(v) => { setSort(v); setPage(0); }}
+            onChange={setSort}
             style={{ width: 180 }}
             size="small"
           />
@@ -199,11 +174,11 @@ export default function SearchPage() {
             {result?.content.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
-            {result && result.totalElements > 10 && (
+            {result && result.totalElements > PAGE_SIZE && (
               <Pagination
                 current={page + 1}
                 total={result.totalElements}
-                pageSize={10}
+                pageSize={PAGE_SIZE}
                 onChange={(p) => setPage(p - 1)}
                 style={{ textAlign: 'center', marginTop: 16 }}
                 showTotal={(total) => `${total} products`}

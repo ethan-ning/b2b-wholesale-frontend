@@ -15,8 +15,9 @@ import {
   Breadcrumb,
 } from 'antd';
 import { ArrowLeftOutlined, DownloadOutlined, EnvironmentOutlined } from '@ant-design/icons';
-import client from '../api/client';
+import { fetchProduct } from '../api/catalog';
 import type { Product, Variant } from '../api/types';
+import { formatMoney, formatMoneyRange } from '../utils/money';
 import SkuTable from '../components/SkuTable';
 
 const { Title, Text } = Typography;
@@ -57,9 +58,8 @@ export default function ProductDetailPage() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    client
-      .get<Product>(`/products/${spuCode}`)
-      .then(({ data }) => {
+    fetchProduct(spuCode!)
+      .then((data) => {
         setProduct(data);
         setSelectedImage(0);
       })
@@ -91,12 +91,9 @@ export default function ProductDetailPage() {
 
   // Headline figures are the dealer's own resolved prices, not the SPU list price.
   const lowestTierPrice = Math.min(...product.variants.map((v) => v.tierPrice));
-  const maps = product.variants.map((v) => v.mapPrice).filter((m): m is number => m !== null);
-  const mapRange = maps.length
-    ? Math.min(...maps) === Math.max(...maps)
-      ? `$${Math.min(...maps).toFixed(2)}`
-      : `$${Math.min(...maps).toFixed(2)} – $${Math.max(...maps).toFixed(2)}`
-    : null;
+  const mapRange = formatMoneyRange(
+    product.variants.map((v) => v.mapPrice).filter((m): m is number => m !== null)
+  );
 
   return (
     <div style={{ padding: '20px 24px', maxWidth: 1100, margin: '0 auto' }}>
@@ -167,7 +164,7 @@ export default function ProductDetailPage() {
                 </Text>
                 <div>
                   <Text strong style={{ fontSize: 22 }}>
-                    ${lowestTierPrice.toFixed(2)}
+                    {formatMoney(lowestTierPrice)}
                   </Text>
                 </div>
               </div>

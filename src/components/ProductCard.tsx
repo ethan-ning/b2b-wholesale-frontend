@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Card, Row, Col, Typography, Tag, Space } from 'antd';
 import { EnvironmentOutlined } from '@ant-design/icons';
 import type { Product } from '../api/types';
+import { formatMoneyRange } from '../utils/money';
 import SkuTable from './SkuTable';
 
 const { Text, Title } = Typography;
@@ -12,19 +13,12 @@ interface Props {
 
 export default function ProductCard({ product }: Props) {
   const primaryImage = [...product.images].sort((a, b) => a.sortOrder - b.sortOrder)[0];
-  const totalAvailable = product.variants.reduce((s, v) => s + v.inventory.availableStock, 0);
-  const hasStock = totalAvailable > 0;
-  const prices = product.variants.map((v) => v.tierPrice);
-  const lowPrice = Math.min(...prices);
-  const highPrice = Math.max(...prices);
-
-  // MAP lives only on the SKU, so summarise across variants the same way as price.
-  const maps = product.variants.map((v) => v.mapPrice).filter((m): m is number => m !== null);
-  const mapRange = maps.length
-    ? Math.min(...maps) === Math.max(...maps)
-      ? `$${Math.min(...maps).toFixed(2)}`
-      : `$${Math.min(...maps).toFixed(2)} – $${Math.max(...maps).toFixed(2)}`
-    : null;
+  const hasStock = product.variants.some((v) => v.inventory.availableStock > 0);
+  // Price and MAP both live on the SKU, so an SPU shows a range across its variants.
+  const priceRange = formatMoneyRange(product.variants.map((v) => v.tierPrice));
+  const mapRange = formatMoneyRange(
+    product.variants.map((v) => v.mapPrice).filter((m): m is number => m !== null)
+  );
 
   return (
     <Card
@@ -88,13 +82,10 @@ export default function ProductCard({ product }: Props) {
           </Space>
         </Col>
 
-        {/* Price — the dealer's own tier price, not list. Shown as a range when the
-            SKUs under this SPU resolve to different prices (size premiums, overrides). */}
+        {/* The dealer's own price, not list price. */}
         <Col flex="120px" style={{ textAlign: 'right' }}>
           <Text strong style={{ fontSize: 16 }}>
-            {lowPrice === highPrice
-              ? `$${lowPrice.toFixed(2)}`
-              : `$${lowPrice.toFixed(2)} – $${highPrice.toFixed(2)}`}
+            {priceRange}
           </Text>
           <div>
             <Text type="secondary" style={{ fontSize: 11 }}>

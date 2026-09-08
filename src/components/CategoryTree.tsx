@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Tree, Spin, Typography } from 'antd';
 import type { DataNode } from 'antd/es/tree';
-import client from '../api/client';
+import { fetchCategories } from '../api/catalog';
 import type { Category } from '../api/types';
 
 const { Text } = Typography;
@@ -25,8 +25,8 @@ export default function CategoryTree({ selectedId, onChange }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    client.get<Category[]>('/categories').then((res) => {
-      setTreeData(toTreeData(res.data));
+    fetchCategories().then((data) => {
+      setTreeData(toTreeData(data));
       setLoading(false);
     });
   }, []);

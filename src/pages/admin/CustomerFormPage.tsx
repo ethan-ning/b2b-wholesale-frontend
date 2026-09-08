@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Form, Input, Select, Button, Card, Typography, Space, Spin, Alert, Divider, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
-import adminClient from '../../api/adminClient';
+import * as api from '../../api/adminApi';
 import type { Customer, CustomerTier } from '../../api/types';
 
 const { Title } = Typography;
@@ -21,11 +21,11 @@ export default function CustomerFormPage() {
 
   useEffect(() => {
     const p: Promise<unknown>[] = [
-      adminClient.get<CustomerTier[]>('/admin/tiers').then(({ data }) => setTiers(data)),
+      api.fetchTiers().then(setTiers),
     ];
     if (!creating) {
       p.push(
-        adminClient.get<Customer>(`/admin/customers/${id}`).then(({ data }) => {
+        api.fetchCustomer(id!).then((data) => {
           form.setFieldsValue({
             email: data.email,
             name: data.name,
@@ -44,15 +44,15 @@ export default function CustomerFormPage() {
 
   async function onFinish(values: {
     email: string; name: string; companyName: string;
-    tierId: number; phone: string; status?: string;
+    tierId: number; phone: string; status?: Customer['status'];
   }) {
     setSaving(true);
     try {
       if (creating) {
-        await adminClient.post('/admin/customers', values);
+        await api.createCustomer(values);
         message.success('Customer created');
       } else {
-        await adminClient.put(`/admin/customers/${id}`, values);
+        await api.updateCustomer(id!, values);
         message.success('Customer updated');
       }
       navigate('/admin/customers');

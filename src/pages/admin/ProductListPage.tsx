@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Input, Select, Button, Space, Tag, Typography, Popconfirm, message } from 'antd';
 import { EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import adminClient from '../../api/adminClient';
-import type { AdminProduct, PagedResult } from '../../api/types';
+import * as api from '../../api/adminApi';
+import type { AdminProduct } from '../../api/types';
+import { usePagedQuery } from '../../hooks/usePagedQuery';
 
 const { Title } = Typography;
 
@@ -23,32 +24,18 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function ProductListPage() {
   const navigate = useNavigate();
-  const [data, setData] = useState<PagedResult<AdminProduct> | null>(null);
-  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [page, setPage] = useState(0);
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, string> = { page: String(page), size: '10' };
-      if (search) params.search = search;
-      if (statusFilter) params.status = statusFilter;
-      const { data: res } = await adminClient.get<PagedResult<AdminProduct>>('/admin/products', { params });
-      setData(res);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, statusFilter, page]);
-
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
-  useEffect(() => { setPage(0); }, [search, statusFilter]);
+  const { data, loading, page, setPage, reload } = usePagedQuery(
+    (f, p) => api.fetchProducts({ ...f, page: p }),
+    { search, status: statusFilter }
+  );
 
   async function handleDelete(id: number) {
-    await adminClient.delete(`/admin/products/${id}`);
+    await api.deleteProduct(id);
     message.success('Product deleted');
-    fetchProducts();
+    reload();
   }
 
   const columns: ColumnsType<AdminProduct> = [

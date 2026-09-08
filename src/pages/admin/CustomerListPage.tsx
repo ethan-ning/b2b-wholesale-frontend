@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Input, Select, Button, Space, Tag, Typography, Switch, message } from 'antd';
 import { PlusOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import adminClient from '../../api/adminClient';
-import type { Customer, PagedResult } from '../../api/types';
+import * as api from '../../api/adminApi';
+import type { Customer } from '../../api/types';
+import { usePagedQuery } from '../../hooks/usePagedQuery';
 
 const { Title } = Typography;
 
@@ -16,33 +17,19 @@ const STATUS_OPTIONS = [
 
 export default function CustomerListPage() {
   const navigate = useNavigate();
-  const [data, setData] = useState<PagedResult<Customer> | null>(null);
-  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [page, setPage] = useState(0);
 
-  const fetchCustomers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, string> = { page: String(page), size: '10' };
-      if (search) params.search = search;
-      if (statusFilter) params.status = statusFilter;
-      const { data: res } = await adminClient.get<PagedResult<Customer>>('/admin/customers', { params });
-      setData(res);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, statusFilter, page]);
-
-  useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
-  useEffect(() => { setPage(0); }, [search, statusFilter]);
+  const { data, loading, page, setPage, reload } = usePagedQuery(
+    (f, p) => api.fetchCustomers({ ...f, page: p }),
+    { search, status: statusFilter }
+  );
 
   async function toggleStatus(customer: Customer) {
     const newStatus = customer.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
-    await adminClient.put(`/admin/customers/${customer.id}`, { status: newStatus });
+    await api.updateCustomer(customer.id, { status: newStatus });
     message.success(`Account ${newStatus === 'ACTIVE' ? 'enabled' : 'disabled'}`);
-    fetchCustomers();
+    reload();
   }
 
   const columns: ColumnsType<Customer> = [

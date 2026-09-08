@@ -1,39 +1,26 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Table, Select, Checkbox, Typography, Space, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import adminClient from '../../api/adminClient';
-import type { InventoryRow, Warehouse, PagedResult } from '../../api/types';
+import * as api from '../../api/adminApi';
+import type { InventoryRow, Warehouse } from '../../api/types';
+import { usePagedQuery } from '../../hooks/usePagedQuery';
 import { StockBadge } from '../../utils/stockBadge';
 
 const { Title } = Typography;
 
 export default function InventoryPage() {
-  const [data, setData] = useState<PagedResult<InventoryRow> | null>(null);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [warehouseId, setWarehouseId] = useState<number | null>(null);
   const [lowStockOnly, setLowStockOnly] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(0);
 
   useEffect(() => {
-    adminClient.get<Warehouse[]>('/admin/warehouses').then(({ data }) => setWarehouses(data));
+    api.fetchWarehouses().then(setWarehouses);
   }, []);
 
-  const fetchInventory = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, string> = { page: String(page), size: '20' };
-      if (warehouseId) params.warehouse = String(warehouseId);
-      if (lowStockOnly) params.lowStock = 'true';
-      const { data: res } = await adminClient.get<PagedResult<InventoryRow>>('/admin/inventory', { params });
-      setData(res);
-    } finally {
-      setLoading(false);
-    }
-  }, [warehouseId, lowStockOnly, page]);
-
-  useEffect(() => { fetchInventory(); }, [fetchInventory]);
-  useEffect(() => { setPage(0); }, [warehouseId, lowStockOnly]);
+  const { data, loading, page, setPage } = usePagedQuery(
+    (f, p) => api.fetchInventory({ ...f, page: p }),
+    { warehouseId, lowStockOnly }
+  );
 
   const columns: ColumnsType<InventoryRow> = [
     {

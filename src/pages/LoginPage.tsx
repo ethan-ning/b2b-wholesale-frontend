@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, Alert, Space } from 'antd';
 import { ShopOutlined } from '@ant-design/icons';
-import client from '../api/client';
-import type { LoginResponse } from '../api/types';
+import { login as loginRequest } from '../api/catalog';
 import { useAuthStore } from '../store/authStore';
 
 const { Title, Text } = Typography;
@@ -23,7 +22,7 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await client.post<LoginResponse>('/auth/login', values);
+      const data = await loginRequest(values.email, values.password);
       login(data.token, data.user);
       navigate('/');
     } catch {

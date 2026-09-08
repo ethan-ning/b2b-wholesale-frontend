@@ -6,7 +6,7 @@ import {
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import adminClient from '../../api/adminClient';
+import * as api from '../../api/adminApi';
 import type { AdminProduct, Category, Variant, TierPrice } from '../../api/types';
 
 const { Title, Text } = Typography;
@@ -46,12 +46,8 @@ export default function ProductFormPage() {
   const [tierRows, setTierRows] = useState<TierPrice[]>([]);
 
   useEffect(() => {
-    Promise.all([
-      adminClient.get<AdminProduct>(`/admin/products/${id}`),
-      adminClient.get<Category[]>('/admin/categories'),
-    ])
-      .then(([pRes, cRes]) => {
-        const p = pRes.data;
+    Promise.all([api.fetchProduct(id!), api.fetchCategories()])
+      .then(([p, cats]) => {
         setProduct(p);
         setAttrRows(Object.entries(p.attributes).map(([k, v]) => ({ key: k, value: v })));
         setImageUrls(
@@ -62,7 +58,7 @@ export default function ProductFormPage() {
         const catIds = p.categories.map((c) => c.id);
         setSelectedCatIds(catIds);
         setPrimaryCatId(p.categories.find((c) => c.isPrimary)?.id ?? catIds[0] ?? null);
-        setCategories(flattenCats(cRes.data));
+        setCategories(flattenCats(cats));
         // Only portal-owned fields go into the form. Sellfox-owned ones are read
         // straight off `product` and rendered as text.
         form.setFieldsValue({
@@ -91,10 +87,10 @@ export default function ProductFormPage() {
           isPrimary: cid === primaryCatId,
         })),
         // Variants are otherwise read-only (synced from Sellfox), but MAP is ours.
-        variants: product!.variants.map((v) => ({ ...v, mapPrice: variantMaps[v.id] ?? null })),
+        variants: product!.variants.map((v) => ({ id: v.id, mapPrice: variantMaps[v.id] ?? null })),
         tierPrices: tierRows,
       };
-      await adminClient.put(`/admin/products/${id}`, payload);
+      await api.updateProduct(id!, payload);
       message.success('Product saved');
       navigate('/admin/products');
     } catch {

@@ -88,8 +88,7 @@ export const tierPrices: TierPriceRow[] = seeds.flatMap((s) => [
 /**
  * Price for one of `sku` on `tierId` when ordering `quantity` of it:
  *   1. the SKU's tier row with the highest minQty <= quantity
- *   2. failing that, `(basePrice + priceAdjustment) * packQuantity` — the SPU list
- *      price, for a SKU that has not been priced yet
+ *   2. failing that, `basePrice * packQuantity` — list price, for an unpriced SKU
  *
  * There is no SPU-level tier row in between: pricing is stated per SKU.
  */
@@ -97,7 +96,6 @@ export function resolvePrice(
   sku: string,
   tierId: number,
   basePrice: number,
-  priceAdjustment: number,
   packQuantity: number,
   quantity = 1,
 ): number {
@@ -106,7 +104,7 @@ export function resolvePrice(
     .sort((a, b) => b.minQty - a.minQty)[0];
 
   if (row) return round2(row.price);
-  return round2((basePrice + priceAdjustment) * packQuantity);
+  return round2(basePrice * packQuantity);
 }
 
 /** All tier rows for the given SKUs, for the admin pricing editor. */

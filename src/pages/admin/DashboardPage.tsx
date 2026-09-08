@@ -8,7 +8,7 @@ import {
   StopOutlined,
 } from '@ant-design/icons';
 import type { DashboardStats } from '../../api/types';
-import adminClient from '../../api/adminClient';
+import * as api from '../../api/adminApi';
 
 const { Title } = Typography;
 
@@ -18,9 +18,8 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    adminClient
-      .get<DashboardStats>('/admin/dashboard')
-      .then(({ data }) => setStats(data))
+    api.fetchDashboard()
+      .then(setStats)
       .catch(() => setError('Failed to load dashboard stats.'))
       .finally(() => setLoading(false));
   }, []);

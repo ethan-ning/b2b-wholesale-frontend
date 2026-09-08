@@ -4,7 +4,7 @@ import {
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
-import adminClient from '../../api/adminClient';
+import * as api from '../../api/adminApi';
 import type { Category } from '../../api/types';
 
 const { Title } = Typography;
@@ -77,8 +77,7 @@ export default function CategoryPage() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const { data } = await adminClient.get<Category[]>('/admin/categories');
-      setCategories(data);
+      setCategories(await api.fetchCategories());
     } catch {
       setError('Failed to load categories.');
     } finally {
@@ -95,7 +94,7 @@ export default function CategoryPage() {
 
   async function saveEdit(id: number) {
     if (!editingName.trim()) { message.warning('Name cannot be empty'); return; }
-    await adminClient.put(`/admin/categories/${id}`, { name: editingName.trim() });
+    await api.renameCategory(id, editingName.trim());
     message.success('Category renamed');
     setEditingId(null);
     setEditingName('');
@@ -105,7 +104,7 @@ export default function CategoryPage() {
   function cancelEdit() { setEditingId(null); setEditingName(''); }
 
   async function handleDelete(id: number) {
-    await adminClient.delete(`/admin/categories/${id}`);
+    await api.deleteCategory(id);
     message.success('Category deleted');
     fetchCategories();
   }
@@ -113,14 +112,14 @@ export default function CategoryPage() {
   async function handleAddChild(parentId: number) {
     const name = prompt('New category name:');
     if (!name?.trim()) return;
-    await adminClient.post('/admin/categories', { name: name.trim(), parentId });
+    await api.createCategory(name.trim(), parentId);
     message.success('Category added');
     fetchCategories();
   }
 
   async function handleAddRoot() {
     if (!newRootName.trim()) { message.warning('Name cannot be empty'); return; }
-    await adminClient.post('/admin/categories', { name: newRootName.trim(), parentId: null });
+    await api.createCategory(newRootName.trim(), null);
     message.success('Root category added');
     setNewRootName('');
     setAddingRoot(false);

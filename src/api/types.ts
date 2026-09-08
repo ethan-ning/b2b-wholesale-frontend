@@ -18,7 +18,6 @@ export interface ProductImage {
 export interface Inventory {
   availableStock: number;
   incomingStock: number;
-  reservedStock: number;
   updatedAt: string;
 }
 
@@ -32,7 +31,6 @@ export interface Variant {
   variantValue: string | null;
   /** Units per SKU. 1 for size-differentiated apparel; the pack size for parts. */
   packQuantity: number;
-  priceAdjustment: number;
   upc: string | null;
   weight: number | null;
   status: string;
@@ -97,16 +95,6 @@ export interface LoginResponse {
     tierName: string;
     mustChangePassword: boolean;
   };
-}
-
-export interface SearchParams {
-  search?: string;
-  category?: number;
-  priceMin?: number;
-  priceMax?: number;
-  sort?: string;
-  page?: number;
-  size?: number;
 }
 
 // ─── Admin types ──────────────────────────────────────────────────────────────
