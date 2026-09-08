@@ -128,9 +128,8 @@ export default function SearchPage() {
           />
         </div>
 
-        {/* Active filters — each removable on its own, plus one reset back to the
-            full catalog. Without this there is no way out of a search term: the
-            term lives in the URL, so the sidebar's own resets cannot clear it. */}
+        {/* The only way out of a search term — it lives in the URL, so the sidebar's
+            own resets cannot clear it. */}
         {hasFilters && (
           <Space size={[8, 8]} wrap style={{ marginBottom: 12 }}>
             {query && (
@@ -149,8 +148,6 @@ export default function SearchPage() {
                 {priceMax !== undefined ? `$${priceMax}` : 'any'}
               </Tag>
             )}
-            {/* Terse here — it sits beside the tags that already say what is set.
-                The empty state has room to spell out what clearing will do. */}
             <Button size="small" type="link" icon={<CloseCircleOutlined />} onClick={clearAll}>
               Clear all
             </Button>

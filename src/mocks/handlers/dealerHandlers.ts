@@ -42,19 +42,26 @@ function matchesCategory(product: Product, categoryId: number): boolean {
   return product.categories.some((c) => c.id === categoryId);
 }
 
+// Filter and sort on what the dealer is actually shown — their resolved tier price —
+// not baseWholesalePrice, which is list and identical for every tier.
+function lowestPrice(product: Product): number {
+  return Math.min(...product.variants.map((v) => v.tierPrice));
+}
+
 function matchesPrice(product: Product, priceMin?: number, priceMax?: number): boolean {
-  const price = product.baseWholesalePrice;
-  if (priceMin !== undefined && price < priceMin) return false;
-  if (priceMax !== undefined && price > priceMax) return false;
-  return true;
+  // An SPU matches if any of its SKUs falls in the range.
+  return product.variants.some(
+    (v) => (priceMin === undefined || v.tierPrice >= priceMin) &&
+           (priceMax === undefined || v.tierPrice <= priceMax)
+  );
 }
 
 function sortProducts(products: Product[], sort: string): Product[] {
   switch (sort) {
     case 'price_asc':
-      return [...products].sort((a, b) => a.baseWholesalePrice - b.baseWholesalePrice);
+      return [...products].sort((a, b) => lowestPrice(a) - lowestPrice(b));
     case 'price_desc':
-      return [...products].sort((a, b) => b.baseWholesalePrice - a.baseWholesalePrice);
+      return [...products].sort((a, b) => lowestPrice(b) - lowestPrice(a));
     case 'name_asc':
       return [...products].sort((a, b) => a.name.localeCompare(b.name));
     default:

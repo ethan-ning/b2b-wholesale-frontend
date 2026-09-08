@@ -13,9 +13,8 @@ let nextCustomerId = 100;
 const baseProducts = getProducts(1);
 let mutableProducts: AdminProduct[] = baseProducts.map((p) => ({
   ...p,
-  // Real tier_price rows for this SPU's SKUs, grouped SKU-first for the editor.
-  // Ordered by the SPU's own variant order, not the SKU string — sizes are not
-  // lexical, so sorting by code would list a jacket run as L, M, S, XL.
+  // Ordered by the SPU's variant order, not the SKU string — sizes are not lexical,
+  // so sorting by code lists a jacket run as L, M, S, XL.
   tierPrices: getTierPriceRowsForSkus(p.variants.map((v) => v.sku))
     .map((r) => ({
       tierId: r.tierId,
@@ -136,9 +135,8 @@ export const adminHandlers = [
     return HttpResponse.json(product);
   }),
 
-  // PUT /api/admin/products/:id — portal-owned fields only (architecture doc §3.7.7).
-  // Sellfox-owned fields are rejected rather than ignored, so a client that tries to
-  // edit one fails loudly here instead of appearing to work until the next sync.
+  // PUT /api/admin/products/:id — portal-owned fields only (doc §3.7.7). Sellfox-owned
+  // fields are rejected, not ignored, so a bad client fails loudly.
   http.put('/api/admin/products/:id', async ({ request, params }) => {
     if (!requireAdmin(request)) return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 });
     const body = (await request.json()) as Partial<AdminProduct>;
@@ -154,8 +152,7 @@ export const adminHandlers = [
       );
     }
 
-    // Variants: only mapPrice is ours. Merge it onto the stored variant rather than
-    // taking the client's copy, so stock and SKU identity cannot be overwritten.
+    // Only mapPrice is ours — merge it in rather than taking the client's variant.
     const incomingMaps = new Map((body.variants ?? []).map((v) => [v.id, v.mapPrice]));
     const { variants: _ignored, ...rest } = body;
     mutableProducts = mutableProducts.map((p, i) =>

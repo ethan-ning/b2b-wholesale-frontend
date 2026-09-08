@@ -7,9 +7,6 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-// A SKU under an SPU. `value` is the differentiator shown in the variant column and
-// used as the SKU code suffix — a size for apparel, a pack quantity for parts.
-// `packQty` stays the unit count (1 for apparel) since pricing and MOQ key off it.
 interface VariantSeed {
   sku: string;
   value: string;
@@ -17,11 +14,7 @@ interface VariantSeed {
   upc: string;
   available: number;
   incoming: number;
-  /**
-   * Advertised price for one of this SKU — required, never inherited. On a size SKU
-   * that is one garment; on a pack SKU it is the whole pack, so a 6-pack of a $39.99
-   * part advertises at $239.94.
-   */
+  /** Advertised price for one of this SKU — a garment, or a whole pack. */
   map: number;
 }
 
@@ -63,8 +56,6 @@ function makeProduct(
       weight: 0.5 + i * 0.2,
       status: 'ACTIVE',
       mapPrice: v.map,
-      // tier_price rows state the price of one of this SKU, so a pack SKU's price is
-      // the whole pack — the same basis as its MAP. Per unit is derived for display.
       tierPrice: resolvePrice(v.sku, tierId, basePrice, v.packQty),
       unitPrice: round2(resolvePrice(v.sku, tierId, basePrice, v.packQty) / v.packQty),
       inventory: {
@@ -126,8 +117,8 @@ export function getProducts(tierId: number): Product[] {
       ], tierId),
 
     // ─── Jackets (category 21) — size SKUs ───────────────────────────────────
-    // One SPU per color; sizes are SKUs beneath it. Each size states its own MAP —
-    // identical across S/M/L here, higher on XL to track its wholesale premium.
+    // One SPU per color; sizes are SKUs beneath it. XL states a higher MAP to track
+    // its wholesale premium.
     makeProduct(6, 'JK400-BLK', 'Motorcycle Leather Jacket - Black', 'RiderEdge', 89.00, 'C1-1', 'Size', 21, 'Jackets',
       'Premium cowhide leather motorcycle jacket, CE-rated armor pockets.',
       { Color: 'Black', Material: 'Cowhide Leather', CE_Armor: 'Level 1' },

@@ -39,10 +39,8 @@ export default function ProductFormPage() {
   // Selected category IDs + primary category
   const [selectedCatIds, setSelectedCatIds] = useState<number[]>([]);
   const [primaryCatId, setPrimaryCatId] = useState<number | null>(null);
-  // Per-SKU MAP, keyed by variant id. The only place MAP is edited — there is no
-  // SPU-level MAP to inherit from.
+  // Per-SKU MAP, keyed by variant id — the only place MAP is edited.
   const [variantMaps, setVariantMaps] = useState<Record<number, number | null>>({});
-  // tier_price rows for this SPU's SKUs, sorted SKU-first by the API.
   const [tierRows, setTierRows] = useState<TierPrice[]>([]);
 
   useEffect(() => {
@@ -59,8 +57,6 @@ export default function ProductFormPage() {
         setSelectedCatIds(catIds);
         setPrimaryCatId(p.categories.find((c) => c.isPrimary)?.id ?? catIds[0] ?? null);
         setCategories(flattenCats(cats));
-        // Only portal-owned fields go into the form. Sellfox-owned ones are read
-        // straight off `product` and rendered as text.
         form.setFieldsValue({
           baseWholesalePrice: p.baseWholesalePrice,
           locationCode: p.locationCode,
@@ -111,9 +107,8 @@ export default function ProductFormPage() {
     );
   }
 
-  // Rows arrive sorted by SKU, so merge each SKU's cell down over its tier rows — the
-  // grouping is the point: every price belongs to one SKU. Precomputed by index and
-  // kept pure; onCell can fire more than once per row, so it must not mutate.
+  // Merge each SKU's cell down over its tier rows. Precomputed by index and kept
+  // pure — onCell can fire more than once per row, so it must not mutate.
   const skuRowSpans = tierRows.map((row, i) =>
     i > 0 && tierRows[i - 1].sku === row.sku
       ? 0
@@ -130,9 +125,8 @@ export default function ProductFormPage() {
       onCell: (_row, index) => ({ rowSpan: skuRowSpans[index ?? 0] ?? 1 }),
     },
     {
-      // Every MVP row is minQty 1, so the tag never renders today. Kept so that
-      // switching quantity-based pricing on is an insert of rows, not a UI change —
-      // break rows would show as "Gold 6+" beside their base row automatically.
+      // Every MVP row is minQty 1, so the tag is inert today. Kept so enabling volume
+      // breaks is an insert of rows, not a UI change (architecture doc §2.2.1).
       title: 'Tier',
       dataIndex: 'tierName',
       key: 'tierName',
@@ -163,8 +157,7 @@ export default function ProductFormPage() {
       render: (value: string | null, v: Variant) => value ?? v.packQuantity,
     },
     {
-      // Editable: MAP is set per SKU. On a pack SKU this is the whole pack's
-      // advertised price, matching how the dealer-facing table reads it.
+      // The one portal-owned field on a variant, so the one input here.
       title: 'MAP', key: 'mapPrice', width: 130, align: 'right',
       render: (_: unknown, v: Variant) => (
         <InputNumber
@@ -203,9 +196,8 @@ export default function ProductFormPage() {
 
       <Form form={form} layout="vertical" onFinish={onFinish}>
 
-        {/* Section 1a: Sellfox-owned identity. Rendered as text, not disabled inputs —
-            a greyed-out box still reads as "editable, just not right now", and these
-            are overwritten on every sync. */}
+        {/* Sellfox-owned. Text, not disabled inputs — a greyed-out box still reads as
+            "editable, just not right now". */}
         <Card
           title="Product Identity"
           size="small"
@@ -226,7 +218,6 @@ export default function ProductFormPage() {
           ]} />
         </Card>
 
-        {/* Section 1b: Ours. Sellfox has no opinion on any of these. */}
         <Card title="Catalog Settings" size="small" style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={8}>
@@ -234,19 +225,14 @@ export default function ProductFormPage() {
                 <InputNumber prefix="$" style={{ width: '100%' }} min={0} precision={2} />
               </Form.Item>
             </Col>
-            {/* No SPU-level MAP — it is set per SKU in the Variants section below,
-                since a pack SKU's MAP scales with its quantity. */}
             <Col span={8}>
-              <Form.Item
-                name="locationCode"
-                label="Location Code"
-                tooltip="Warehouse bin. Editable until we confirm Sellfox exposes bin codes — see architecture doc §3.7.7."
-              >
+              <Form.Item name="locationCode" label="Location Code"
+                tooltip="Warehouse bin. Editable until we confirm Sellfox exposes bin codes (doc §3.7.7).">
                 <Input placeholder="A1-1" />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="status" label="Status" rules={[{ required: true }]} tooltip="Controls dealer visibility. Ours, not Sellfox's.">
+              <Form.Item name="status" label="Status" rules={[{ required: true }]} tooltip="Controls dealer visibility.">
                 <Select options={[
                   { value: 'ACTIVE', label: 'Active' },
                   { value: 'DRAFT', label: 'Draft' },
@@ -391,8 +377,6 @@ export default function ProductFormPage() {
           />
         </Card>
 
-        {/* Section 6: Variants — Sellfox owns the SKU itself and its stock; MAP is the
-            one portal-owned field here, so it is the one input. */}
         <Card
           title="SKU Variants"
           size="small"

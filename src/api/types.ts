@@ -24,28 +24,18 @@ export interface Inventory {
 export interface Variant {
   id: number;
   sku: string;
-  /**
-   * Display value of this SKU's differentiator, matching the SPU's `variantAxis` —
-   * "M" for an apparel size, "6" for a 6-unit pack. Also the SKU code's suffix.
-   */
+  /** Value on the SPU's `variantAxis` — "M", "6". Also the SKU code's suffix. */
   variantValue: string | null;
-  /** Units per SKU. 1 for size-differentiated apparel; the pack size for parts. */
+  /** Units per SKU. 1 for apparel sizes; the pack size for parts. */
   packQuantity: number;
   upc: string | null;
   weight: number | null;
   status: string;
-  /**
-   * What the dealer pays for one of this SKU — a garment, or a whole 6-pack.
-   * Equals `unitPrice * packQuantity`.
-   */
+  /** What the dealer pays for one of this SKU — a garment, or a whole 6-pack. */
   tierPrice: number;
-  /** Per-unit breakdown of `tierPrice`. Equal to it when packQuantity is 1. */
+  /** `tierPrice / packQuantity`, for comparing a pack against a single. */
   unitPrice: number;
-  /**
-   * Advertised price for one of this SKU, on the same basis as `tierPrice`. Always
-   * stated per SKU — there is no SPU-level MAP to fall back to, because a pack SKU's
-   * MAP scales with its quantity and could never be inherited.
-   */
+  /** Advertised price for one of this SKU, same basis as `tierPrice`. */
   mapPrice: number | null;
   inventory: Inventory;
 }
@@ -64,10 +54,7 @@ export interface Product {
   description: string | null;
   baseWholesalePrice: number;
   locationCode: string | null;
-  /**
-   * What differentiates the SKUs under this SPU — "Size" for apparel, "Pack Qty" for
-   * parts. Used as the variant column header; null when the SPU has a single SKU.
-   */
+  /** What the SKUs vary along — "Size" or "Pack Qty". Titles the variant column. */
   variantAxis: string | null;
   attributes: Record<string, string>;
   status: string;
@@ -133,15 +120,10 @@ export interface Customer {
 export interface TierPrice {
   tierId: number;
   tierName: string;
-  /** Pricing is stated per SKU — there is no SPU-level row. */
   sku: string;
   /** Price for one of this SKU. A pack SKU's price is the whole pack. */
   price: number;
-  /**
-   * Volume-break threshold. Always 1 in the MVP — quantity-based pricing is out of
-   * scope, but the field is carried so enabling it later is additive (extra rows at
-   * minQty > 1) rather than a schema change.
-   */
+  /** Volume-break threshold. Always 1 in the MVP — see architecture doc §2.2.1. */
   minQty: number;
 }
 

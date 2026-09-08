@@ -1,11 +1,12 @@
 import { Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { Variant } from '../api/types';
+import { formatMoney } from '../utils/money';
 import { StockBadge } from '../utils/stockBadge';
 
 interface Props {
   variants: Variant[];
-  /** SPU's variant axis — "Size", "Pack Qty". Titles the differentiator column. */
+  /** Titles the differentiator column — "Size", "Pack Qty". */
   variantAxis?: string | null;
   compact?: boolean;
 }
@@ -27,9 +28,7 @@ export default function SkuTable({ variants, variantAxis, compact = false }: Pro
       render: (value: string | null, v: Variant) => value ?? v.packQuantity,
     },
     {
-      // Price for one of this SKU. On a pack SKU that is the whole pack, so show the
-      // per-unit breakdown beneath it — the pack total is what the dealer pays, the
-      // per-unit figure is what they compare against a single.
+      // On a pack SKU this is the whole pack, so show per-unit beneath it.
       title: 'Price',
       dataIndex: 'tierPrice',
       key: 'tierPrice',
@@ -37,15 +36,14 @@ export default function SkuTable({ variants, variantAxis, compact = false }: Pro
       align: 'right',
       render: (price: number, v: Variant) => (
         <>
-          <div>${price.toFixed(2)}</div>
+          <div>{formatMoney(price)}</div>
           {v.packQuantity > 1 && (
-            <div style={{ fontSize: 11, color: '#999' }}>${v.unitPrice.toFixed(2)}/ea</div>
+            <div style={{ fontSize: 11, color: '#999' }}>{formatMoney(v.unitPrice)}/ea</div>
           )}
         </>
       ),
     },
     {
-      // Same basis as Price, so the two compare directly on every row.
       title: 'MAP',
       dataIndex: 'mapPrice',
       key: 'mapPrice',
@@ -56,10 +54,10 @@ export default function SkuTable({ variants, variantAxis, compact = false }: Pro
           <span style={{ color: '#999' }}>—</span>
         ) : (
           <>
-            <div style={{ color: '#666' }}>${map.toFixed(2)}</div>
+            <div style={{ color: '#666' }}>{formatMoney(map)}</div>
             {v.packQuantity > 1 && (
               <div style={{ fontSize: 11, color: '#bbb' }}>
-                ${(map / v.packQuantity).toFixed(2)}/ea
+                {formatMoney(map / v.packQuantity)}/ea
               </div>
             )}
           </>
@@ -84,8 +82,6 @@ export default function SkuTable({ variants, variantAxis, compact = false }: Pro
           <span style={{ color: '#999' }}>—</span>
         ),
     },
-    // No volume-price column: quantity-based pricing is out of MVP scope (there is no
-    // cart to act on it, and pack SKUs already express bulk buying for parts).
     ...(!compact
       ? [
           {

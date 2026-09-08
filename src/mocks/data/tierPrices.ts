@@ -1,41 +1,22 @@
-// Mock of the `tier_price` table (architecture doc §2.2).
+// Mock of the `tier_price` table. One row per SKU per tier — no SPU-level row to fall
+// back to, and a pack SKU's price is the whole pack. See architecture doc §2.2.
 //
-// Every row prices ONE SKU for one tier. There is no SPU-level row to fall back to —
-// a SKU's price is a property of the SKU, the same way its MAP is (§2.1.2). That also
-// keeps the basis honest: prices here are what the dealer pays for one of that SKU,
-// so a pack SKU's row is the price of the whole pack.
+// `minQty` is pinned to 1: quantity-based pricing is out of MVP scope but the field
+// and resolvePrice's `quantity` argument are kept, so enabling breaks later is just
+// inserting rows at minQty > 1. See §2.2.1.
 //
-// Discounts are deliberately uneven across the catalog — apparel carries more margin
-// than commodity exhaust parts, so Gold's spread over Silver is wider there. A single
-// blanket percentage would prove nothing.
-//
-// ─── Quantity-based pricing is out of MVP scope ──────────────────────────────
-// The MVP is a lookup portal with no cart, so a price conditional on ordering N is
-// something a dealer cannot act on here; for parts, bulk buying is already expressed
-// by pack SKUs. `minQty` is kept and pinned to 1 rather than removed, so switching
-// volume breaks on later is purely additive:
-//
-//   MVP invariant — exactly one row per (sku, tierId), always minQty === 1.
-//   To enable breaks — insert rows at minQty > 1. No column change, no unique-key
-//   change, and resolvePrice already selects the right row.
-//
-// That is why resolvePrice still takes `quantity` and still picks the highest
-// applicable minQty: with only minQty-1 rows it always lands on that row, so the
-// resolution code needs no edit when breaks arrive.
+// Spreads are deliberately uneven — apparel carries more margin than exhaust parts.
 
 export interface TierPriceRow {
   sku: string;
   tierId: number;
-  /** Price for one of this SKU. A pack SKU's price is the whole pack. */
   price: number;
-  /** Volume-break threshold. Always 1 in the MVP — see the note above. */
   minQty: number;
 }
 
 const GOLD = 1;
 const SILVER = 2;
 
-/** Authoring shape — flattened into `tierPrices` below, one row per tier. */
 interface PricingSeed {
   sku: string;
   silver: number;
@@ -86,11 +67,8 @@ export const tierPrices: TierPriceRow[] = seeds.flatMap((s) => [
 ]);
 
 /**
- * Price for one of `sku` on `tierId` when ordering `quantity` of it:
- *   1. the SKU's tier row with the highest minQty <= quantity
- *   2. failing that, `basePrice * packQuantity` — list price, for an unpriced SKU
- *
- * There is no SPU-level tier row in between: pricing is stated per SKU.
+ * Price for one of `sku` on `tierId`: the SKU's tier row with the highest
+ * `minQty <= quantity`, else list price for a SKU nobody has priced.
  */
 export function resolvePrice(
   sku: string,
