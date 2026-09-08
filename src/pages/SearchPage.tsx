@@ -28,6 +28,7 @@ const SORT_OPTIONS = [
 export default function SearchPage() {
   const [searchParams] = useSearchParams();
   const query = searchParams.get('q') ?? '';
+  const [prevQuery, setPrevQuery] = useState(query);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [priceMin, setPriceMin] = useState<number | undefined>();
   const [priceMax, setPriceMax] = useState<number | undefined>();
@@ -36,6 +37,14 @@ export default function SearchPage() {
 
   const [result, setResult] = useState<PagedResult<Product> | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // The query comes from the URL (header search box), so it can change without going
+  // through a handler. Reset the page during render rather than in an effect — an effect
+  // would let one fetch fire with the stale page before the reset triggers a second.
+  if (query !== prevQuery) {
+    setPrevQuery(query);
+    setPage(0);
+  }
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -56,11 +65,6 @@ export default function SearchPage() {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
-
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(0);
-  }, [query, categoryId, priceMin, priceMax, sort]);
 
   function handleCategoryChange(id: number | null) {
     setCategoryId(id);
