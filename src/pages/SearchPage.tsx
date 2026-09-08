@@ -49,13 +49,15 @@ export default function SearchPage() {
   if (query !== prevQuery) {
     setPrevQuery(query);
     setPage(0);
-    // A new search term starts a fresh lookup, so drop the category — a stale one
-    // silently narrows the results, often to nothing. Not symmetric: picking a
-    // category refines the current search and leaves the term alone. Clearing the
-    // term is not a new search either, so it leaves the sidebar untouched.
+    // A new search term starts a fresh lookup, so drop the sidebar filters — stale
+    // ones silently narrow the results, often to nothing. Not symmetric: applying a
+    // filter refines the current search and leaves the term alone. Clearing the term
+    // is not a new search either, so it leaves the sidebar untouched.
     if (query) {
       setCategoryId(null);
       setCategoryName(null);
+      setPriceMin(undefined);
+      setPriceMax(undefined);
     }
   }
 

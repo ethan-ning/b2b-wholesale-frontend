@@ -10,8 +10,20 @@ interface Props {
 }
 
 export default function PriceRangeFilter({ priceMin, priceMax, onApply }: Props) {
+  // Draft values — the applied filter only changes on Apply, so the boxes are local
+  // state rather than controlled by the props.
   const [min, setMin] = useState<number | undefined>(priceMin);
   const [max, setMax] = useState<number | undefined>(priceMax);
+
+  // ...but when the applied filter is changed from outside (Clear all, or a new
+  // search term resetting the sidebar) the draft has to follow, or the boxes keep
+  // showing a range that is no longer being applied.
+  const [applied, setApplied] = useState<[number | undefined, number | undefined]>([priceMin, priceMax]);
+  if (applied[0] !== priceMin || applied[1] !== priceMax) {
+    setApplied([priceMin, priceMax]);
+    setMin(priceMin);
+    setMax(priceMax);
+  }
 
   function handleApply() {
     onApply(min, max);

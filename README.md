@@ -74,7 +74,7 @@ Entry point: http://localhost:5173/login
 5. **Sidebar filters**:
    - Category tree — click any leaf node to filter; click "All categories" to reset
    - Price range — enter min/max, click Apply; Clear resets both fields
-   - Submitting a **new search term clears the category**, since a stale one silently narrows the results. The reverse doesn't apply — picking a category refines the current search and keeps the term. Clearing the term isn't a new search, so it leaves the sidebar alone.
+   - Submitting a **new search term clears both sidebar filters**, since stale ones silently narrow the results. The reverse doesn't apply — applying a filter refines the current search and keeps the term. Clearing the term isn't a new search, so it leaves the sidebar alone.
 6. **Sort** — dropdown in top-right of results: Relevance, Price ↑, Price ↓, Name A–Z
 7. **Product detail** (`/products/:spuCode`) — full image gallery, attributes table, complete SKU table with MAP, Volume Price and UPC columns, CSV export button, last-synced timestamp
 8. **Sign out** — top-right header button → redirected to login
