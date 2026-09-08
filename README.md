@@ -70,7 +70,7 @@ Entry point: http://localhost:5173/login
    - Per-SKU price and MAP side by side in the inline SKU table
    - Per-SKU stock badges: green ≥ 10, orange 1–9, red 0
    - Incoming stock shown in blue
-4. **Active filters** — a removable tag per active filter (search term, category, price range) sits above the results, with **Clear all and show every product** beside them. The same button appears in the no-results empty state. Clearing the header search box (×) or submitting it empty also lands on the full catalog.
+4. **Active filters** — a removable tag per active filter (search term, category, price range) sits above the results, with a **Clear all** button beside them. The no-results empty state carries the same action, spelled out as **Clear all and show every product**. Clearing the header search box (×) or submitting it empty also lands on the full catalog.
 5. **Sidebar filters**:
    - Category tree — click any leaf node to filter; click "All categories" to reset
    - Price range — enter min/max, click Apply; Clear resets both fields

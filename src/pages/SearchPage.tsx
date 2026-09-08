@@ -161,8 +161,10 @@ export default function SearchPage() {
                 {priceMax !== undefined ? `$${priceMax}` : 'any'}
               </Tag>
             )}
+            {/* Terse here — it sits beside the tags that already say what is set.
+                The empty state has room to spell out what clearing will do. */}
             <Button size="small" type="link" icon={<CloseCircleOutlined />} onClick={clearAll}>
-              Clear all and show every product
+              Clear all
             </Button>
           </Space>
         )}
