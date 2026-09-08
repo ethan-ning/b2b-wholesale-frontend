@@ -1,3 +1,5 @@
+// ─── Dealer types ────────────────────────────────────────────────────────────
+
 export interface Category {
   id: number;
   name: string;
@@ -83,4 +85,78 @@ export interface SearchParams {
   sort?: string;
   page?: number;
   size?: number;
+}
+
+// ─── Admin types ──────────────────────────────────────────────────────────────
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  name: string;
+  role: 'SUPER_ADMIN' | 'ADMIN';
+}
+
+export interface AdminLoginResponse {
+  token: string;
+  admin: AdminUser;
+}
+
+export interface CustomerTier {
+  id: number;
+  name: string;
+  sortOrder: number;
+}
+
+export interface Customer {
+  id: number;
+  email: string;
+  name: string;
+  companyName: string;
+  tierId: number;
+  tierName: string;
+  phone: string | null;
+  status: 'ACTIVE' | 'DISABLED';
+  mustChangePassword: boolean;
+  createdAt: string;
+}
+
+export interface TierPrice {
+  tierId: number;
+  tierName: string;
+  price: number;
+  minQty: number;
+}
+
+export interface AdminProduct extends Product {
+  tierPrices: TierPrice[];
+}
+
+export interface Warehouse {
+  id: number;
+  name: string;
+  code: string;
+  active: boolean;
+}
+
+export interface InventoryRow {
+  variantId: number;
+  sku: string;
+  productName: string;
+  spuCode: string;
+  warehouseId: number;
+  warehouseName: string;
+  availableStock: number;
+  incomingStock: number;
+  reservedStock: number;
+  defectiveStock: number;
+  updatedAt: string;
+}
+
+export interface DashboardStats {
+  totalProducts: number;
+  activeProducts: number;
+  totalCustomers: number;
+  activeCustomers: number;
+  lowStockAlerts: number;
+  outOfStockCount: number;
 }
