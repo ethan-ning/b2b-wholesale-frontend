@@ -16,7 +16,8 @@ function toTreeData(categories: Category[]): DataNode[] {
 
 interface Props {
   selectedId: number | null;
-  onChange: (id: number | null) => void;
+  /** `name` accompanies a selection so callers can label it without refetching the tree. */
+  onChange: (id: number | null, name: string | null) => void;
 }
 
 export default function CategoryTree({ selectedId, onChange }: Props) {
@@ -37,16 +38,17 @@ export default function CategoryTree({ selectedId, onChange }: Props) {
       <Text
         type="secondary"
         style={{ fontSize: 12, cursor: 'pointer', display: 'block', marginBottom: 4 }}
-        onClick={() => onChange(null)}
+        onClick={() => onChange(null, null)}
       >
         All categories
       </Text>
       <Tree
         treeData={treeData}
         selectedKeys={selectedId ? [String(selectedId)] : []}
-        onSelect={(keys) => {
+        onSelect={(keys, info) => {
+          // Clicking the selected node deselects it, so `keys` can come back empty.
           const key = keys[0];
-          onChange(key ? Number(key) : null);
+          onChange(key ? Number(key) : null, key ? String(info.node.title) : null);
         }}
         defaultExpandAll
         blockNode

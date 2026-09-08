@@ -34,6 +34,7 @@ export default function SearchPage() {
   const query = searchParams.get('q') ?? '';
   const [prevQuery, setPrevQuery] = useState(query);
   const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [categoryName, setCategoryName] = useState<string | null>(null);
   const [priceMin, setPriceMin] = useState<number | undefined>();
   const [priceMax, setPriceMax] = useState<number | undefined>();
   const [sort, setSort] = useState('relevance');
@@ -70,8 +71,9 @@ export default function SearchPage() {
     fetchProducts();
   }, [fetchProducts]);
 
-  function handleCategoryChange(id: number | null) {
+  function handleCategoryChange(id: number | null, name: string | null) {
     setCategoryId(id);
+    setCategoryName(name);
     setPage(0);
   }
 
@@ -91,6 +93,7 @@ export default function SearchPage() {
   function clearAll() {
     setSearchParams({}, { replace: true });
     setCategoryId(null);
+    setCategoryName(null);
     setPriceMin(undefined);
     setPriceMax(undefined);
     setPage(0);
@@ -151,8 +154,8 @@ export default function SearchPage() {
               </Tag>
             )}
             {categoryId !== null && (
-              <Tag closable onClose={() => handleCategoryChange(null)} color="blue">
-                Category filtered
+              <Tag closable onClose={() => handleCategoryChange(null, null)} color="blue">
+                Category: {categoryName ?? categoryId}
               </Tag>
             )}
             {(priceMin !== undefined || priceMax !== undefined) && (
