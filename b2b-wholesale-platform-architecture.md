@@ -201,17 +201,17 @@ CREATE TABLE customer (
 CREATE TRIGGER trg_customer_updated_at
     BEFORE UPDATE ON customer FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- Tiered pricing: defined at SPU level and/or SKU level
--- variant_id IS NULL → price applies to all SKUs under that SPU (SPU-level price)
--- variant_id IS NOT NULL → price applies to that specific SKU only (SKU-level override)
+-- Tiered pricing: always defined at SKU level — there is no SPU-level row.
+-- price is what the dealer pays for ONE of this SKU, so a pack SKU's price is the
+-- whole pack, matching product_variant.map_price (§2.1.2).
+-- min_qty counts units OF THIS SKU: (PL001-BLK-06, min_qty 2) = "order two 6-packs".
 CREATE TABLE tier_price (
     id          BIGSERIAL PRIMARY KEY,
-    product_id  BIGINT NOT NULL REFERENCES product(id),          -- SPU
-    variant_id  BIGINT REFERENCES product_variant(id),           -- SKU; NULL = SPU-level
+    variant_id  BIGINT NOT NULL REFERENCES product_variant(id),  -- SKU
     tier_id     BIGINT NOT NULL REFERENCES customer_tier(id),
     price       DECIMAL(10,2) NOT NULL,
-    min_qty     INT DEFAULT 1,    -- applies when order qty >= min_qty
-    UNIQUE (product_id, variant_id, tier_id, min_qty)
+    min_qty     INT NOT NULL DEFAULT 1,   -- applies when ordered qty >= min_qty
+    UNIQUE (variant_id, tier_id, min_qty)
 );
 CREATE INDEX idx_tier_price_lookup ON tier_price (variant_id, tier_id, min_qty);
 
@@ -256,16 +256,25 @@ CREATE TABLE admin_user (
 );
 ```
 
-**Pricing resolution** (most specific match wins):
+**Pricing resolution** (highest applicable volume break wins):
 
 ```
-resolve_price(skuId, spuId, tierId, quantity):
+resolve_price(skuId, tierId, quantity):
   1. tier_price WHERE variant_id = skuId AND tier_id = tierId AND min_qty <= quantity
-     ORDER BY min_qty DESC LIMIT 1                            -- SKU-level price
-  2. tier_price WHERE product_id = spuId AND variant_id IS NULL
-     AND tier_id = tierId AND min_qty <= quantity             -- SPU-level fallback
-  3. product.base_wholesale_price + product_variant.price_adjustment  -- ultimate fallback
+     ORDER BY min_qty DESC LIMIT 1                            -- the SKU's tier price
+  2. (product.base_wholesale_price + product_variant.price_adjustment)
+     * product_variant.pack_quantity                          -- unpriced SKU fallback
 ```
+
+Pricing is **per SKU**, with no SPU-level row in between. A dealer's price is a fact
+about the SKU they are buying, the same as its MAP — and since a pack SKU's price is
+the whole pack, an SPU-level row would have to be per-unit and could not be compared
+against the SKU rows beside it. The cost is more rows: every SKU × tier × break is its
+own row, and pricing a new SKU means adding them rather than inheriting.
+
+Step 2 exists only for a SKU nobody has priced yet; in a healthy catalog every active
+SKU has a row per tier. Surface unpriced SKUs in the admin rather than letting them
+quietly fall back to list price.
 
 ### 2.3 Sellfox Integration Tables
 
@@ -854,20 +863,35 @@ Last synced: 4 min ago   [Export to CSV]
 
 ### 4.4 Admin: Pricing Matrix Editor
 
-Ant Design `EditableProTable` for bulk pricing management:
+One editable row per `tier_price` row — SKU × tier × volume break. The SKU cell is
+merged down its group so the grouping is legible at a glance: every price on this
+screen belongs to exactly one SKU.
 
 ```
-Product: Classic Leather Jacket  (all variants)
+Product: JK400-BLK — Motorcycle Leather Jacket, Black
+                              [ Priced per SKU — a pack SKU's price is the whole pack ]
 
-┌──────────────┬─────────────────┬──────────────────┬──────────────┬───────────────┐
-│ SKU          │ Bronze (qty ≥1) │ Bronze (qty ≥10) │ Gold (qty ≥1)│ Gold (qty ≥10)│
-├──────────────┼─────────────────┼──────────────────┼──────────────┼───────────────┤
-│ JKT-BLK-S    │ [   52.00     ] │ [    49.00     ] │ [  45.00   ] │ [   42.00   ] │
-│ JKT-BLK-M    │ [   52.00     ] │ [    49.00     ] │ [  45.00   ] │ [   42.00   ] │
-│ JKT-RED-S    │ [   55.00     ] │ [    52.00     ] │ [  48.00   ] │ [   45.00   ] │
-└──────────────┴─────────────────┴──────────────────┴──────────────┴───────────────┘
+┌────────────────┬─────────┬──────────┬─────────────┐
+│ SKU            │ Tier    │ Min Qty  │ Price       │
+├────────────────┼─────────┼──────────┼─────────────┤
+│                │ Gold    │ [   1  ] │ [  69.50  ] │
+│ JK400-BLK-M    │ Gold    │ [   6  ] │ [  65.00  ] │
+│                │ Silver  │ [   1  ] │ [  82.00  ] │
+│                │ Silver  │ [   6  ] │ [  78.00  ] │
+├────────────────┼─────────┼──────────┼─────────────┤
+│                │ Gold    │ [   1  ] │ [  73.50  ] │
+│ JK400-BLK-XL   │ Gold    │ [   6  ] │ [  69.00  ] │
+│                │ Silver  │ [   1  ] │ [  86.00  ] │
+│                │ Silver  │ [   6  ] │ [  82.00  ] │
+└────────────────┴─────────┴──────────┴─────────────┘
 [Export CSV]  [Import CSV]  [Save All]
 ```
+
+A SKU × tier matrix (tiers as columns) reads more compactly, but it cannot show a
+variable number of volume breaks per SKU — `JK400-BLK-S` is a flat closeout with no
+break while its siblings have one. Rows keep that expressible. Revisit if the tier
+count grows enough to make the row list unwieldy; CSV import is the bulk path either
+way.
 
 ---
 

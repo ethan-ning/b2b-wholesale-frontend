@@ -65,11 +65,11 @@ function makeProduct(
       weight: 0.5 + i * 0.2,
       status: 'ACTIVE',
       mapPrice: v.map,
-      // tier_price rows are authored per unit; a SKU's price is that times its pack
-      // quantity, so price and MAP are both "one of this SKU" and margins compare.
-      unitPrice: resolvePrice(spuCode, v.sku, tierId, basePrice, v.priceAdj, 1),
-      tierPrice: round2(resolvePrice(spuCode, v.sku, tierId, basePrice, v.priceAdj, 1) * v.packQty),
-      priceBreaks: getPriceBreaks(spuCode, v.sku, tierId, basePrice, v.priceAdj),
+      // tier_price rows state the price of one of this SKU, so a pack SKU's price is
+      // the whole pack — the same basis as its MAP. Per unit is derived for display.
+      tierPrice: resolvePrice(v.sku, tierId, basePrice, v.priceAdj, v.packQty, 1),
+      unitPrice: round2(resolvePrice(v.sku, tierId, basePrice, v.priceAdj, v.packQty, 1) / v.packQty),
+      priceBreaks: getPriceBreaks(v.sku, tierId, basePrice, v.priceAdj, v.packQty),
       inventory: {
         availableStock: v.available,
         incomingStock: v.incoming,

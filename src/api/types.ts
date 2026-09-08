@@ -147,8 +147,9 @@ export interface Customer {
 export interface TierPrice {
   tierId: number;
   tierName: string;
-  /** null = applies to every SKU under the SPU; set = override for that SKU only. */
-  sku: string | null;
+  /** Pricing is stated per SKU — there is no SPU-level row. */
+  sku: string;
+  /** Price for one of this SKU at `minQty`+. A pack SKU's price is the whole pack. */
   price: number;
   minQty: number;
 }

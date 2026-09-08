@@ -2,7 +2,7 @@ import { http, HttpResponse } from 'msw';
 import { admins, tiers, warehouses, mutableCustomers, setMutableCustomers, makeAdminJwt } from '../data/admin';
 import { categories as baseCategories } from '../data/categories';
 import { getProducts } from '../data/products';
-import { getTierPriceRows } from '../data/tierPrices';
+import { getTierPriceRowsForSkus } from '../data/tierPrices';
 import type { Category, Customer, AdminProduct } from '../../api/types';
 
 // ─── Mutable in-memory state ─────────────────────────────────────────────────
@@ -13,8 +13,8 @@ let nextCustomerId = 100;
 const baseProducts = getProducts(1);
 let mutableProducts: AdminProduct[] = baseProducts.map((p) => ({
   ...p,
-  // Real tier_price rows — SPU-level, SKU-level overrides and volume breaks alike.
-  tierPrices: getTierPriceRows(p.spuCode)
+  // Real tier_price rows for this SPU's SKUs, grouped SKU-first for the editor.
+  tierPrices: getTierPriceRowsForSkus(p.variants.map((v) => v.sku))
     .map((r) => ({
       tierId: r.tierId,
       tierName: tiers.find((t) => t.id === r.tierId)?.name ?? `Tier ${r.tierId}`,
@@ -22,7 +22,7 @@ let mutableProducts: AdminProduct[] = baseProducts.map((p) => ({
       price: r.price,
       minQty: r.minQty,
     }))
-    .sort((a, b) => a.tierId - b.tierId || (a.sku ?? '').localeCompare(b.sku ?? '') || a.minQty - b.minQty),
+    .sort((a, b) => a.sku.localeCompare(b.sku) || a.tierId - b.tierId || a.minQty - b.minQty),
 }));
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function requireAdmin(request: Request): boolean {

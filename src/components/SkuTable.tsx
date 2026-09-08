@@ -95,11 +95,11 @@ export default function SkuTable({ variants, variantAxis, compact = false }: Pro
               v.priceBreaks.length === 0 ? (
                 <span style={{ color: '#999' }}>—</span>
               ) : (
-                // minQty thresholds are in units, and the break price is per unit —
-                // labelled so it is not read against the pack total in the Price column.
+                // minQty counts this SKU, and the break price is on the same basis as
+                // the Price column — what one of this SKU costs at that quantity.
                 v.priceBreaks.map((b) => (
                   <div key={b.minQty} style={{ fontSize: 12 }}>
-                    {b.minQty}+: ${b.price.toFixed(2)}/ea
+                    {b.minQty}+: ${b.price.toFixed(2)}
                   </div>
                 ))
               ),

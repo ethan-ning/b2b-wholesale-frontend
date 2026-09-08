@@ -1,18 +1,19 @@
 // Mock of the `tier_price` table (architecture doc §2.2).
 //
-// A row prices one tier, either for a whole SPU (`sku: null`) or for one specific SKU
-// (`sku` set — an override that wins over the SPU row). `minQty` gives volume breaks:
-// the row with the highest minQty <= the ordered quantity applies.
+// Every row prices ONE SKU for one tier. There is no SPU-level row to fall back to —
+// a SKU's price is a property of the SKU, the same way its MAP is (§2.1.2). That also
+// keeps the basis honest: prices here are what the dealer pays for one of that SKU,
+// so a pack SKU's row is the price of the whole pack.
 //
-// Discounts are deliberately uneven across the catalog — apparel carries more margin
-// than commodity exhaust parts, so Gold's spread over Silver is wider there. A single
-// blanket percentage would make every product show the same gap and prove nothing.
+// `minQty` is a volume break in units OF THAT SKU: `PL001-BLK-06` at minQty 2 means
+// "order two 6-packs". Discounts are deliberately uneven across the catalog — apparel
+// carries more margin than commodity exhaust parts, so Gold's spread over Silver is
+// wider there. A single blanket percentage would prove nothing.
 
 export interface TierPriceRow {
-  spuCode: string;
-  /** null = SPU-level row, applies to every SKU under it. Set = SKU-level override. */
-  sku: string | null;
+  sku: string;
   tierId: number;
+  /** Price for one of this SKU at `minQty`+. A pack SKU's price is the whole pack. */
   price: number;
   minQty: number;
 }
@@ -20,131 +21,114 @@ export interface TierPriceRow {
 const GOLD = 1;
 const SILVER = 2;
 
-export const tierPrices: TierPriceRow[] = [
+/** Authoring shape — flattened into `tierPrices` below, one row per tier per break. */
+interface PricingSeed {
+  sku: string;
+  silver: number;
+  gold: number;
+  /** Volume break: at `breakQty`+ of this SKU, the tier pays the break price. */
+  breakQty?: number;
+  silverBreak?: number;
+  goldBreak?: number;
+}
+
+const seeds: PricingSeed[] = [
   // ─── Exhaust — commodity parts, thin spread (Gold ~10% under Silver) ──────
-  { spuCode: 'PL001-BLK', sku: null, tierId: SILVER, price: 19.00, minQty: 1 },
-  { spuCode: 'PL001-BLK', sku: null, tierId: SILVER, price: 18.25, minQty: 6 },
-  { spuCode: 'PL001-BLK', sku: null, tierId: GOLD, price: 17.10, minQty: 1 },
-  { spuCode: 'PL001-BLK', sku: null, tierId: GOLD, price: 16.25, minQty: 6 },
-
-  { spuCode: 'PL001-CHR', sku: null, tierId: SILVER, price: 22.00, minQty: 1 },
-  { spuCode: 'PL001-CHR', sku: null, tierId: SILVER, price: 21.00, minQty: 6 },
-  { spuCode: 'PL001-CHR', sku: null, tierId: GOLD, price: 19.80, minQty: 1 },
-  { spuCode: 'PL001-CHR', sku: null, tierId: GOLD, price: 18.80, minQty: 6 },
-
-  { spuCode: 'EX100', sku: null, tierId: SILVER, price: 14.50, minQty: 1 },
-  { spuCode: 'EX100', sku: null, tierId: SILVER, price: 13.75, minQty: 12 },
-  { spuCode: 'EX100', sku: null, tierId: GOLD, price: 12.75, minQty: 1 },
-  { spuCode: 'EX100', sku: null, tierId: GOLD, price: 12.00, minQty: 12 },
+  { sku: 'PL001-BLK-01', silver: 19.00, gold: 17.10, breakQty: 6, silverBreak: 18.25, goldBreak: 16.25 },
+  { sku: 'PL001-BLK-06', silver: 105.00, gold: 93.60, breakQty: 2, silverBreak: 100.00, goldBreak: 88.50 },
+  { sku: 'PL001-CHR-01', silver: 22.00, gold: 19.80, breakQty: 6, silverBreak: 21.00, goldBreak: 18.80 },
+  { sku: 'PL001-CHR-06', silver: 120.00, gold: 106.80, breakQty: 2, silverBreak: 114.00, goldBreak: 101.00 },
+  { sku: 'EX100-01', silver: 14.50, gold: 12.75, breakQty: 12, silverBreak: 13.75, goldBreak: 12.00 },
+  { sku: 'EX100-02', silver: 28.00, gold: 24.50, breakQty: 6, silverBreak: 26.50, goldBreak: 23.00 },
+  { sku: 'EX100-12', silver: 150.00, gold: 129.00, breakQty: 2, silverBreak: 144.00, goldBreak: 123.00 },
 
   // ─── Lighting — mid spread (Gold ~12%) ───────────────────────────────────
-  { spuCode: 'LT200-WHT', sku: null, tierId: SILVER, price: 33.00, minQty: 1 },
-  { spuCode: 'LT200-WHT', sku: null, tierId: SILVER, price: 31.50, minQty: 4 },
-  { spuCode: 'LT200-WHT', sku: null, tierId: GOLD, price: 29.25, minQty: 1 },
-  { spuCode: 'LT200-WHT', sku: null, tierId: GOLD, price: 27.90, minQty: 4 },
-
-  { spuCode: 'LT201-AMB', sku: null, tierId: SILVER, price: 31.00, minQty: 1 },
-  { spuCode: 'LT201-AMB', sku: null, tierId: GOLD, price: 27.50, minQty: 1 },
+  { sku: 'LT200-WHT-01', silver: 33.00, gold: 29.25, breakQty: 4, silverBreak: 31.50, goldBreak: 27.90 },
+  { sku: 'LT200-WHT-04', silver: 124.00, gold: 109.00, breakQty: 2, silverBreak: 119.00, goldBreak: 104.00 },
+  { sku: 'LT201-AMB-01', silver: 31.00, gold: 27.50 },
 
   // ─── Jackets — high margin, wide spread (Gold ~15% under Silver) ─────────
-  { spuCode: 'JK400-BLK', sku: null, tierId: SILVER, price: 82.00, minQty: 1 },
-  { spuCode: 'JK400-BLK', sku: null, tierId: SILVER, price: 78.00, minQty: 6 },
-  { spuCode: 'JK400-BLK', sku: null, tierId: GOLD, price: 69.50, minQty: 1 },
-  { spuCode: 'JK400-BLK', sku: null, tierId: GOLD, price: 65.00, minQty: 6 },
-  // SKU-level override — size S is overstocked and discounted for both tiers.
-  // Exercises step 1 of resolve_price: a SKU row wins outright and the SPU's
-  // price_adjustment is NOT re-applied on top of it.
-  { spuCode: 'JK400-BLK', sku: 'JK400-BLK-S', tierId: SILVER, price: 74.00, minQty: 1 },
-  { spuCode: 'JK400-BLK', sku: 'JK400-BLK-S', tierId: GOLD, price: 62.00, minQty: 1 },
-
-  { spuCode: 'JK400-BRN', sku: null, tierId: SILVER, price: 85.00, minQty: 1 },
-  { spuCode: 'JK400-BRN', sku: null, tierId: GOLD, price: 71.75, minQty: 1 },
+  // Size S is overstocked and priced flat below the rest of the run, with no break.
+  { sku: 'JK400-BLK-S', silver: 74.00, gold: 62.00 },
+  { sku: 'JK400-BLK-M', silver: 82.00, gold: 69.50, breakQty: 6, silverBreak: 78.00, goldBreak: 65.00 },
+  { sku: 'JK400-BLK-L', silver: 82.00, gold: 69.50, breakQty: 6, silverBreak: 78.00, goldBreak: 65.00 },
+  { sku: 'JK400-BLK-XL', silver: 86.00, gold: 73.50, breakQty: 6, silverBreak: 82.00, goldBreak: 69.00 },
+  { sku: 'JK400-BRN-M', silver: 85.00, gold: 71.75 },
+  { sku: 'JK400-BRN-L', silver: 85.00, gold: 71.75 },
+  { sku: 'JK400-BRN-XL', silver: 89.00, gold: 75.75 },
 
   // ─── Gloves — high margin, volume-driven ─────────────────────────────────
-  { spuCode: 'GL100-BLK', sku: null, tierId: SILVER, price: 16.50, minQty: 1 },
-  { spuCode: 'GL100-BLK', sku: null, tierId: SILVER, price: 15.75, minQty: 12 },
-  { spuCode: 'GL100-BLK', sku: null, tierId: GOLD, price: 14.00, minQty: 1 },
-  { spuCode: 'GL100-BLK', sku: null, tierId: GOLD, price: 13.20, minQty: 12 },
-
-  { spuCode: 'GL100-BRN', sku: null, tierId: SILVER, price: 16.50, minQty: 1 },
-  { spuCode: 'GL100-BRN', sku: null, tierId: GOLD, price: 14.40, minQty: 1 },
+  { sku: 'GL100-BLK-S', silver: 16.50, gold: 14.00, breakQty: 12, silverBreak: 15.75, goldBreak: 13.20 },
+  { sku: 'GL100-BLK-M', silver: 16.50, gold: 14.00, breakQty: 12, silverBreak: 15.75, goldBreak: 13.20 },
+  { sku: 'GL100-BLK-L', silver: 16.50, gold: 14.00, breakQty: 12, silverBreak: 15.75, goldBreak: 13.20 },
+  { sku: 'GL100-BLK-XL', silver: 17.50, gold: 15.00, breakQty: 12, silverBreak: 16.75, goldBreak: 14.20 },
+  { sku: 'GL100-BRN-M', silver: 16.50, gold: 14.40 },
+  { sku: 'GL100-BRN-L', silver: 16.50, gold: 14.40 },
 
   // ─── Hand Tools ──────────────────────────────────────────────────────────
-  { spuCode: 'TL500', sku: null, tierId: SILVER, price: 27.50, minQty: 1 },
-  { spuCode: 'TL500', sku: null, tierId: GOLD, price: 24.50, minQty: 1 },
-  { spuCode: 'TL500', sku: null, tierId: GOLD, price: 23.50, minQty: 6 },
-
-  // No rows for a hypothetical unpriced SPU — resolvePrice then falls through to
-  // step 3, base_wholesale_price + price_adjustment.
+  { sku: 'TL500-01', silver: 27.50, gold: 24.50, breakQty: 6, silverBreak: 26.50, goldBreak: 23.50 },
+  { sku: 'TL500-06', silver: 147.00, gold: 129.00, breakQty: 2, silverBreak: 142.00, goldBreak: 124.00 },
 ];
 
+export const tierPrices: TierPriceRow[] = seeds.flatMap((s) => {
+  const rows: TierPriceRow[] = [
+    { sku: s.sku, tierId: SILVER, price: s.silver, minQty: 1 },
+    { sku: s.sku, tierId: GOLD, price: s.gold, minQty: 1 },
+  ];
+  if (s.breakQty !== undefined) {
+    if (s.silverBreak !== undefined) rows.push({ sku: s.sku, tierId: SILVER, price: s.silverBreak, minQty: s.breakQty });
+    if (s.goldBreak !== undefined) rows.push({ sku: s.sku, tierId: GOLD, price: s.goldBreak, minQty: s.breakQty });
+  }
+  return rows;
+});
+
 /**
- * resolve_price from architecture doc §2.2 — most specific match wins:
- *   1. SKU-level tier row (highest minQty <= quantity)      → price as-is
- *   2. SPU-level tier row (highest minQty <= quantity)      → price + priceAdjustment
- *   3. base wholesale price                                 → base + priceAdjustment
+ * Price for one of `sku` on `tierId` when ordering `quantity` of it:
+ *   1. the SKU's tier row with the highest minQty <= quantity
+ *   2. failing that, `(basePrice + priceAdjustment) * packQuantity` — the SPU list
+ *      price, for a SKU that has not been priced yet
  *
- * priceAdjustment is a delta from the SPU price (schema comment on
- * `product_variant.price_adjustment`), so it applies to steps 2 and 3 but not to a
- * SKU-level row, which already states that SKU's full price.
+ * There is no SPU-level tier row in between: pricing is stated per SKU.
  */
 export function resolvePrice(
-  spuCode: string,
   sku: string,
   tierId: number,
   basePrice: number,
   priceAdjustment: number,
+  packQuantity: number,
   quantity = 1,
 ): number {
-  const applicable = (rows: TierPriceRow[]) =>
-    rows
-      .filter((r) => r.tierId === tierId && r.minQty <= quantity)
-      .sort((a, b) => b.minQty - a.minQty)[0];
+  const row = tierPrices
+    .filter((r) => r.sku === sku && r.tierId === tierId && r.minQty <= quantity)
+    .sort((a, b) => b.minQty - a.minQty)[0];
 
-  const spuRows = tierPrices.filter((r) => r.spuCode === spuCode);
-
-  const skuRow = applicable(spuRows.filter((r) => r.sku === sku));
-  if (skuRow) return round2(skuRow.price);
-
-  const spuRow = applicable(spuRows.filter((r) => r.sku === null));
-  if (spuRow) return round2(spuRow.price + priceAdjustment);
-
-  return round2(basePrice + priceAdjustment);
+  if (row) return round2(row.price);
+  return round2((basePrice + priceAdjustment) * packQuantity);
 }
 
 /**
- * Volume breaks for one SKU on one tier — the resolved price at every minQty above 1
- * that this SKU can reach. Empty when the SKU has no volume pricing.
+ * Volume breaks for one SKU on one tier — every minQty above 1 that beats the
+ * single-quantity price. Empty when the SKU has no volume pricing.
  */
 export function getPriceBreaks(
-  spuCode: string,
   sku: string,
   tierId: number,
   basePrice: number,
   priceAdjustment: number,
+  packQuantity: number,
 ): { minQty: number; price: number }[] {
-  const quantities = [
-    ...new Set(
-      tierPrices
-        .filter((r) => r.spuCode === spuCode && r.tierId === tierId && (r.sku === null || r.sku === sku))
-        .map((r) => r.minQty)
-        .filter((q) => q > 1),
-    ),
-  ].sort((a, b) => a - b);
+  const singlePrice = resolvePrice(sku, tierId, basePrice, priceAdjustment, packQuantity, 1);
 
-  const unitPrice = resolvePrice(spuCode, sku, tierId, basePrice, priceAdjustment, 1);
-
-  return quantities
-    .map((minQty) => ({
-      minQty,
-      price: resolvePrice(spuCode, sku, tierId, basePrice, priceAdjustment, minQty),
-    }))
-    .filter((b) => b.price < unitPrice);
+  return tierPrices
+    .filter((r) => r.sku === sku && r.tierId === tierId && r.minQty > 1)
+    .map((r) => ({ minQty: r.minQty, price: round2(r.price) }))
+    .filter((b) => b.price < singlePrice)
+    .sort((a, b) => a.minQty - b.minQty);
 }
 
-/** All tier rows for an SPU, for the admin pricing editor. */
-export function getTierPriceRows(spuCode: string): TierPriceRow[] {
-  return tierPrices.filter((r) => r.spuCode === spuCode);
+/** All tier rows for the given SKUs, for the admin pricing editor. */
+export function getTierPriceRowsForSkus(skus: string[]): TierPriceRow[] {
+  return tierPrices.filter((r) => skus.includes(r.sku));
 }
 
 function round2(n: number): number {

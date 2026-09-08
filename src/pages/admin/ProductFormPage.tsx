@@ -42,6 +42,8 @@ export default function ProductFormPage() {
   // Per-SKU MAP, keyed by variant id. The only place MAP is edited — there is no
   // SPU-level MAP to inherit from.
   const [variantMaps, setVariantMaps] = useState<Record<number, number | null>>({});
+  // tier_price rows for this SPU's SKUs, sorted SKU-first by the API.
+  const [tierRows, setTierRows] = useState<TierPrice[]>([]);
 
   useEffect(() => {
     Promise.all([
@@ -56,6 +58,7 @@ export default function ProductFormPage() {
           [...p.images].sort((a, b) => a.sortOrder - b.sortOrder).map((img) => img.url)
         );
         setVariantMaps(Object.fromEntries(p.variants.map((v) => [v.id, v.mapPrice])));
+        setTierRows(p.tierPrices);
         const catIds = p.categories.map((c) => c.id);
         setSelectedCatIds(catIds);
         setPrimaryCatId(p.categories.find((c) => c.isPrimary)?.id ?? catIds[0] ?? null);
@@ -67,7 +70,6 @@ export default function ProductFormPage() {
           baseWholesalePrice: p.baseWholesalePrice,
           locationCode: p.locationCode,
           status: p.status,
-          tierPrices: p.tierPrices,
         });
       })
       .catch(() => setError('Failed to load product.'))
@@ -77,7 +79,7 @@ export default function ProductFormPage() {
   async function onFinish(values: {
     name: string; brand: string; description: string;
     baseWholesalePrice: number;
-    locationCode: string; status: string; tierPrices: TierPrice[];
+    locationCode: string; status: string;
   }) {
     setSaving(true);
     try {
@@ -92,6 +94,7 @@ export default function ProductFormPage() {
         })),
         // Variants are otherwise read-only (synced from Sellfox), but MAP is ours.
         variants: product!.variants.map((v) => ({ ...v, mapPrice: variantMaps[v.id] ?? null })),
+        tierPrices: tierRows,
       };
       await adminClient.put(`/admin/products/${id}`, payload);
       message.success('Product saved');
@@ -105,6 +108,54 @@ export default function ProductFormPage() {
 
   if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
   if (error || !product) return <Alert type="error" message={error ?? 'Not found'} />;
+
+  function updateTierRow(row: TierPrice, patch: Partial<TierPrice>) {
+    setTierRows((prev) =>
+      prev.map((r) =>
+        r.sku === row.sku && r.tierId === row.tierId && r.minQty === row.minQty ? { ...r, ...patch } : r
+      )
+    );
+  }
+
+  // Rows arrive sorted by SKU, so merge each SKU's cell down over its tier rows —
+  // the grouping is the point: every price belongs to one SKU.
+  const skuRowSpans = new Map<string, number>();
+  tierRows.forEach((r) => skuRowSpans.set(r.sku, (skuRowSpans.get(r.sku) ?? 0) + 1));
+  const firstRowForSku = new Set<string>();
+
+  const tierPriceColumns: ColumnsType<TierPrice> = [
+    {
+      title: 'SKU',
+      dataIndex: 'sku',
+      key: 'sku',
+      width: 160,
+      render: (sku: string) => <code style={{ fontSize: 12 }}>{sku}</code>,
+      onCell: (row) => {
+        if (firstRowForSku.has(row.sku)) return { rowSpan: 0 };
+        firstRowForSku.add(row.sku);
+        return { rowSpan: skuRowSpans.get(row.sku) ?? 1 };
+      },
+    },
+    { title: 'Tier', dataIndex: 'tierName', key: 'tierName', width: 90 },
+    {
+      title: 'Min Qty', dataIndex: 'minQty', key: 'minQty', width: 100, align: 'right',
+      render: (minQty: number, row) => (
+        <InputNumber
+          size="small" min={1} style={{ width: '100%' }} value={minQty}
+          onChange={(v) => updateTierRow(row, { minQty: v ?? 1 })}
+        />
+      ),
+    },
+    {
+      title: 'Price', dataIndex: 'price', key: 'price', width: 130, align: 'right',
+      render: (price: number, row) => (
+        <InputNumber
+          size="small" prefix="$" min={0} precision={2} style={{ width: '100%' }} value={price}
+          onChange={(v) => updateTierRow(row, { price: v ?? 0 })}
+        />
+      ),
+    },
+  ];
 
   const variantColumns: ColumnsType<Variant> = [
     { title: 'SKU', dataIndex: 'sku', key: 'sku', render: (v: string) => <code style={{ fontSize: 12 }}>{v}</code> },
@@ -313,31 +364,21 @@ export default function ProductFormPage() {
           </Space>
         </Card>
 
-        {/* Section 5: Tier pricing */}
-        <Card title="Tier Pricing" size="small" style={{ marginBottom: 16 }}>
-          <Form.List name="tierPrices">
-            {(fields) => (
-              <Space direction="vertical" style={{ width: '100%' }}>
-                {fields.map(({ key, name }) => (
-                  <Space key={key} align="baseline">
-                    <Form.Item name={[name, 'tierName']} noStyle>
-                      <Input disabled style={{ width: 100 }} />
-                    </Form.Item>
-                    <Form.Item name={[name, 'sku']} noStyle>
-                      {/* null = SPU-level row; a SKU code = override for that SKU only */}
-                      <Input disabled placeholder="All SKUs" style={{ width: 150 }} />
-                    </Form.Item>
-                    <Form.Item name={[name, 'minQty']} label="Min Qty" style={{ margin: 0 }}>
-                      <InputNumber min={1} style={{ width: 80 }} />
-                    </Form.Item>
-                    <Form.Item name={[name, 'price']} label="Price" style={{ margin: 0 }}>
-                      <InputNumber prefix="$" min={0} precision={2} style={{ width: 110 }} />
-                    </Form.Item>
-                  </Space>
-                ))}
-              </Space>
-            )}
-          </Form.List>
+        {/* Section 5: Tier pricing — one row per SKU per tier per volume break */}
+        <Card
+          title="Tier Pricing"
+          size="small"
+          style={{ marginBottom: 16 }}
+          extra={<Tag>Priced per SKU — a pack SKU's price is the whole pack</Tag>}
+        >
+          <Table<TierPrice>
+            columns={tierPriceColumns}
+            dataSource={tierRows}
+            rowKey={(r) => `${r.sku}:${r.tierId}:${r.minQty}`}
+            size="small"
+            pagination={false}
+            bordered
+          />
         </Card>
 
         {/* Section 6: Variants (read-only, synced from Sellfox) */}

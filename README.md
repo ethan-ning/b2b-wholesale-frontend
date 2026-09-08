@@ -83,13 +83,14 @@ Entry point: http://localhost:5173/login
 
 Login as `dealer1@example.com` (Gold) and note the unit prices. Sign out, login as `dealer2@example.com` (Silver) — the same products show higher prices.
 
-Pricing is **not** a blanket percentage. `src/mocks/data/tierPrices.ts` mocks the `tier_price` table and the architecture doc's three-step `resolve_price` fallback:
+Pricing is **not** a blanket percentage. `src/mocks/data/tierPrices.ts` mocks the `tier_price` table, in which **every row prices one SKU** — there is no SPU-level row to inherit from, the same as MAP. Resolution is just "highest volume break that applies":
 
-1. **SKU-level row** wins outright — e.g. `JK400-BLK-S` is overstocked and priced $62.00 / $74.00 flat, below the rest of its size run
-2. **SPU-level row** otherwise, plus the SKU's `priceAdjustment` — this is how XL carries its `+$4.00` premium on both tiers
-3. **`baseWholesalePrice + priceAdjustment`** if the SPU has no tier rows at all
+1. The SKU's tier row with the highest `minQty` ≤ the ordered quantity
+2. `(baseWholesalePrice + priceAdjustment) × packQuantity` only if that SKU has never been priced
 
-Spreads vary by margin: commodity exhaust parts run ~10% Gold-to-Silver, apparel ~15–16%. Volume breaks (`minQty`) appear in the **Volume Price** column on the product detail page — Gold pays $69.50 for a `JK400-BLK-M`, or $65.00 each at 6+.
+Spreads vary by margin: commodity exhaust parts run ~10% Gold-to-Silver, apparel ~15–16%. `JK400-BLK-S` is an overstock closeout priced flat at $62.00 / $74.00, below the rest of its size run and with no volume break.
+
+`minQty` counts **that SKU**, so `PL001-BLK-06` at `minQty: 2` means "order two 6-packs". Breaks show in the **Volume Price** column on the product detail page — Gold pays $69.50 for a `JK400-BLK-M`, or $65.00 each at 6+.
 
 ### MAP at SKU level
 
@@ -136,7 +137,7 @@ Shows live stat cards:
 | Display attributes | ✅ | Free-form key-value pairs; add/remove rows |
 | Images | ✅ | URL list; ↑/↓ buttons reorder; first URL = primary thumbnail |
 | Categories | ✅ | Checkbox tree; click "Set primary" to mark the primary category |
-| Tier pricing | ✅ | Price and minimum quantity per customer tier |
+| Tier pricing | ✅ | One row per SKU × tier × volume break; the SKU cell merges down its group. Min qty and price are editable |
 | SKU variants | MAP only | SKU code, variant value, UPC, weight, stock are synced from Sellfox and read-only; **MAP is editable per SKU** |
 
 Click **Save Changes** → success toast → back to product list.
