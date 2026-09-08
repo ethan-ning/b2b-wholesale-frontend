@@ -36,11 +36,17 @@ export interface Variant {
   upc: string | null;
   weight: number | null;
   status: string;
-  /** Unit price for the requesting dealer's tier at quantity 1. */
-  tierPrice: number;
   /**
-   * Effective per-unit MAP for this SKU: the SPU's MAP unless this SKU overrides it
-   * (a size premium raises the advertised price along with the wholesale price).
+   * What the dealer pays for one of this SKU — a garment, or a whole 6-pack.
+   * Equals `unitPrice * packQuantity`.
+   */
+  tierPrice: number;
+  /** Per-unit breakdown of `tierPrice`. Equal to it when packQuantity is 1. */
+  unitPrice: number;
+  /**
+   * Advertised price for one of this SKU, on the same basis as `tierPrice`. Always
+   * stated per SKU — there is no SPU-level MAP to fall back to, because a pack SKU's
+   * MAP scales with its quantity and could never be inherited.
    */
   mapPrice: number | null;
   /** Volume breaks for that tier, ascending by minQty. Empty when there are none. */
@@ -61,7 +67,6 @@ export interface Product {
   brand: string | null;
   description: string | null;
   baseWholesalePrice: number;
-  mapPrice: number | null;
   locationCode: string | null;
   /**
    * What differentiates the SKUs under this SPU — "Size" for apparel, "Pack Qty" for

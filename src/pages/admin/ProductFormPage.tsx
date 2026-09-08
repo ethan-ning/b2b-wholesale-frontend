@@ -39,6 +39,9 @@ export default function ProductFormPage() {
   // Selected category IDs + primary category
   const [selectedCatIds, setSelectedCatIds] = useState<number[]>([]);
   const [primaryCatId, setPrimaryCatId] = useState<number | null>(null);
+  // Per-SKU MAP, keyed by variant id. The only place MAP is edited — there is no
+  // SPU-level MAP to inherit from.
+  const [variantMaps, setVariantMaps] = useState<Record<number, number | null>>({});
 
   useEffect(() => {
     Promise.all([
@@ -52,6 +55,7 @@ export default function ProductFormPage() {
         setImageUrls(
           [...p.images].sort((a, b) => a.sortOrder - b.sortOrder).map((img) => img.url)
         );
+        setVariantMaps(Object.fromEntries(p.variants.map((v) => [v.id, v.mapPrice])));
         const catIds = p.categories.map((c) => c.id);
         setSelectedCatIds(catIds);
         setPrimaryCatId(p.categories.find((c) => c.isPrimary)?.id ?? catIds[0] ?? null);
@@ -61,7 +65,6 @@ export default function ProductFormPage() {
           brand: p.brand,
           description: p.description,
           baseWholesalePrice: p.baseWholesalePrice,
-          mapPrice: p.mapPrice,
           locationCode: p.locationCode,
           status: p.status,
           tierPrices: p.tierPrices,
@@ -73,7 +76,7 @@ export default function ProductFormPage() {
 
   async function onFinish(values: {
     name: string; brand: string; description: string;
-    baseWholesalePrice: number; mapPrice: number | null;
+    baseWholesalePrice: number;
     locationCode: string; status: string; tierPrices: TierPrice[];
   }) {
     setSaving(true);
@@ -87,6 +90,8 @@ export default function ProductFormPage() {
           name: categories.find((c) => c.id === cid)?.label ?? '',
           isPrimary: cid === primaryCatId,
         })),
+        // Variants are otherwise read-only (synced from Sellfox), but MAP is ours.
+        variants: product!.variants.map((v) => ({ ...v, mapPrice: variantMaps[v.id] ?? null })),
       };
       await adminClient.put(`/admin/products/${id}`, payload);
       message.success('Product saved');
@@ -109,9 +114,20 @@ export default function ProductFormPage() {
       render: (value: string | null, v: Variant) => value ?? v.packQuantity,
     },
     {
-      title: 'MAP', dataIndex: 'mapPrice', key: 'mapPrice', width: 90, align: 'right',
-      // Defaults from the SPU's MAP above; a differing value is a per-SKU override.
-      render: (v: number | null) => (v === null ? '—' : `$${v.toFixed(2)}`),
+      // Editable: MAP is set per SKU. On a pack SKU this is the whole pack's
+      // advertised price, matching how the dealer-facing table reads it.
+      title: 'MAP', key: 'mapPrice', width: 130, align: 'right',
+      render: (_: unknown, v: Variant) => (
+        <InputNumber
+          prefix="$"
+          size="small"
+          min={0}
+          precision={2}
+          style={{ width: '100%' }}
+          value={variantMaps[v.id] ?? undefined}
+          onChange={(val) => setVariantMaps((prev) => ({ ...prev, [v.id]: val ?? null }))}
+        />
+      ),
     },
     { title: 'UPC', dataIndex: 'upc', key: 'upc', render: (v: string | null) => v ?? '—' },
     { title: 'Weight', dataIndex: 'weight', key: 'weight', width: 80, align: 'right', render: (v: number | null) => v ? `${v} kg` : '—' },
@@ -161,17 +177,14 @@ export default function ProductFormPage() {
                 <InputNumber prefix="$" style={{ width: '100%' }} min={0} precision={2} />
               </Form.Item>
             </Col>
+            {/* No SPU-level MAP — it is set per SKU in the Variants section below,
+                since a pack SKU's MAP scales with its quantity. */}
             <Col span={8}>
-              <Form.Item name="mapPrice" label="MAP Price">
-                <InputNumber prefix="$" style={{ width: '100%' }} min={0} precision={2} />
-              </Form.Item>
-            </Col>
-            <Col span={4}>
               <Form.Item name="locationCode" label="Location Code">
                 <Input placeholder="A1-1" />
               </Form.Item>
             </Col>
-            <Col span={4}>
+            <Col span={8}>
               <Form.Item name="status" label="Status" rules={[{ required: true }]}>
                 <Select options={[
                   { value: 'ACTIVE', label: 'Active' },

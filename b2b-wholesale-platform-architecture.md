@@ -25,7 +25,7 @@ This document assesses the architecture for a wholesale B2B platform serving dea
 
 The catalog uses a **two-level hierarchy**: SPU (Standard Product Unit) and SKU (Stock Keeping Unit).
 
-- **SPU** (`product` table) — a specific style/color of a product; identified by `spu_code` (e.g., `PL001-BLK`, `GL100-BLK`). This is what dealers browse and what carries the MAP price.
+- **SPU** (`product` table) — a specific style/color of a product; identified by `spu_code` (e.g., `PL001-BLK`, `GL100-BLK`). This is what dealers browse.
 - **SKU** (`product_variant` table) — a purchasable unit under an SPU. The SKU code is the SPU code plus a suffix carrying the variant value (e.g., `PL001-BLK-06`, `GL100-BLK-M`).
 
 **Each SPU has exactly one variant axis** — the single dimension its SKUs vary along, named by `product.variant_axis`:
@@ -35,7 +35,7 @@ The catalog uses a **two-level hierarchy**: SPU (Standard Product Unit) and SKU 
 | Apparel (jackets, gloves, chaps) | `Size` | `GL100-BLK` | `GL100-BLK-S`, `-M`, `-L`, `-XL` |
 | Parts, tools, accessories | `Pack Qty` | `PL001-BLK` | `PL001-BLK-01`, `-06` |
 
-Color is **not** an axis — it belongs to the SPU code, so a black and a brown jacket are two SPUs. This matches the MAP-per-color observation below, and keeps a single axis per SPU so the variant table stays a flat list rather than a matrix.
+Color is **not** an axis — it belongs to the SPU code, so a black and a brown jacket are two SPUs. That keeps a single axis per SPU, so the variant table stays a flat list rather than a matrix.
 
 No attribute EAV system is needed — style/color/material are implicitly encoded in the SPU code and name; catalog filtering is by category, brand, and SKU/SPU code search only.
 
@@ -58,8 +58,6 @@ CREATE TABLE category (
 
 -- Product / SPU: one row per style or color variant
 -- spu_code is the business identifier and URL key (e.g., "PL001-BLK")
--- MAP lives here because it can differ per style variant (observed: same base product,
--- different MAP per color on DealerLeather)
 CREATE TABLE product (
     id                    BIGSERIAL PRIMARY KEY,
     spu_code              TEXT NOT NULL UNIQUE,        -- "PL001-BLK"; used as URL slug
@@ -67,7 +65,6 @@ CREATE TABLE product (
     brand                 TEXT,
     description           TEXT,
     base_wholesale_price  DECIMAL(10,2) NOT NULL,      -- SPU-level fallback price
-    map_price             DECIMAL(10,2),               -- Minimum Advertised Price for this SPU
     location_code         TEXT,                        -- warehouse bin/shelf code at SPU level (e.g., "B6-1")
     variant_axis          TEXT,                        -- what this SPU's SKUs vary along: "Size" | "Pack Qty"; NULL for single-SKU SPUs
     attributes_jsonb      JSONB,                       -- display-only key-value pairs, e.g. {"color":"Black","material":"Stainless Steel"}
@@ -87,7 +84,7 @@ CREATE TABLE product_variant (
     product_id       BIGINT NOT NULL REFERENCES product(id),  -- FK to SPU
     sku              TEXT NOT NULL UNIQUE,     -- full SKU code: "GL100-BLK-M"
     variant_value    TEXT,                     -- value on the SPU's axis: "M", "XL", "6"; matches the SKU suffix
-    map_price        DECIMAL(10,2),            -- per-unit MAP override; NULL = inherit product.map_price
+    map_price        DECIMAL(10,2),            -- Minimum Advertised Price for ONE of this SKU (see §2.1.2)
     sort_order       INT NOT NULL DEFAULT 0,   -- sizes are not lexically ordered (S < M < L < XL), so order explicitly
     pack_quantity    INT NOT NULL DEFAULT 1,   -- units per SKU; 1 for size-differentiated apparel
     price_adjustment DECIMAL(10,2) DEFAULT 0.00,  -- delta from SPU base/tier price
@@ -147,13 +144,32 @@ CREATE INDEX idx_product_category_cat ON product_category (category_id);
 
 | Observation | Impact on Model |
 |---|---|
-| MAP differs between color variants of the same base model | `map_price` on `product` (SPU) is the default for its SKUs |
-| A size premium raises the advertised price along with the wholesale price | nullable `map_price` override on `product_variant`; resolved MAP is `COALESCE(variant.map_price, product.map_price)` |
+| MAP differs between color variants of the same base model | colors are separate SPUs, so their SKUs carry separate MAPs |
+| A size premium raises the advertised price along with the wholesale price | `map_price` per SKU — XL states its own, higher than S/M/L |
 | Location code (e.g., "B6-1") is the same across all sizes of a product | `location_code` on `product` (SPU level) |
 | Internal supplier/ERP reference per variant | `internal_ref` on `product_variant` |
 | Each purchasable unit has its own UPC barcode | `upc` on `product_variant` |
 | Apparel sold by size; parts sold by pack | `variant_axis` on `product` names the axis; `variant_value` on `product_variant` carries the value |
 | Larger sizes / smaller packs priced differently | `price_adjustment` on `product_variant` (e.g., XL +$4.00, 6-pack −$1.50/unit) |
+
+### 2.1.2 MAP Is a SKU-Level Figure
+
+**`map_price` lives on `product_variant` only. There is no SPU-level MAP.** A pack SKU's advertised price scales with its quantity — a 6-pack of a $39.99 part advertises at $239.94 — so there is no single SPU figure its SKUs could inherit. Rather than have MAP inherit on the `Size` axis and not on the `Pack Qty` axis, it is simply always stated per SKU.
+
+**Money on a SKU row is per SKU, not per unit.** One SKU is one purchasable thing: one garment, or one whole 6-pack. So `map_price` and the resolved tier price are both totals for that SKU and can be compared directly:
+
+| SKU | Pack | Price | MAP | Margin |
+|---|---|---|---|---|
+| `PL001-BLK-01` | 1 | $17.10 | $39.99 | 57% |
+| `PL001-BLK-06` | 6 | $93.60 | $239.94 | 61% |
+| `GL100-BLK-XL` | 1 | $15.00 | $39.99 | 62% |
+
+`tier_price` rows are still authored **per unit** (§2.2) — a SKU's price is the resolved unit price × `pack_quantity`. The API returns both, and the dealer UI prints the per-unit figure beneath the total on pack rows (`$15.60/ea`) so a 6-pack stays comparable to a single.
+
+Consequences to accept:
+
+- Repricing a jacket line means updating every size row; sizes no longer share one MAP. The admin edits MAP per SKU in the variant table.
+- `map_price` should be validated as ≥ the highest tier price for that SKU — a MAP below a dealer's cost is a data-entry error, not a discount.
 
 ### 2.2 Customer & Pricing
 
@@ -739,7 +755,7 @@ Admin endpoint: `POST /api/admin/sellfox/sync-sku-catalog` — triggers a Spring
 |--------|------|-------|
 | GET | `/api/categories` | full category tree (cached) |
 | GET | `/api/products?category=&brand=&search=&page=` | paginated SPU list; `search` matches on `spu_code` or `name` |
-| GET | `/api/products/{spuCode}` | SPU detail: name, MAP, brand + all SKUs with tier-resolved prices and stock |
+| GET | `/api/products/{spuCode}` | SPU detail: name, brand + all SKUs with tier-resolved prices, per-SKU MAP and stock |
 | GET | `/api/products/{spuCode}/pricing-grid` | SKU × price table for dealer's tier; drives VariantGrid |
 | POST | `/api/inventory/bulk-check` | `{ variantIds: [] }` → `{ variantId, available, incoming, updatedAt }[]` |
 | GET | `/api/products/search?q=` | SKU / name full-text search |
@@ -810,10 +826,10 @@ SPU: GL100-BLK — Riding Gloves, Black  |  Category: Apparel > Gloves        [G
 ┌─────────────────┬──────────┬─────────┬─────────┬─────────────┬────────────┬────────────┐
 │ SKU             │ Size     │ Price   │ MAP     │ Volume      │ Available  │ Incoming   │
 ├─────────────────┼──────────┼─────────┼─────────┼─────────────┼────────────┼────────────┤
-│ GL100-BLK-S     │ S        │ $14.00  │ $36.99  │ 12+: $13.20 │ ●●● 22     │ —          │
-│ GL100-BLK-M     │ M        │ $14.00  │ $36.99  │ 12+: $13.20 │ ●●● 14     │ —          │
-│ GL100-BLK-L     │ L        │ $14.00  │ $36.99  │ 12+: $13.20 │ ● 6        │ ↓ 10 (ETA) │
-│ GL100-BLK-XL    │ XL       │ $15.00  │ $39.99  │ 12+: $14.20 │ ○ 0        │ ↓ 15 (ETA) │
+│ GL100-BLK-S     │ S        │ $14.00  │ $36.99  │12+:$13.20/ea│ ●●● 22     │ —          │
+│ GL100-BLK-M     │ M        │ $14.00  │ $36.99  │12+:$13.20/ea│ ●●● 14     │ —          │
+│ GL100-BLK-L     │ L        │ $14.00  │ $36.99  │12+:$13.20/ea│ ● 6        │ ↓ 10 (ETA) │
+│ GL100-BLK-XL    │ XL       │ $15.00  │ $39.99  │12+:$14.20/ea│ ○ 0        │ ↓ 15 (ETA) │
 └─────────────────┴──────────┴─────────┴─────────┴─────────────┴────────────┴────────────┘
 
 SPU: PL001-BLK — Muffler Extension Pipe, Black  |  Category: Auto Parts > Exhaust
@@ -821,16 +837,17 @@ SPU: PL001-BLK — Muffler Extension Pipe, Black  |  Category: Auto Parts > Exha
 ┌─────────────────┬──────────┬─────────┬─────────┬─────────────┬────────────┬────────────┐
 │ SKU             │ Pack Qty │ Price   │ MAP     │ Volume      │ Available  │ Incoming   │
 ├─────────────────┼──────────┼─────────┼─────────┼─────────────┼────────────┼────────────┤
-│ PL001-BLK-01    │ 1        │ $17.10  │ $39.99  │ 6+: $16.25  │ ●●● 25     │ —          │
-│ PL001-BLK-06    │ 6        │ $15.60  │ $39.99  │ 6+: $14.75  │ ● 4        │ ↓ 12 (ETA) │
+│ PL001-BLK-01    │ 1        │ $17.10  │ $39.99  │6+:$16.25/ea │ ●●● 25     │ —          │
+│ PL001-BLK-06    │ 6        │ $93.60  │$239.94  │6+:$14.75/ea │ ● 4        │ ↓ 12 (ETA) │
+│                 │          │$15.60/ea│$39.99/ea│             │            │            │
 └─────────────────┴──────────┴─────────┴─────────┴─────────────┴────────────┴────────────┘
 Last synced: 4 min ago   [Export to CSV]
 ```
 
 - Rows arrive in `product_variant.sort_order` — sizes are not lexically ordered, so the API returns them pre-sorted and the client does not re-sort
 - Price shown is dealer's tier price; recalculates if a quantity input is provided
-- **MAP sits beside price on every row** — the dealer's margin headroom is per-SKU, so a single SPU-level MAP in the page header can't be read against the SKU they're actually quoting. Resolved as `COALESCE(variant.map_price, product.map_price)`, so an XL size premium shows its own higher MAP
-- Prices are **per unit**, including on pack SKUs — a 6-pack advertises at the same per-unit MAP as a single, so pack SKUs never override MAP
+- **MAP sits beside price on every row, on the same basis** — margin headroom is per-SKU, so a single figure in the page header can't be read against the SKU actually being quoted
+- Pack rows show the per-unit breakdown beneath both figures (`$15.60/ea`, `$39.99/ea`) so a 6-pack can still be compared against a single
 - Stock badge: green ≥ 10, yellow 1–9, red 0 (defective stock never shown)
 - `Last synced` from `inventory.updated_at` — tells dealer how fresh the stock data is
 - CSV export (dealers paste into their own quoting/ordering tools)

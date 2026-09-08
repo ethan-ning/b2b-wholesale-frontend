@@ -67,7 +67,7 @@ Entry point: http://localhost:5173/login
 3. **Search results** (`/search?q=…`) — each result is an inline-expanded card showing:
    - Product image, name, brand, location code, attributes
    - Tier-resolved price range for the SPU, labelled "your price", with the MAP range beneath it
-   - Per-SKU unit price and MAP side by side in the inline SKU table
+   - Per-SKU price and MAP side by side in the inline SKU table
    - Per-SKU stock badges: green ≥ 10, orange 1–9, red 0
    - Incoming stock shown in blue
 4. **Sidebar filters**:
@@ -91,7 +91,20 @@ Spreads vary by margin: commodity exhaust parts run ~10% Gold-to-Silver, apparel
 
 ### MAP at SKU level
 
-MAP is resolved per SKU as `variant.mapPrice ?? product.mapPrice`, and shown beside the unit price on every SKU row — margin headroom is what a dealer reads off this table, and it's per-SKU. Most SKUs inherit the SPU's MAP; sizes carrying a wholesale premium override it, so `JK400-BLK-XL` advertises at $189.99 against the run's $179.99 and holds the same ~61% margin instead of appearing thinner. Pack SKUs never override — prices here are per unit, so a 6-pack advertises at the same per-unit MAP as a single.
+**MAP lives only on the SKU — there is no SPU-level MAP.** A pack SKU's advertised price scales with its quantity, so there is nothing its SKUs could inherit; rather than inherit on the `Size` axis but not on `Pack Qty`, MAP is always stated per SKU.
+
+**Money on a SKU row is per SKU, not per unit.** One SKU is one purchasable thing — a garment, or a whole 6-pack — so price and MAP are both totals for it and compare directly:
+
+| SKU | Pack | Price | MAP | Margin |
+|---|---|---|---|---|
+| `PL001-BLK-01` | 1 | $17.10 | $39.99 | 57% |
+| `PL001-BLK-06` | 6 | $93.60 | $239.94 | 61% |
+| `JK400-BLK-M` | 1 | $69.50 | $179.99 | 61% |
+| `JK400-BLK-XL` | 1 | $73.50 | $189.99 | 61% |
+
+Tier price rows stay authored per unit; a SKU's price is the resolved unit price × `packQuantity`. Pack rows print the per-unit figure beneath both totals (`$15.60/ea`, `$39.99/ea`) so a 6-pack stays comparable to a single, and volume breaks are labelled `/ea` for the same reason.
+
+MAP is edited per SKU in the admin product form's **Variants** table — it's the one column there that isn't read-only, since MAP is ours rather than synced from Sellfox.
 
 ---
 
@@ -117,12 +130,12 @@ Shows live stat cards:
 
 | Section | Editable? | Notes |
 |---|---|---|
-| Basic info | ✅ | Name, brand, description, base price, MAP price, location code, status |
+| Basic info | ✅ | Name, brand, description, base price, location code, status (MAP is per SKU — see Variants) |
 | Display attributes | ✅ | Free-form key-value pairs; add/remove rows |
 | Images | ✅ | URL list; ↑/↓ buttons reorder; first URL = primary thumbnail |
 | Categories | ✅ | Checkbox tree; click "Set primary" to mark the primary category |
 | Tier pricing | ✅ | Price and minimum quantity per customer tier |
-| SKU variants | ❌ Read-only | Synced from Sellfox — SKU codes, pack qty, UPC, weight, stock |
+| SKU variants | MAP only | SKU code, variant value, UPC, weight, stock are synced from Sellfox and read-only; **MAP is editable per SKU** |
 
 Click **Save Changes** → success toast → back to product list.
 

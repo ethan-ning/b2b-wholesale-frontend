@@ -27,24 +27,42 @@ export default function SkuTable({ variants, variantAxis, compact = false }: Pro
       render: (value: string | null, v: Variant) => value ?? v.packQuantity,
     },
     {
-      title: 'Unit Price',
+      // Price for one of this SKU. On a pack SKU that is the whole pack, so show the
+      // per-unit breakdown beneath it — the pack total is what the dealer pays, the
+      // per-unit figure is what they compare against a single.
+      title: 'Price',
       dataIndex: 'tierPrice',
       key: 'tierPrice',
-      width: 100,
+      width: 110,
       align: 'right',
-      render: (price: number) => `$${price.toFixed(2)}`,
+      render: (price: number, v: Variant) => (
+        <>
+          <div>${price.toFixed(2)}</div>
+          {v.packQuantity > 1 && (
+            <div style={{ fontSize: 11, color: '#999' }}>${v.unitPrice.toFixed(2)}/ea</div>
+          )}
+        </>
+      ),
     },
     {
+      // Same basis as Price, so the two compare directly on every row.
       title: 'MAP',
       dataIndex: 'mapPrice',
       key: 'mapPrice',
-      width: 90,
+      width: 100,
       align: 'right',
-      render: (map: number | null) =>
+      render: (map: number | null, v: Variant) =>
         map === null ? (
           <span style={{ color: '#999' }}>—</span>
         ) : (
-          <span style={{ color: '#666' }}>${map.toFixed(2)}</span>
+          <>
+            <div style={{ color: '#666' }}>${map.toFixed(2)}</div>
+            {v.packQuantity > 1 && (
+              <div style={{ fontSize: 11, color: '#bbb' }}>
+                ${(map / v.packQuantity).toFixed(2)}/ea
+              </div>
+            )}
+          </>
         ),
     },
     {
@@ -77,9 +95,11 @@ export default function SkuTable({ variants, variantAxis, compact = false }: Pro
               v.priceBreaks.length === 0 ? (
                 <span style={{ color: '#999' }}>—</span>
               ) : (
+                // minQty thresholds are in units, and the break price is per unit —
+                // labelled so it is not read against the pack total in the Price column.
                 v.priceBreaks.map((b) => (
                   <div key={b.minQty} style={{ fontSize: 12 }}>
-                    {b.minQty}+: ${b.price.toFixed(2)}
+                    {b.minQty}+: ${b.price.toFixed(2)}/ea
                   </div>
                 ))
               ),
