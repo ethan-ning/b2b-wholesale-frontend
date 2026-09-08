@@ -45,8 +45,8 @@ npm run preview     # serve the production build locally
 
 | Email | Password | Tier |
 |---|---|---|
-| dealer1@example.com | password | Gold (15% discount off base price) |
-| dealer2@example.com | password | Silver (base price) |
+| dealer1@example.com | password | Gold (best pricing — 10–16% under Silver depending on the product) |
+| dealer2@example.com | password | Silver |
 
 ### Admin account
 
@@ -66,7 +66,7 @@ Entry point: http://localhost:5173/login
 2. **Search home** — centered search bar with welcome message. Try searching `jacket`, `exhaust`, or `PL001-BLK`.
 3. **Search results** (`/search?q=…`) — each result is an inline-expanded card showing:
    - Product image, name, brand, location code, attributes
-   - Tier-resolved unit price (Gold dealers see ~15% less than Silver)
+   - Tier-resolved price range for the SPU, labelled "your price"
    - Per-SKU stock badges: green ≥ 10, orange 1–9, red 0
    - Incoming stock shown in blue
 4. **Sidebar filters**:
@@ -79,6 +79,14 @@ Entry point: http://localhost:5173/login
 ### Verifying tier pricing
 
 Login as `dealer1@example.com` (Gold) and note the unit prices. Sign out, login as `dealer2@example.com` (Silver) — the same products show higher prices.
+
+Pricing is **not** a blanket percentage. `src/mocks/data/tierPrices.ts` mocks the `tier_price` table and the architecture doc's three-step `resolve_price` fallback:
+
+1. **SKU-level row** wins outright — e.g. `JK400-BLK-S` is overstocked and priced $62.00 / $74.00 flat, below the rest of its size run
+2. **SPU-level row** otherwise, plus the SKU's `priceAdjustment` — this is how XL carries its `+$4.00` premium on both tiers
+3. **`baseWholesalePrice + priceAdjustment`** if the SPU has no tier rows at all
+
+Spreads vary by margin: commodity exhaust parts run ~10% Gold-to-Silver, apparel ~15–16%. Volume breaks (`minQty`) appear in the **Volume Price** column on the product detail page — Gold pays $69.50 for a `JK400-BLK-M`, or $65.00 each at 6+.
 
 ---
 
@@ -167,7 +175,8 @@ src/
 ├── mocks/
 │   ├── browser.ts         # MSW worker setup
 │   ├── data/
-│   │   ├── products.ts    # 10 mock SPUs with tier-aware pricing
+│   │   ├── products.ts    # 10 mock SPUs / 25 SKUs, size or pack-qty variant axis
+│   │   ├── tierPrices.ts  # tier_price rows + resolve_price 3-step fallback
 │   │   ├── categories.ts  # Category tree
 │   │   ├── users.ts       # Dealer accounts
 │   │   └── admin.ts       # Admin account, tiers, warehouses, customers

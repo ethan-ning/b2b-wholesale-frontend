@@ -14,6 +14,9 @@ export default function ProductCard({ product }: Props) {
   const primaryImage = [...product.images].sort((a, b) => a.sortOrder - b.sortOrder)[0];
   const totalAvailable = product.variants.reduce((s, v) => s + v.inventory.availableStock, 0);
   const hasStock = totalAvailable > 0;
+  const prices = product.variants.map((v) => v.tierPrice);
+  const lowPrice = Math.min(...prices);
+  const highPrice = Math.max(...prices);
 
   return (
     <Card
@@ -77,11 +80,19 @@ export default function ProductCard({ product }: Props) {
           </Space>
         </Col>
 
-        {/* Price */}
+        {/* Price — the dealer's own tier price, not list. Shown as a range when the
+            SKUs under this SPU resolve to different prices (size premiums, overrides). */}
         <Col flex="120px" style={{ textAlign: 'right' }}>
           <Text strong style={{ fontSize: 16 }}>
-            ${product.baseWholesalePrice.toFixed(2)}
+            {lowPrice === highPrice
+              ? `$${lowPrice.toFixed(2)}`
+              : `$${lowPrice.toFixed(2)} – $${highPrice.toFixed(2)}`}
           </Text>
+          <div>
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              your price
+            </Text>
+          </div>
           {product.mapPrice && (
             <div>
               <Text type="secondary" style={{ fontSize: 11 }}>

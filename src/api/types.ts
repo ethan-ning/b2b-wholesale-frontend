@@ -36,7 +36,10 @@ export interface Variant {
   upc: string | null;
   weight: number | null;
   status: string;
+  /** Unit price for the requesting dealer's tier at quantity 1. */
   tierPrice: number;
+  /** Volume breaks for that tier, ascending by minQty. Empty when there are none. */
+  priceBreaks: { minQty: number; price: number }[];
   inventory: Inventory;
 }
 
@@ -134,6 +137,8 @@ export interface Customer {
 export interface TierPrice {
   tierId: number;
   tierName: string;
+  /** null = applies to every SKU under the SPU; set = override for that SKU only. */
+  sku: string | null;
   price: number;
   minQty: number;
 }

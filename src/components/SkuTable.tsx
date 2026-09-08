@@ -56,6 +56,22 @@ export default function SkuTable({ variants, variantAxis, compact = false }: Pro
     ...(!compact
       ? [
           {
+            title: 'Volume Price',
+            key: 'priceBreaks',
+            width: 140,
+            align: 'right' as const,
+            render: (_: unknown, v: Variant) =>
+              v.priceBreaks.length === 0 ? (
+                <span style={{ color: '#999' }}>—</span>
+              ) : (
+                v.priceBreaks.map((b) => (
+                  <div key={b.minQty} style={{ fontSize: 12 }}>
+                    {b.minQty}+: ${b.price.toFixed(2)}
+                  </div>
+                ))
+              ),
+          },
+          {
             title: 'UPC',
             dataIndex: 'upc',
             key: 'upc',

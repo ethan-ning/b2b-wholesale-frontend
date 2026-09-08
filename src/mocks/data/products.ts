@@ -1,10 +1,7 @@
 import type { Product } from '../../api/types';
+import { resolvePrice, getPriceBreaks } from './tierPrices';
 
 const now = new Date().toISOString();
-
-// Gold tier (tierId=1) gets lower prices
-function goldPrice(base: number) { return Math.round(base * 0.85 * 100) / 100; }
-function silverPrice(base: number) { return base; }
 
 // A SKU under an SPU. `value` is the differentiator shown in the variant column and
 // used as the SKU code suffix — a size for apparel, a pack quantity for parts.
@@ -59,7 +56,8 @@ function makeProduct(
       upc: v.upc,
       weight: 0.5 + i * 0.2,
       status: 'ACTIVE',
-      tierPrice: tierId === 1 ? goldPrice(basePrice + v.priceAdj) : silverPrice(basePrice + v.priceAdj),
+      tierPrice: resolvePrice(spuCode, v.sku, tierId, basePrice, v.priceAdj, 1),
+      priceBreaks: getPriceBreaks(spuCode, v.sku, tierId, basePrice, v.priceAdj),
       inventory: {
         availableStock: v.available,
         incomingStock: v.incoming,

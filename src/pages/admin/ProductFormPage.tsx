@@ -305,6 +305,10 @@ export default function ProductFormPage() {
                     <Form.Item name={[name, 'tierName']} noStyle>
                       <Input disabled style={{ width: 100 }} />
                     </Form.Item>
+                    <Form.Item name={[name, 'sku']} noStyle>
+                      {/* null = SPU-level row; a SKU code = override for that SKU only */}
+                      <Input disabled placeholder="All SKUs" style={{ width: 150 }} />
+                    </Form.Item>
                     <Form.Item name={[name, 'minQty']} label="Min Qty" style={{ margin: 0 }}>
                       <InputNumber min={1} style={{ width: 80 }} />
                     </Form.Item>
