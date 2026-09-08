@@ -1,32 +1,203 @@
-# React + TypeScript + Vite
+# B2B Wholesale Portal
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A dealer-facing catalog and order-inquiry portal plus an admin management panel for a B2B wholesale business. No backend required during development — all API calls are intercepted by [MSW (Mock Service Worker)](https://mswjs.io/) with realistic mock data.
 
-Currently, two official plugins are available:
+## Tech stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Layer | Library |
+|---|---|
+| Framework | React 19 + TypeScript |
+| Build | Vite 8 |
+| UI | Ant Design 6 |
+| Routing | React Router v7 |
+| State | Zustand 5 |
+| HTTP | Axios (separate dealer / admin instances) |
+| Mocking | MSW 2 (browser mode) |
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Getting started
 
-## Expanding the Oxlint configuration
+```bash
+# Install dependencies
+npm install
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+# Start dev server (MSW auto-starts in dev mode)
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Open http://localhost:5173.
+
+---
+
+## Build
+
+```bash
+npm run build       # type-check + production bundle → dist/
+npm run preview     # serve the production build locally
+```
+
+---
+
+## Accounts
+
+### Dealer accounts
+
+| Email | Password | Tier |
+|---|---|---|
+| dealer1@example.com | password | Gold (15% discount off base price) |
+| dealer2@example.com | password | Silver (base price) |
+
+### Admin account
+
+| Email | Password | Role |
+|---|---|---|
+| admin@example.com | admin123 | Super Admin |
+
+---
+
+## Flow 1 — Dealer portal
+
+Entry point: http://localhost:5173/login
+
+### Step-by-step
+
+1. **Login** — enter dealer credentials → redirected to the search home page.
+2. **Search home** — centered search bar with welcome message. Try searching `jacket`, `exhaust`, or `PL001-BLK`.
+3. **Search results** (`/search?q=…`) — each result is an inline-expanded card showing:
+   - Product image, name, brand, location code, attributes
+   - Tier-resolved unit price (Gold dealers see ~15% less than Silver)
+   - Per-SKU stock badges: green ≥ 10, orange 1–9, red 0
+   - Incoming stock shown in blue
+4. **Sidebar filters**:
+   - Category tree — click any leaf node to filter; click "All categories" to reset
+   - Price range — enter min/max, click Apply; Clear resets both fields
+5. **Sort** — dropdown in top-right of results: Relevance, Price ↑, Price ↓, Name A–Z
+6. **Product detail** (`/products/:spuCode`) — full image gallery, attributes table, complete SKU table with UPC column, CSV export button, last-synced timestamp
+7. **Sign out** — top-right header button → redirected to login
+
+### Verifying tier pricing
+
+Login as `dealer1@example.com` (Gold) and note the unit prices. Sign out, login as `dealer2@example.com` (Silver) — the same products show higher prices.
+
+---
+
+## Flow 2 — Admin portal
+
+Entry point: http://localhost:5173/admin/login
+
+### Dashboard (`/admin`)
+
+Shows live stat cards:
+- Total and active product count
+- Registered and active dealer count
+- Low-stock alerts (available < 5) and out-of-stock SKU count
+
+### Products (`/admin/products`)
+
+- Search by name or SPU code
+- Filter by status (Active / Draft / Archived)
+- Click the **edit** button (pencil icon) to open the edit form
+- Click the **delete** button (trash icon) → confirm popover → product removed
+
+**Product edit form** (`/admin/products/:id/edit`):
+
+| Section | Editable? | Notes |
+|---|---|---|
+| Basic info | ✅ | Name, brand, description, base price, MAP price, location code, status |
+| Display attributes | ✅ | Free-form key-value pairs; add/remove rows |
+| Images | ✅ | URL list; ↑/↓ buttons reorder; first URL = primary thumbnail |
+| Categories | ✅ | Checkbox tree; click "Set primary" to mark the primary category |
+| Tier pricing | ✅ | Price and minimum quantity per customer tier |
+| SKU variants | ❌ Read-only | Synced from Sellfox — SKU codes, pack qty, UPC, weight, stock |
+
+Click **Save Changes** → success toast → back to product list.
+
+### Categories (`/admin/categories`)
+
+- Click **Add root category** → enter name → added as a top-level node
+- Click **+** next to any node → browser prompt for child name
+- Click the **pencil** icon → inline text field → press Enter or click ✓ to save
+- Click the **trash** icon → confirm popover → node and all its children removed
+
+### Customers (`/admin/customers`)
+
+- Search by name, email, or company
+- Filter by status
+- Toggle the **Active/Off** switch to enable or disable a dealer account instantly
+- Click **Edit** to update name, company, tier, phone, or status
+- Click **New Customer** → fill form → account created with `mustChangePassword: true`
+
+### Inventory (`/admin/inventory`)
+
+- Warehouse dropdown: filter to a single warehouse or show all
+- **Low stock only** checkbox: show only rows where available stock < 5
+- Columns: SKU, Product, SPU Code, Warehouse, Available (stock badge), Incoming (blue), Reserved (orange tag), Defective (red tag), Last Updated
+- Sign out — header button → redirected to `/admin/login`
+
+---
+
+## Mock data summary
+
+| Entity | Count |
+|---|---|
+| SPUs (products) | 10 (Auto Parts > Exhaust/Lighting, Apparel > Jackets/Gloves, Tools > Hand Tools) |
+| SKUs (variants) | 18 total, 1–3 per SPU |
+| Categories | 3 top-level, 2 sub-levels each |
+| Dealer accounts | 2 (Gold, Silver) |
+| Admin accounts | 1 (Super Admin) |
+| Warehouses | 2 (Main, East Coast) |
+
+MSW mock state is **in-memory per page load** — edits made in the admin panel persist for the browser session but reset on refresh.
+
+---
+
+## Project structure
+
+```
+src/
+├── api/
+│   ├── client.ts          # Axios instance for dealer routes (uses auth_token)
+│   ├── adminClient.ts     # Axios instance for admin routes (uses admin_token)
+│   └── types.ts           # All TypeScript interfaces
+├── store/
+│   ├── authStore.ts       # Zustand: dealer auth
+│   └── adminAuthStore.ts  # Zustand: admin auth
+├── mocks/
+│   ├── browser.ts         # MSW worker setup
+│   ├── data/
+│   │   ├── products.ts    # 10 mock SPUs with tier-aware pricing
+│   │   ├── categories.ts  # Category tree
+│   │   ├── users.ts       # Dealer accounts
+│   │   └── admin.ts       # Admin account, tiers, warehouses, customers
+│   └── handlers/
+│       ├── dealerHandlers.ts  # POST /api/auth/login, GET /api/products, etc.
+│       ├── adminHandlers.ts   # All /api/admin/* endpoints (CRUD + mutable state)
+│       └── index.ts           # Combines both handler arrays
+├── components/
+│   ├── Layout.tsx             # Dealer shell (sticky header, search bar, outlet)
+│   ├── ProtectedRoute.tsx
+│   ├── CategoryTree.tsx
+│   ├── PriceRangeFilter.tsx
+│   ├── ProductCard.tsx        # Inline-expanded search result card
+│   ├── SkuTable.tsx           # Reusable SKU/stock table
+│   └── admin/
+│       ├── AdminLayout.tsx        # Collapsible sidebar + header
+│       └── AdminProtectedRoute.tsx
+├── pages/
+│   ├── LoginPage.tsx
+│   ├── HomePage.tsx
+│   ├── SearchPage.tsx
+│   ├── ProductDetailPage.tsx
+│   └── admin/
+│       ├── AdminLoginPage.tsx
+│       ├── DashboardPage.tsx
+│       ├── ProductListPage.tsx
+│       ├── ProductFormPage.tsx    # Edit-only (products synced from Sellfox)
+│       ├── CategoryPage.tsx
+│       ├── CustomerListPage.tsx
+│       ├── CustomerFormPage.tsx
+│       └── InventoryPage.tsx
+└── utils/
+    └── stockBadge.tsx         # Green/orange/red stock indicator
+```
