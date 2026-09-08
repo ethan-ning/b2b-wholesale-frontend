@@ -22,11 +22,12 @@ import SkuTable from '../components/SkuTable';
 const { Title, Text } = Typography;
 
 function exportCsv(product: Product) {
-  const headers = ['SKU', product.variantAxis ?? 'Variant', 'Unit Price', 'Available Stock', 'Incoming Stock', 'UPC'];
+  const headers = ['SKU', product.variantAxis ?? 'Variant', 'Unit Price', 'MAP', 'Available Stock', 'Incoming Stock', 'UPC'];
   const rows = product.variants.map((v: Variant) => [
     v.sku,
     v.variantValue ?? v.packQuantity,
     v.tierPrice.toFixed(2),
+    v.mapPrice?.toFixed(2) ?? '',
     v.inventory.availableStock,
     v.inventory.incomingStock,
     v.upc ?? '',
@@ -82,6 +83,17 @@ export default function ProductDetailPage() {
   const lastSynced = product.variants[0]?.inventory.updatedAt
     ? new Date(product.variants[0].inventory.updatedAt).toLocaleString()
     : 'Unknown';
+
+  // Headline figures are the dealer's own resolved prices, not the SPU list price.
+  const lowestTierPrice = Math.min(...product.variants.map((v) => v.tierPrice));
+  const maps = product.variants.map((v) => v.mapPrice).filter((m): m is number => m !== null);
+  const mapRange = maps.length
+    ? Math.min(...maps) === Math.max(...maps)
+      ? `$${Math.min(...maps).toFixed(2)}`
+      : `$${Math.min(...maps).toFixed(2)} – $${Math.max(...maps).toFixed(2)}`
+    : product.mapPrice
+      ? `$${product.mapPrice.toFixed(2)}`
+      : null;
 
   return (
     <div style={{ padding: '20px 24px', maxWidth: 1100, margin: '0 auto' }}>
@@ -148,21 +160,21 @@ export default function ProductDetailPage() {
             <Space size={24}>
               <div>
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  Wholesale price from
+                  Your price from
                 </Text>
                 <div>
                   <Text strong style={{ fontSize: 22 }}>
-                    ${product.baseWholesalePrice.toFixed(2)}
+                    ${lowestTierPrice.toFixed(2)}
                   </Text>
                 </div>
               </div>
-              {product.mapPrice && (
+              {mapRange && (
                 <div>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     MAP price
                   </Text>
                   <div>
-                    <Text style={{ fontSize: 16 }}>${product.mapPrice.toFixed(2)}</Text>
+                    <Text style={{ fontSize: 16 }}>{mapRange}</Text>
                   </div>
                 </div>
               )}

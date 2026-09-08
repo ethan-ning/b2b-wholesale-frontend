@@ -18,6 +18,17 @@ export default function ProductCard({ product }: Props) {
   const lowPrice = Math.min(...prices);
   const highPrice = Math.max(...prices);
 
+  // Per-SKU MAP can differ from the SPU's (size premiums), so summarise it the same
+  // way as price. Falls back to the SPU MAP when no variant carries one.
+  const maps = product.variants.map((v) => v.mapPrice).filter((m): m is number => m !== null);
+  const mapRange = maps.length
+    ? Math.min(...maps) === Math.max(...maps)
+      ? `$${Math.min(...maps).toFixed(2)}`
+      : `$${Math.min(...maps).toFixed(2)} – $${Math.max(...maps).toFixed(2)}`
+    : product.mapPrice
+      ? `$${product.mapPrice.toFixed(2)}`
+      : null;
+
   return (
     <Card
       size="small"
@@ -93,10 +104,10 @@ export default function ProductCard({ product }: Props) {
               your price
             </Text>
           </div>
-          {product.mapPrice && (
+          {mapRange && (
             <div>
               <Text type="secondary" style={{ fontSize: 11 }}>
-                MAP: ${product.mapPrice.toFixed(2)}
+                MAP: {mapRange}
               </Text>
             </div>
           )}

@@ -14,6 +14,13 @@ interface VariantSeed {
   upc: string;
   available: number;
   incoming: number;
+  /**
+   * Per-unit MAP override. Omitted on most SKUs — they inherit the SPU's MAP. Set on
+   * sizes that carry a wholesale premium, since the advertised price moves with it.
+   * Pack SKUs never override: prices here are per unit, so a 6-pack advertises at the
+   * same per-unit MAP as a single.
+   */
+  map?: number;
 }
 
 function makeProduct(
@@ -56,6 +63,7 @@ function makeProduct(
       upc: v.upc,
       weight: 0.5 + i * 0.2,
       status: 'ACTIVE',
+      mapPrice: v.map ?? mapPrice,
       tierPrice: resolvePrice(spuCode, v.sku, tierId, basePrice, v.priceAdj, 1),
       priceBreaks: getPriceBreaks(spuCode, v.sku, tierId, basePrice, v.priceAdj),
       inventory: {
@@ -118,8 +126,8 @@ export function getProducts(tierId: number): Product[] {
       ], tierId),
 
     // ─── Jackets (category 21) — size SKUs ───────────────────────────────────
-    // One SPU per color; sizes are SKUs beneath it. MAP differs per color, which is
-    // why map_price lives on the SPU rather than the SKU.
+    // One SPU per color; sizes are SKUs beneath it. MAP differs per color, which is why
+    // map_price defaults from the SPU — XL overrides it to track its wholesale premium.
     makeProduct(6, 'JK400-BLK', 'Motorcycle Leather Jacket - Black', 'RiderEdge', 89.00, 179.99, 'C1-1', 'Size', 21, 'Jackets',
       'Premium cowhide leather motorcycle jacket, CE-rated armor pockets.',
       { Color: 'Black', Material: 'Cowhide Leather', CE_Armor: 'Level 1' },
@@ -128,7 +136,7 @@ export function getProducts(tierId: number): Product[] {
         { sku: 'JK400-BLK-S', value: 'S', packQty: 1, priceAdj: 0, upc: '045678900001', available: 12, incoming: 0 },
         { sku: 'JK400-BLK-M', value: 'M', packQty: 1, priceAdj: 0, upc: '045678900002', available: 8, incoming: 20 },
         { sku: 'JK400-BLK-L', value: 'L', packQty: 1, priceAdj: 0, upc: '045678900003', available: 3, incoming: 0 },
-        { sku: 'JK400-BLK-XL', value: 'XL', packQty: 1, priceAdj: 4.00, upc: '045678900004', available: 0, incoming: 24 },
+        { sku: 'JK400-BLK-XL', value: 'XL', packQty: 1, priceAdj: 4.00, map: 189.99, upc: '045678900004', available: 0, incoming: 24 },
       ], tierId),
 
     makeProduct(7, 'JK400-BRN', 'Motorcycle Leather Jacket - Brown', 'RiderEdge', 92.00, 184.99, 'C1-2', 'Size', 21, 'Jackets',
@@ -138,7 +146,7 @@ export function getProducts(tierId: number): Product[] {
       [
         { sku: 'JK400-BRN-M', value: 'M', packQty: 1, priceAdj: 0, upc: '045678900011', available: 7, incoming: 0 },
         { sku: 'JK400-BRN-L', value: 'L', packQty: 1, priceAdj: 0, upc: '045678900012', available: 5, incoming: 0 },
-        { sku: 'JK400-BRN-XL', value: 'XL', packQty: 1, priceAdj: 4.00, upc: '045678900013', available: 2, incoming: 10 },
+        { sku: 'JK400-BRN-XL', value: 'XL', packQty: 1, priceAdj: 4.00, map: 194.99, upc: '045678900013', available: 2, incoming: 10 },
       ], tierId),
 
     // ─── Gloves (category 22) — size SKUs ────────────────────────────────────
@@ -150,7 +158,7 @@ export function getProducts(tierId: number): Product[] {
         { sku: 'GL100-BLK-S', value: 'S', packQty: 1, priceAdj: 0, upc: '056789000001', available: 22, incoming: 0 },
         { sku: 'GL100-BLK-M', value: 'M', packQty: 1, priceAdj: 0, upc: '056789000002', available: 14, incoming: 0 },
         { sku: 'GL100-BLK-L', value: 'L', packQty: 1, priceAdj: 0, upc: '056789000003', available: 6, incoming: 10 },
-        { sku: 'GL100-BLK-XL', value: 'XL', packQty: 1, priceAdj: 1.00, upc: '056789000004', available: 0, incoming: 15 },
+        { sku: 'GL100-BLK-XL', value: 'XL', packQty: 1, priceAdj: 1.00, map: 39.99, upc: '056789000004', available: 0, incoming: 15 },
       ], tierId),
 
     makeProduct(9, 'GL100-BRN', 'Riding Gloves - Brown', 'RiderEdge', 18.00, 36.99, 'C2-2', 'Size', 22, 'Gloves',

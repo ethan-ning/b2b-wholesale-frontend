@@ -35,6 +35,19 @@ export default function SkuTable({ variants, variantAxis, compact = false }: Pro
       render: (price: number) => `$${price.toFixed(2)}`,
     },
     {
+      title: 'MAP',
+      dataIndex: 'mapPrice',
+      key: 'mapPrice',
+      width: 90,
+      align: 'right',
+      render: (map: number | null) =>
+        map === null ? (
+          <span style={{ color: '#999' }}>—</span>
+        ) : (
+          <span style={{ color: '#666' }}>${map.toFixed(2)}</span>
+        ),
+    },
+    {
       title: 'Available',
       key: 'available',
       width: 100,

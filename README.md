@@ -66,14 +66,15 @@ Entry point: http://localhost:5173/login
 2. **Search home** — centered search bar with welcome message. Try searching `jacket`, `exhaust`, or `PL001-BLK`.
 3. **Search results** (`/search?q=…`) — each result is an inline-expanded card showing:
    - Product image, name, brand, location code, attributes
-   - Tier-resolved price range for the SPU, labelled "your price"
+   - Tier-resolved price range for the SPU, labelled "your price", with the MAP range beneath it
+   - Per-SKU unit price and MAP side by side in the inline SKU table
    - Per-SKU stock badges: green ≥ 10, orange 1–9, red 0
    - Incoming stock shown in blue
 4. **Sidebar filters**:
    - Category tree — click any leaf node to filter; click "All categories" to reset
    - Price range — enter min/max, click Apply; Clear resets both fields
 5. **Sort** — dropdown in top-right of results: Relevance, Price ↑, Price ↓, Name A–Z
-6. **Product detail** (`/products/:spuCode`) — full image gallery, attributes table, complete SKU table with UPC column, CSV export button, last-synced timestamp
+6. **Product detail** (`/products/:spuCode`) — full image gallery, attributes table, complete SKU table with MAP, Volume Price and UPC columns, CSV export button, last-synced timestamp
 7. **Sign out** — top-right header button → redirected to login
 
 ### Verifying tier pricing
@@ -87,6 +88,10 @@ Pricing is **not** a blanket percentage. `src/mocks/data/tierPrices.ts` mocks th
 3. **`baseWholesalePrice + priceAdjustment`** if the SPU has no tier rows at all
 
 Spreads vary by margin: commodity exhaust parts run ~10% Gold-to-Silver, apparel ~15–16%. Volume breaks (`minQty`) appear in the **Volume Price** column on the product detail page — Gold pays $69.50 for a `JK400-BLK-M`, or $65.00 each at 6+.
+
+### MAP at SKU level
+
+MAP is resolved per SKU as `variant.mapPrice ?? product.mapPrice`, and shown beside the unit price on every SKU row — margin headroom is what a dealer reads off this table, and it's per-SKU. Most SKUs inherit the SPU's MAP; sizes carrying a wholesale premium override it, so `JK400-BLK-XL` advertises at $189.99 against the run's $179.99 and holds the same ~61% margin instead of appearing thinner. Pack SKUs never override — prices here are per unit, so a 6-pack advertises at the same per-unit MAP as a single.
 
 ---
 

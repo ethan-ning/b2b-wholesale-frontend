@@ -38,6 +38,11 @@ export interface Variant {
   status: string;
   /** Unit price for the requesting dealer's tier at quantity 1. */
   tierPrice: number;
+  /**
+   * Effective per-unit MAP for this SKU: the SPU's MAP unless this SKU overrides it
+   * (a size premium raises the advertised price along with the wholesale price).
+   */
+  mapPrice: number | null;
   /** Volume breaks for that tier, ascending by minQty. Empty when there are none. */
   priceBreaks: { minQty: number; price: number }[];
   inventory: Inventory;

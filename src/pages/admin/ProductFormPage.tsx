@@ -108,6 +108,11 @@ export default function ProductFormPage() {
       width: 80, align: 'right',
       render: (value: string | null, v: Variant) => value ?? v.packQuantity,
     },
+    {
+      title: 'MAP', dataIndex: 'mapPrice', key: 'mapPrice', width: 90, align: 'right',
+      // Defaults from the SPU's MAP above; a differing value is a per-SKU override.
+      render: (v: number | null) => (v === null ? '—' : `$${v.toFixed(2)}`),
+    },
     { title: 'UPC', dataIndex: 'upc', key: 'upc', render: (v: string | null) => v ?? '—' },
     { title: 'Weight', dataIndex: 'weight', key: 'weight', width: 80, align: 'right', render: (v: number | null) => v ? `${v} kg` : '—' },
     {

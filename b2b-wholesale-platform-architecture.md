@@ -87,6 +87,7 @@ CREATE TABLE product_variant (
     product_id       BIGINT NOT NULL REFERENCES product(id),  -- FK to SPU
     sku              TEXT NOT NULL UNIQUE,     -- full SKU code: "GL100-BLK-M"
     variant_value    TEXT,                     -- value on the SPU's axis: "M", "XL", "6"; matches the SKU suffix
+    map_price        DECIMAL(10,2),            -- per-unit MAP override; NULL = inherit product.map_price
     sort_order       INT NOT NULL DEFAULT 0,   -- sizes are not lexically ordered (S < M < L < XL), so order explicitly
     pack_quantity    INT NOT NULL DEFAULT 1,   -- units per SKU; 1 for size-differentiated apparel
     price_adjustment DECIMAL(10,2) DEFAULT 0.00,  -- delta from SPU base/tier price
@@ -146,7 +147,8 @@ CREATE INDEX idx_product_category_cat ON product_category (category_id);
 
 | Observation | Impact on Model |
 |---|---|
-| MAP differs between color variants of the same base model | `map_price` on `product` (SPU), not on `product_variant` |
+| MAP differs between color variants of the same base model | `map_price` on `product` (SPU) is the default for its SKUs |
+| A size premium raises the advertised price along with the wholesale price | nullable `map_price` override on `product_variant`; resolved MAP is `COALESCE(variant.map_price, product.map_price)` |
 | Location code (e.g., "B6-1") is the same across all sizes of a product | `location_code` on `product` (SPU level) |
 | Internal supplier/ERP reference per variant | `internal_ref` on `product_variant` |
 | Each purchasable unit has its own UPC barcode | `upc` on `product_variant` |
@@ -803,30 +805,32 @@ Admin endpoint: `POST /api/admin/sellfox/sync-sku-catalog` — triggers a Spring
 The central dealer UX — a table of SKUs under a single SPU. **The second column is titled from the SPU's `variant_axis`**, so the same component serves both catalogs:
 
 ```
-SPU: GL100-BLK — Riding Gloves, Black  |  MAP: $36.99  |  Category: Apparel > Gloves
+SPU: GL100-BLK — Riding Gloves, Black  |  Category: Apparel > Gloves        [Gold tier]
 
-┌─────────────────┬──────────┬─────────┬────────────┬────────────┐
-│ SKU             │ Size     │ Price   │ Available  │ Incoming   │
-├─────────────────┼──────────┼─────────┼────────────┼────────────┤
-│ GL100-BLK-S     │ S        │ $15.30  │ ●●● 22     │ —          │
-│ GL100-BLK-M     │ M        │ $15.30  │ ●●● 14     │ —          │
-│ GL100-BLK-L     │ L        │ $15.30  │ ● 6        │ ↓ 10 (ETA) │
-│ GL100-BLK-XL    │ XL       │ $16.15  │ ○ 0        │ ↓ 15 (ETA) │
-└─────────────────┴──────────┴─────────┴────────────┴────────────┘
+┌─────────────────┬──────────┬─────────┬─────────┬─────────────┬────────────┬────────────┐
+│ SKU             │ Size     │ Price   │ MAP     │ Volume      │ Available  │ Incoming   │
+├─────────────────┼──────────┼─────────┼─────────┼─────────────┼────────────┼────────────┤
+│ GL100-BLK-S     │ S        │ $14.00  │ $36.99  │ 12+: $13.20 │ ●●● 22     │ —          │
+│ GL100-BLK-M     │ M        │ $14.00  │ $36.99  │ 12+: $13.20 │ ●●● 14     │ —          │
+│ GL100-BLK-L     │ L        │ $14.00  │ $36.99  │ 12+: $13.20 │ ● 6        │ ↓ 10 (ETA) │
+│ GL100-BLK-XL    │ XL       │ $15.00  │ $39.99  │ 12+: $14.20 │ ○ 0        │ ↓ 15 (ETA) │
+└─────────────────┴──────────┴─────────┴─────────┴─────────────┴────────────┴────────────┘
 
-SPU: PL001-BLK — Muffler Extension Pipe, Black  |  MAP: $39.99  |  Category: Auto Parts > Exhaust
+SPU: PL001-BLK — Muffler Extension Pipe, Black  |  Category: Auto Parts > Exhaust
 
-┌─────────────────┬──────────┬─────────┬────────────┬────────────┐
-│ SKU             │ Pack Qty │ Price   │ Available  │ Incoming   │
-├─────────────────┼──────────┼─────────┼────────────┼────────────┤
-│ PL001-BLK-01    │ 1        │ $16.15  │ ●●● 25     │ —          │
-│ PL001-BLK-06    │ 6        │ $14.88  │ ● 4        │ ↓ 12 (ETA) │
-└─────────────────┴──────────┴─────────┴────────────┴────────────┘
+┌─────────────────┬──────────┬─────────┬─────────┬─────────────┬────────────┬────────────┐
+│ SKU             │ Pack Qty │ Price   │ MAP     │ Volume      │ Available  │ Incoming   │
+├─────────────────┼──────────┼─────────┼─────────┼─────────────┼────────────┼────────────┤
+│ PL001-BLK-01    │ 1        │ $17.10  │ $39.99  │ 6+: $16.25  │ ●●● 25     │ —          │
+│ PL001-BLK-06    │ 6        │ $15.60  │ $39.99  │ 6+: $14.75  │ ● 4        │ ↓ 12 (ETA) │
+└─────────────────┴──────────┴─────────┴─────────┴─────────────┴────────────┴────────────┘
 Last synced: 4 min ago   [Export to CSV]
 ```
 
 - Rows arrive in `product_variant.sort_order` — sizes are not lexically ordered, so the API returns them pre-sorted and the client does not re-sort
 - Price shown is dealer's tier price; recalculates if a quantity input is provided
+- **MAP sits beside price on every row** — the dealer's margin headroom is per-SKU, so a single SPU-level MAP in the page header can't be read against the SKU they're actually quoting. Resolved as `COALESCE(variant.map_price, product.map_price)`, so an XL size premium shows its own higher MAP
+- Prices are **per unit**, including on pack SKUs — a 6-pack advertises at the same per-unit MAP as a single, so pack SKUs never override MAP
 - Stock badge: green ≥ 10, yellow 1–9, red 0 (defective stock never shown)
 - `Last synced` from `inventory.updated_at` — tells dealer how fresh the stock data is
 - CSV export (dealers paste into their own quoting/ordering tools)
