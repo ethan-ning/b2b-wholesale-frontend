@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Input, Select, Button, Space, Tag, Typography, Switch, message } from 'antd';
-import { PlusOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  Table, Input, Select, Button, Space, Tag, Typography, Switch, message, Modal, Alert, Tooltip,
+} from 'antd';
+import { PlusOutlined, EditOutlined, SearchOutlined, KeyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
 import type { Customer } from '../../api/types';
@@ -19,6 +21,9 @@ export default function CustomerListPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  // Held only until the admin dismisses it. The server keeps a hash, so this is the one
+  // moment the password exists anywhere it can be read.
+  const [issued, setIssued] = useState<{ email: string; password: string } | null>(null);
 
   const { data, loading, page, setPage, reload } = usePagedQuery(
     (f, p) => api.fetchCustomers({ ...f, page: p }),
@@ -38,6 +43,40 @@ export default function CustomerListPage() {
     });
     message.success(`Account ${newStatus === 'ACTIVE' ? 'enabled' : 'disabled'}`);
     reload();
+  }
+
+  /**
+   * Resetting is destructive in a way a disabled button cannot express: it invalidates
+   * whatever the dealer is using right now, so they are locked out until someone reads
+   * them the new one. Hence the confirm, and hence the warning naming the dealer.
+   */
+  function confirmReset(customer: Customer) {
+    Modal.confirm({
+      title: 'Reset this dealer\'s password?',
+      okText: 'Reset password',
+      okButtonProps: { danger: true },
+      content: (
+        <>
+          <Typography.Paragraph style={{ marginBottom: 8 }}>
+            <b>{customer.name}</b> ({customer.email}) will be signed out of their current
+            password immediately.
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            A new temporary one is generated and shown once. They will be asked to choose
+            their own at next login.
+          </Typography.Paragraph>
+        </>
+      ),
+      onOk: async () => {
+        try {
+          const result = await api.resetCustomerPassword(customer.id);
+          setIssued({ email: customer.email, password: result.temporaryPassword });
+          reload();
+        } catch {
+          message.error('Could not reset the password.');
+        }
+      },
+    });
   }
 
   const columns: ColumnsType<Customer> = [
@@ -66,15 +105,51 @@ export default function CustomerListPage() {
       render: (v: string) => new Date(v).toLocaleDateString(),
     },
     {
-      title: 'Actions', key: 'actions', width: 80,
+      title: 'Actions', key: 'actions', width: 100,
       render: (_: unknown, r: Customer) => (
-        <Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/admin/customers/${r.id}/edit`)} />
+        <Space size={4}>
+          <Tooltip title="Edit">
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => navigate(`/admin/customers/${r.id}/edit`)}
+            />
+          </Tooltip>
+          <Tooltip title="Reset password">
+            <Button size="small" icon={<KeyOutlined />} onClick={() => confirmReset(r)} />
+          </Tooltip>
+        </Space>
       ),
     },
   ];
 
   return (
     <div>
+      {/* Not dismissible by clicking away: closing this loses the only copy. */}
+      <Modal
+        open={issued !== null}
+        title="New temporary password"
+        closable={false}
+        maskClosable={false}
+        onOk={() => setIssued(null)}
+        okText="Done"
+        cancelButtonProps={{ style: { display: 'none' } }}
+      >
+        <Alert
+          type="warning"
+          showIcon
+          message="Copy this password now"
+          description={
+            `It is stored only as a hash, so it cannot be shown again. Give it to `
+            + `${issued?.email ?? 'the dealer'}, who will be asked to change it at next login.`
+          }
+          style={{ marginBottom: 12 }}
+        />
+        <Typography.Paragraph copyable strong style={{ fontSize: 18, textAlign: 'center' }}>
+          {issued?.password}
+        </Typography.Paragraph>
+      </Modal>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Customers</Title>
         <Space>

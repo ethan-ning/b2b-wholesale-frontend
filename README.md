@@ -205,8 +205,15 @@ both a parent and one of its children is one product.
 - Search by name, email, or company
 - Filter by status
 - Toggle the **Active/Off** switch to enable or disable a dealer account instantly
-- Click **Edit** to update name, company, tier, phone, or status
+- Click the **pencil** icon to update name, company, tier, phone, or status
+- Click the **key** icon to reset a dealer's password. It confirms first — a reset signs
+  them out of the password they are using right now, so they are locked out until someone
+  reads them the new one. The replacement is shown once and `mustChangePassword` goes back
+  to true, so they are sent through the change-password screen at next login
 - Click **New Customer** → fill form → account created with `mustChangePassword: true`
+
+Both creation and reset show the temporary password exactly once: only a hash is stored,
+so there is no way to retrieve it afterwards.
 
 ### Sellfox Sync (`/admin/sellfox`)
 
