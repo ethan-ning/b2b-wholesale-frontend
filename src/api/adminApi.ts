@@ -2,7 +2,7 @@ import { adminClient, authClient } from './http';
 import type {
   AdminLoginResponse, AdminProductDetail, Category, CategoryNode, Customer, CustomerCreated,
   CustomerTier, DashboardStats, PagedResult, Product, SkuStock,
-  SellfoxHistory, SellfoxScope, SellfoxSyncRun, SyncMode,
+  SellfoxHistory, SellfoxScope, SellfoxSyncRun, TriggerableSyncMode,
 } from './types';
 
 /** Every admin endpoint the app calls. See catalog.ts for the dealer side. */
@@ -228,7 +228,7 @@ export async function fetchSyncRuns(limit = 25): Promise<SellfoxHistory> {
  * fetchSyncRuns — a run pages every commodity Sellfox holds and takes a couple of
  * minutes, far longer than a request should be held open.
  */
-export async function triggerSync(mode: SyncMode = 'FULL'): Promise<SellfoxSyncRun> {
+export async function triggerSync(mode: TriggerableSyncMode = 'FULL'): Promise<SellfoxSyncRun> {
   const { data } = await adminClient.post<SellfoxSyncRun>('/admin/sellfox/runs', null, {
     params: mode === 'FULL' ? undefined : { mode: mode.toLowerCase() },
   });

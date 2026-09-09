@@ -235,8 +235,16 @@ export interface SellfoxScope {
   warehouses: SellfoxWarehouse[];
 }
 
-/** How deep a run went. Not a job type — there is one scope and one place to set it. */
+/**
+ * How deep a run went. Not a job type — there is one scope and one place to set it.
+ *
+ * REGROUP is read-only here: past runs are still displayed, but a regroup now happens
+ * only as a step inside a full sync, so nothing triggers one on its own.
+ */
 export type SyncMode = 'FULL' | 'INVENTORY' | 'REGROUP';
+
+/** The modes an admin can start. */
+export type TriggerableSyncMode = Exclude<SyncMode, 'REGROUP'>;
 
 export interface SellfoxSyncRun {
   id: number;

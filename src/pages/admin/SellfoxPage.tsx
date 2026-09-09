@@ -4,12 +4,12 @@ import {
   Tooltip, message, Empty, Modal, Descriptions,
 } from 'antd';
 import {
-  SyncOutlined, ReloadOutlined, SearchOutlined, CloudDownloadOutlined, EditOutlined,
+  SyncOutlined, SearchOutlined, CloudDownloadOutlined, EditOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
 import type {
-  SellfoxCategory, SellfoxHistory, SellfoxScope, SellfoxSyncRun, SellfoxWarehouse, SyncMode,
+  SellfoxCategory, SellfoxHistory, SellfoxScope, SellfoxSyncRun, SellfoxWarehouse, SyncMode, TriggerableSyncMode,
 } from '../../api/types';
 
 const { Title, Text, Paragraph } = Typography;
@@ -157,7 +157,7 @@ export default function SellfoxPage() {
     });
   }
 
-  async function trigger(mode: SyncMode) {
+  async function trigger(mode: TriggerableSyncMode) {
     try {
       await api.triggerSync(mode);
       message.success(`${MODE_LABEL[mode]} started`);
@@ -282,20 +282,10 @@ export default function SellfoxPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <Title level={4} style={{ margin: 0 }}>Sellfox Sync</Title>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           <Tooltip title="Stock only, for the warehouses in scope. A few seconds.">
             <span>
               <Button onClick={() => trigger('INVENTORY')} disabled={running || !configured}>
                 Refresh stock
-              </Button>
-            </span>
-          </Tooltip>
-          {/* Manual only. A full sync regroups within itself, and between full syncs the
-              inputs do not change — so this is here for after a grouping-rule change. */}
-          <Tooltip title="Recomputes how SKUs group into products. Reads nothing from Sellfox, so it takes seconds.">
-            <span>
-              <Button onClick={() => trigger('REGROUP')} disabled={running || !configured}>
-                Regroup SPUs
               </Button>
             </span>
           </Tooltip>
@@ -328,7 +318,7 @@ export default function SellfoxPage() {
         Sellfox is the system of record for what a product is and how many there are. The
         import scope is set once and then left alone — stock refreshes <b>hourly</b> and
         the whole catalog re-imports <b>nightly</b>. Imported products arrive{' '}
-        <b>inactive and unpriced</b>: set tier pricing, then activate them.
+        <b>hidden and unpriced</b>: set tier pricing, then make them visible.
       </Paragraph>
 
       {editing ? (
