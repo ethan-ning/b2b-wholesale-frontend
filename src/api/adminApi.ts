@@ -1,6 +1,6 @@
 import { adminClient, authClient } from './http';
 import type {
-  AdminLoginResponse, AdminProductDetail, Category, Customer, CustomerCreated,
+  AdminLoginResponse, AdminProductDetail, Category, CategoryNode, Customer, CustomerCreated,
   CustomerTier, DashboardStats, PagedResult, Product, SkuStock,
 } from './types';
 
@@ -73,8 +73,8 @@ export async function deleteProduct(id: number): Promise<void> {
 }
 
 // ─── Categories ──────────────────────────────────────────────────────────────
-export async function fetchCategories(): Promise<Category[]> {
-  const { data } = await adminClient.get<Category[]>('/admin/categories');
+export async function fetchCategories(): Promise<CategoryNode[]> {
+  const { data } = await adminClient.get<CategoryNode[]>('/admin/categories');
   return data;
 }
 

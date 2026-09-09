@@ -1,16 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
-  Typography, Button, Input, Space, Spin, Alert, Popconfirm, message, Tree, Card,
+  Typography, Button, Input, Space, Spin, Alert, Popconfirm, message, Tree, Card, Tag, Tooltip,
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 import * as api from '../../api/adminApi';
-import type { Category } from '../../api/types';
+import type { CategoryNode } from '../../api/types';
 
 const { Title } = Typography;
 
 function toTreeData(
-  cats: Category[],
+  cats: CategoryNode[],
   editingId: number | null,
   editingName: string,
   handlers: {
@@ -37,25 +37,49 @@ function toTreeData(
           <Button size="small" icon={<CloseOutlined />} onClick={handlers.onCancel} />
         </Space>
       ) : (
-        <Space>
+        <Space size={6}>
           <span>{c.name}</span>
+
+          {/* What is filed here, so the admin knows the weight of the node before
+              acting on it. Muted at zero so a populated category stands out. */}
+          <Tag
+            color={c.productCount > 0 ? 'blue' : 'default'}
+            style={{ fontSize: 11, marginInlineEnd: 0 }}
+          >
+            {c.productCount} {c.productCount === 1 ? 'product' : 'products'}
+          </Tag>
+
           <Button
             size="small" type="text" icon={<EditOutlined />}
             onClick={() => handlers.onEdit(c.id, c.name)}
+            title="Rename"
           />
           <Button
             size="small" type="text" icon={<PlusOutlined />}
             onClick={() => handlers.onAddChild(c.id)}
-            title="Add child"
+            title="Add sub-category"
           />
-          <Popconfirm
-            title="Delete this category?"
-            description="All child categories will also be removed."
-            onConfirm={() => handlers.onDelete(c.id)}
-            okText="Delete" okButtonProps={{ danger: true }}
-          >
-            <Button size="small" type="text" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
+
+          {/* The server refuses to delete a node with children or products. Showing that
+              here — disabled, with the reason — beats letting the admin press it and
+              read a 409 they cannot act on. */}
+          {c.deletable ? (
+            <Popconfirm
+              title="Delete this category?"
+              description="It has no sub-categories and no products."
+              onConfirm={() => handlers.onDelete(c.id)}
+              okText="Delete" okButtonProps={{ danger: true }}
+            >
+              <Button size="small" type="text" danger icon={<DeleteOutlined />} title="Delete" />
+            </Popconfirm>
+          ) : (
+            <Tooltip title={`Cannot delete: ${c.blockedReason}`}>
+              {/* A disabled button swallows hover, so the tooltip needs a wrapper. */}
+              <span>
+                <Button size="small" type="text" danger disabled icon={<DeleteOutlined />} />
+              </span>
+            </Tooltip>
+          )}
         </Space>
       ),
     children: c.children.length > 0
@@ -65,7 +89,7 @@ function toTreeData(
 }
 
 export default function CategoryPage() {
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

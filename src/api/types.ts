@@ -156,6 +156,23 @@ export interface SkuStock {
 }
 
 /**
+ * A category as the admin sees it: the node plus what an admin needs before acting on it.
+ * `deletable` mirrors the API's own rules, so the button's state and the server agree.
+ */
+export interface CategoryNode {
+  id: number;
+  name: string;
+  slug: string;
+  parentId: number | null;
+  sortOrder: number;
+  /** Products filed directly under this node, not counting sub-categories. */
+  productCount: number;
+  deletable: boolean;
+  blockedReason: string | null;
+  children: CategoryNode[];
+}
+
+/**
  * Returned once when a dealer is created or has their password reset. Only a hash is
  * stored, so this response is the sole opportunity to pass the password on.
  */
