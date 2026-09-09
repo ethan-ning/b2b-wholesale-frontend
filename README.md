@@ -181,7 +181,7 @@ product is hidden — freshly imported and not yet priced, versus hidden on purp
 | Display attributes | ✅ | Free-form key-value pairs; seeded from Sellfox at import, ours thereafter |
 | Images | ✅ | URL list; ↑/↓ buttons reorder; first URL = primary thumbnail |
 | Categories | ✅ | Checkbox tree; click "Set primary" to mark the primary category |
-| Tier pricing | Price only | One row per SKU × tier, in variant order, with the SKU cell merged down its group |
+| Tier pricing | Price only | A row per SKU × tier whether or not a price exists yet, so a product that has never been priced has boxes to type into. A blank means unpriced — it is not saved as $0.00. Discontinued SKUs are left out |
 | SKU variants | MAP only | SKU code, variant value, UPC, weight, stock are synced from Sellfox and read-only; **MAP is editable per SKU** |
 
 ### Who owns which field

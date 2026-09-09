@@ -7,7 +7,7 @@ import {
 import { PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
-import type { Category, Product, TierPrice, Variant } from '../../api/types';
+import type { Category, CustomerTier, Product, TierPrice, Variant } from '../../api/types';
 
 const { Title, Text } = Typography;
 
@@ -19,6 +19,38 @@ function flattenCats(cats: Category[], prefix = ''): { id: number; label: string
     if (c.children.length) result.push(...flattenCats(c.children, prefix + c.name + ' › '));
   }
   return result;
+}
+
+/** A pricing row being edited. Unlike the saved shape, its price may be blank. */
+type DraftTierPrice = Omit<TierPrice, 'price'> & { price: number | null };
+
+/**
+ * One row per SKU per tier, seeded from whatever is already priced.
+ *
+ * Discontinued SKUs are left out: the supplier has stopped selling them, they no longer
+ * count toward whether the product can go on sale, and offering a box to price them
+ * would invite work that changes nothing.
+ */
+function buildTierGrid(
+  variants: Variant[],
+  tiers: CustomerTier[],
+  existing: TierPrice[],
+): DraftTierPrice[] {
+  const priced = new Map(existing.map((r) => [`${r.sku}:${r.tierId}:${r.minQty}`, r]));
+  return variants
+    .filter((v) => v.status !== 'DISCONTINUED')
+    .flatMap((variant) =>
+      tiers.map((tier) => {
+        const found = priced.get(`${variant.sku}:${tier.id}:1`);
+        return {
+          sku: variant.sku,
+          tierId: tier.id,
+          tierName: tier.name,
+          minQty: 1,
+          price: found?.price ?? null,
+        };
+      }),
+    );
 }
 
 export default function ProductFormPage() {
@@ -41,11 +73,22 @@ export default function ProductFormPage() {
   const [primaryCatId, setPrimaryCatId] = useState<number | null>(null);
   // Per-SKU MAP, keyed by variant id — the only place MAP is edited.
   const [variantMaps, setVariantMaps] = useState<Record<number, number | null>>({});
-  const [tierRows, setTierRows] = useState<TierPrice[]>([]);
+  /**
+   * A row per SKU per tier, whether or not a price exists yet.
+   *
+   * Built from the variants rather than from the price book: a product that has never
+   * been priced has an empty price book, and rendering that gave an empty table with
+   * nothing to type into — which is exactly the product that most needs pricing.
+   *
+   * `price` is null for a row nobody has filled in. Null and 0 are not the same thing:
+   * a blank leaves the SKU unpriced, while a zero would price it at nothing and let it
+   * go on sale for free.
+   */
+  const [tierRows, setTierRows] = useState<DraftTierPrice[]>([]);
 
   useEffect(() => {
-    Promise.all([api.fetchProduct(id!), api.fetchCategories()])
-      .then(([detail, cats]) => {
+    Promise.all([api.fetchProduct(id!), api.fetchCategories(), api.fetchTiers()])
+      .then(([detail, cats, tiers]) => {
         // The price book is a sibling of the product, not a field on it.
         const p = detail.product;
         setProduct(p);
@@ -54,7 +97,7 @@ export default function ProductFormPage() {
           [...p.images].sort((a, b) => a.sortOrder - b.sortOrder).map((img) => img.url)
         );
         setVariantMaps(Object.fromEntries(p.variants.map((v) => [v.id!, v.mapPrice])));
-        setTierRows(detail.tierPrices);
+        setTierRows(buildTierGrid(p.variants, tiers, detail.tierPrices));
         const catIds = p.categories.map((c) => c.id);
         setSelectedCatIds(catIds);
         setPrimaryCatId(p.categories.find((c) => c.isPrimary)?.id ?? catIds[0] ?? null);
@@ -89,9 +132,11 @@ export default function ProductFormPage() {
         variantMapPrices: Object.fromEntries(
           product!.variants.map((v) => [v.id!, variantMaps[v.id!] ?? null])
         ),
-        tierPrices: tierRows.map((r) => ({
-          sku: r.sku, tierId: r.tierId, price: r.price, minQty: r.minQty,
-        })),
+        // Only the rows someone actually filled in. Sending a blank as 0 would price
+        // the SKU at nothing and let it go on sale for free.
+        tierPrices: tierRows
+          .filter((r): r is DraftTierPrice & { price: number } => r.price !== null)
+          .map((r) => ({ sku: r.sku, tierId: r.tierId, price: r.price, minQty: r.minQty })),
       };
       await api.updateProduct(id!, payload);
       message.success('Product saved');
@@ -106,7 +151,7 @@ export default function ProductFormPage() {
   if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
   if (error || !product) return <Alert type="error" message={error ?? 'Not found'} />;
 
-  function updateTierRow(row: TierPrice, patch: Partial<TierPrice>) {
+  function updateTierRow(row: DraftTierPrice, patch: Partial<DraftTierPrice>) {
     setTierRows((prev) =>
       prev.map((r) =>
         r.sku === row.sku && r.tierId === row.tierId && r.minQty === row.minQty ? { ...r, ...patch } : r
@@ -122,7 +167,7 @@ export default function ProductFormPage() {
       : tierRows.filter((r) => r.sku === row.sku).length
   );
 
-  const tierPriceColumns: ColumnsType<TierPrice> = [
+  const tierPriceColumns: ColumnsType<DraftTierPrice> = [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -150,7 +195,8 @@ export default function ProductFormPage() {
       render: (price: number, row) => (
         <InputNumber
           size="small" prefix="$" min={0} precision={2} style={{ width: '100%' }} value={price}
-          onChange={(v) => updateTierRow(row, { price: v ?? 0 })}
+          // Clearing the box means "not priced", not "priced at zero".
+          onChange={(v) => updateTierRow(row, { price: v ?? null })}
         />
       ),
     },
@@ -373,7 +419,7 @@ export default function ProductFormPage() {
           style={{ marginBottom: 16 }}
           extra={<Tag>Priced per SKU — a pack SKU's price is the whole pack</Tag>}
         >
-          <Table<TierPrice>
+          <Table<DraftTierPrice>
             columns={tierPriceColumns}
             dataSource={tierRows}
             rowKey={(r) => `${r.sku}:${r.tierId}:${r.minQty}`}
