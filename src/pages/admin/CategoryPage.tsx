@@ -30,6 +30,9 @@ function levelStyle(depth: number) {
   return LEVEL[Math.min(depth, MAX_DEPTH) as 1 | 2 | 3];
 }
 
+/** One neutral for every count, at every level. */
+const COUNT_TAG = { fontSize: 11, marginInlineEnd: 0, color: '#595959' } as const;
+
 interface Handlers {
   onEdit: (id: number, name: string) => void;
   onSave: (id: number) => void;
@@ -86,18 +89,13 @@ function toTreeData(cats: CategoryNode[], state: EditState, handlers: Handlers):
         <span style={{ color: level.accent }}>{level.icon}</span>
         <span style={{ fontSize: level.size, fontWeight: level.weight }}>{c.name}</span>
 
-        {/* The count colours stay clear of every level accent — a blue tag beside a blue
-            Department row reads as part of the row rather than as a number about it. */}
+        {/* Grey at every level. Colour here competes with the level accents for no gain —
+            the counts are reference figures, not the thing the eye should land on. */}
         {showDirect && (
           <Tooltip
             title={`${c.productCount} product${c.productCount === 1 ? '' : 's'} filed directly here`}
           >
-            <Tag
-              color={c.productCount > 0 ? 'purple' : 'default'}
-              style={{ fontSize: 11, marginInlineEnd: 0 }}
-            >
-              {c.productCount}
-            </Tag>
+            <Tag style={COUNT_TAG}>{c.productCount}</Tag>
           </Tooltip>
         )}
 
@@ -105,9 +103,7 @@ function toTreeData(cats: CategoryNode[], state: EditState, handlers: Handlers):
             — which is why this is not the sum of the children's tags. */}
         {isParent && (
           <Tooltip title="Distinct products in this category and everything beneath it">
-            <Tag color="magenta" style={{ fontSize: 11, marginInlineEnd: 0 }}>
-              {c.totalProductCount} in total
-            </Tag>
+            <Tag style={COUNT_TAG}>{c.totalProductCount} in total</Tag>
           </Tooltip>
         )}
 
