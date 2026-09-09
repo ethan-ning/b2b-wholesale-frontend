@@ -228,7 +228,7 @@ export async function fetchSyncRuns(limit = 25): Promise<SellfoxHistory> {
  */
 export async function triggerSync(mode: SyncMode = 'FULL'): Promise<SellfoxSyncRun> {
   const { data } = await adminClient.post<SellfoxSyncRun>('/admin/sellfox/runs', null, {
-    params: mode === 'INVENTORY' ? { mode: 'inventory' } : undefined,
+    params: mode === 'FULL' ? undefined : { mode: mode.toLowerCase() },
   });
   return data;
 }

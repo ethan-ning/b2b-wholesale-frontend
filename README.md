@@ -215,7 +215,14 @@ Sellfox is the ERP the catalog comes from. **One scope, two cadences:**
 | Run | When | What it does |
 |---|---|---|
 | Stock | hourly | Reads the selected warehouses and sums stock per SKU. Seconds |
-| Full | nightly 02:15 | Imports the selected categories, **deactivates anything that has left the scope**, then counts stock. ~2 minutes |
+| Full | nightly 02:15 | Imports the selected categories, regroups, **deactivates anything that has left the scope**, then counts stock. ~2 minutes |
+| Regroup | by hand | Recomputes how SKUs group into products. Calls no Sellfox endpoint, so seconds |
+
+Regrouping is deliberately not scheduled. Its inputs — the declared SPU, the declared
+pack children, the SKU codes — only change when a full run brings in new SKUs, and that
+run regroups within itself. What makes it worth running on its own is a change to the
+**grouping rules**, which is a deploy rather than an hour of the day: it fixes the whole
+catalog in seconds instead of a two-minute re-page of a catalog that has not moved.
 
 A full run does both halves in that order on purpose — a SKU it imports gets its stock
 from the same run. Separately *scoped* jobs meant a newly imported product sat at zero
@@ -254,21 +261,32 @@ changed.
 admin sets tier pricing and then activates them; a product cannot reach a dealer at
 $0.00 by accident.
 
-**How SPUs are derived.** Sellfox has an `spu` field and leaves it null, so the portal
-works one out. There are two cases and they are not the same kind of thing:
+**How SPUs are derived.** Sellfox is inconsistent about saying how its SKUs relate — the
+same catalog declares `NDR24-ORANGE-6` as six of `NDR24-ORANGE-1` and says nothing at
+all about `NDR12-YELLOW-10` or the `RB-VLM4-*` ladder. So grouping reads every signal
+there is, in order of how much it can be trusted, and only guesses where nothing was
+stated:
 
-- **Packs are declared.** A pack SKU names the single-unit SKU it contains and how many:
-  `WM7C310J255-QT4-2` says it holds 2 × `WM7C310J255-QT4-1`. The family and its pack
-  quantities come straight from that, with no string parsing — which is why
-  `AX-K210-ZN-4` and `AX-K210-ZN-4 S` stay separate products despite differing by one
-  token, and why `AX-K318-24` correctly groups with `AX-K318-12` even though no suffix
-  rule connects those codes.
-- **Sizes are not declared at all.** `KTG-08-S/M/L/XL` are four unrelated rows as far as
-  Sellfox is concerned, so this one is inferred — deliberately timidly. The trailing
-  token must be a size from a closed list, and at least two SKUs must share a stem with
-  different sizes. A lone SKU ending in `-S` stays its own product.
+| | Signal | Example |
+|---|---|---|
+| 1 | A declared SPU — Sellfox's own field, on ~1% of rows | `AX-K210-ZN-4 S` → SPU `AX-K210-ZN S` |
+| 2 | A declared pack — a SKU naming what it contains | `WM7C310J255-QT4-2` holds 2 × `-1` |
+| 3 | An inferred ladder — same stem, different counts | `RB-VLM4-1/-2/-4/-8/-16` |
+| 4 | An inferred size run — same stem, different sizes | `KTG-08-S/M/L/XL` |
+| 5 | A lone pack count | `NDR12-YELLOW-10` → SPU `NDR12-YELLOW`, holds 10 |
 
-Where the two disagree, the declared relationship wins: one SPU carries one axis.
+**Nothing inferred overrides anything declared** — that is the whole point of the order.
+Rule 1 also settles a case no string rule could: `AX-K210-ZN-4` and `AX-K210-ZN-4 S`
+differ by one trailing token and Sellfox says they are different products.
+
+The inferred rules (3 and 4) are guarded: at least two SKUs sharing a stem, all with
+distinct values, and the stem must not itself be a product. A lone SKU ending in `-S`
+stays its own product rather than becoming a size.
+
+A consequence worth knowing: **a SKU code need not start with its SPU code.** Sellfox
+puts the pack count before the ` S` suffix, so `AX-K210-ZN-4 S` sits under `AX-K210-ZN S`
+without prefixing it. Since the ERP owns grouping, requiring its codes to nest would mean
+rejecting the grouping it declared.
 
 The scheduler is off by default (`SELLFOX_SCHEDULE_ENABLED`) — two instances running the
 same cron would double every sync. A run left `RUNNING` by a crashed process is closed at

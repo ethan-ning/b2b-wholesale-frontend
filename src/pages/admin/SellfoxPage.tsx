@@ -28,6 +28,18 @@ const STATUS_COLOR: Record<SellfoxSyncRun['status'], string> = {
   FAILED: 'error',
 };
 
+const MODE_LABEL: Record<SyncMode, string> = {
+  FULL: 'Full',
+  INVENTORY: 'Stock',
+  REGROUP: 'Regroup',
+};
+
+const MODE_COLOR: Record<SyncMode, string> = {
+  FULL: 'blue',
+  INVENTORY: 'default',
+  REGROUP: 'cyan',
+};
+
 const TRIGGER_LABEL: Record<SellfoxSyncRun['trigger'], string> = {
   SCHEDULED: 'Scheduled',
   MANUAL: 'Manual',
@@ -148,7 +160,7 @@ export default function SellfoxPage() {
   async function trigger(mode: SyncMode) {
     try {
       await api.triggerSync(mode);
-      message.success(mode === 'FULL' ? 'Full sync started' : 'Stock refresh started');
+      message.success(`${MODE_LABEL[mode]} started`);
       load();
     } catch (e: unknown) {
       const detail = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -229,9 +241,7 @@ export default function SellfoxPage() {
           </Tag>
           {/* Full and stock-only runs share a table; without this a "0 products" line
               cannot be told from a run that never looked at the catalog. */}
-          <Tag color={run.mode === 'FULL' ? 'blue' : 'default'}>
-            {run.mode === 'FULL' ? 'Full' : 'Stock'}
-          </Tag>
+          <Tag color={MODE_COLOR[run.mode]}>{MODE_LABEL[run.mode]}</Tag>
         </Space>
       ),
     },
@@ -277,6 +287,15 @@ export default function SellfoxPage() {
             <span>
               <Button onClick={() => trigger('INVENTORY')} disabled={running || !configured}>
                 Refresh stock
+              </Button>
+            </span>
+          </Tooltip>
+          {/* Manual only. A full sync regroups within itself, and between full syncs the
+              inputs do not change — so this is here for after a grouping-rule change. */}
+          <Tooltip title="Recomputes how SKUs group into products. Reads nothing from Sellfox, so it takes seconds.">
+            <span>
+              <Button onClick={() => trigger('REGROUP')} disabled={running || !configured}>
+                Regroup SPUs
               </Button>
             </span>
           </Tooltip>

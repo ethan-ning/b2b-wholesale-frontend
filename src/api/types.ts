@@ -229,7 +229,7 @@ export interface SellfoxScope {
 }
 
 /** How deep a run went. Not a job type — there is one scope and one place to set it. */
-export type SyncMode = 'FULL' | 'INVENTORY';
+export type SyncMode = 'FULL' | 'INVENTORY' | 'REGROUP';
 
 export interface SellfoxSyncRun {
   id: number;
