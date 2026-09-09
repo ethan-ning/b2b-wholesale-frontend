@@ -21,6 +21,7 @@ import CategoryPage from './pages/admin/CategoryPage';
 import CustomerListPage from './pages/admin/CustomerListPage';
 import CustomerFormPage from './pages/admin/CustomerFormPage';
 import InventoryPage from './pages/admin/InventoryPage';
+import SellfoxPage from './pages/admin/SellfoxPage';
 
 export default function App() {
   return (
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="customers/new" element={<CustomerFormPage />} />
             <Route path="customers/:id/edit" element={<CustomerFormPage />} />
             <Route path="inventory" element={<InventoryPage />} />
+            <Route path="sellfox" element={<SellfoxPage />} />
           </Route>
         </Route>
 

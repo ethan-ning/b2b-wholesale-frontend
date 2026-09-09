@@ -2,6 +2,7 @@ import { adminClient, authClient } from './http';
 import type {
   AdminLoginResponse, AdminProductDetail, Category, CategoryNode, Customer, CustomerCreated,
   CustomerTier, DashboardStats, PagedResult, Product, SkuStock,
+  SellfoxHistory, SellfoxJob, SellfoxScope, SellfoxSyncRun,
 } from './types';
 
 /** Every admin endpoint the app calls. See catalog.ts for the dealer side. */
@@ -192,3 +193,35 @@ export async function fetchInventory(query: StockQuery): Promise<PagedResult<Sku
   return data;
 }
 
+
+// ─── Sellfox sync ────────────────────────────────────────────────────────
+
+export async function fetchSellfoxScope(): Promise<SellfoxScope> {
+  const { data } = await adminClient.get<SellfoxScope>('/admin/sellfox/scope');
+  return data;
+}
+
+export async function setCategorySelected(cid: string, selected: boolean): Promise<void> {
+  await adminClient.put(`/admin/sellfox/scope/categories/${encodeURIComponent(cid)}`, { selected });
+}
+
+export async function setWarehouseSelected(warehouseId: number, selected: boolean): Promise<void> {
+  await adminClient.put(`/admin/sellfox/scope/warehouses/${warehouseId}`, { selected });
+}
+
+export async function fetchSyncRuns(job?: SellfoxJob, limit = 25): Promise<SellfoxHistory> {
+  const { data } = await adminClient.get<SellfoxHistory>('/admin/sellfox/runs', {
+    params: { job, limit },
+  });
+  return data;
+}
+
+/**
+ * Starts a run and returns its record, already RUNNING. The outcome arrives through
+ * fetchSyncRuns — a catalog sync pages every commodity Sellfox holds and takes about a
+ * minute, which is far longer than a request should be held open.
+ */
+export async function triggerSync(job: SellfoxJob): Promise<SellfoxSyncRun> {
+  const { data } = await adminClient.post<SellfoxSyncRun>(`/admin/sellfox/runs/${job.toLowerCase()}`);
+  return data;
+}

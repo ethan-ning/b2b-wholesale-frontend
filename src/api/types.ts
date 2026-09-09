@@ -196,3 +196,53 @@ export interface DashboardStats {
   lowStockAlerts: number;
   outOfStockCount: number;
 }
+
+// ─── Sellfox sync ────────────────────────────────────────────────────────
+
+/** A Sellfox category, as discovered by a catalog scan. */
+export interface SellfoxCategory {
+  cid: string;
+  fullCid: string;
+  /** Path of names, e.g. "供应商乙/服装配饰/手套". */
+  fullName: string;
+  commodityCount: number;
+  selected: boolean;
+  lastSeenAt: string | null;
+}
+
+export interface SellfoxWarehouse {
+  warehouseId: number;
+  name: string;
+  /** 0 default, 1 domestic, 2 FBA, 3 overseas. */
+  type: number | null;
+  selected: boolean;
+  lastSeenAt: string | null;
+}
+
+export interface SellfoxScope {
+  categories: SellfoxCategory[];
+  warehouses: SellfoxWarehouse[];
+}
+
+export type SellfoxJob = 'CATALOG' | 'INVENTORY';
+
+export interface SellfoxSyncRun {
+  id: number;
+  job: SellfoxJob;
+  trigger: 'SCHEDULED' | 'MANUAL';
+  status: 'RUNNING' | 'SUCCESS' | 'FAILED';
+  triggeredBy: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+  recordsRead: number;
+  recordsWritten: number;
+  recordsSkipped: number;
+  errorMessage: string | null;
+  summary: string | null;
+}
+
+export interface SellfoxHistory {
+  runs: SellfoxSyncRun[];
+  /** Job name -> whether one is in flight. */
+  running: Record<string, boolean>;
+}

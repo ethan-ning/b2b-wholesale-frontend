@@ -208,6 +208,44 @@ both a parent and one of its children is one product.
 - Click **Edit** to update name, company, tier, phone, or status
 - Click **New Customer** → fill form → account created with `mustChangePassword: true`
 
+### Sellfox Sync (`/admin/sellfox`)
+
+Sellfox is the ERP the catalog comes from. Two jobs, both scheduled and both runnable by
+hand from this page; every run is recorded, including the ones that fail.
+
+| Job | When | What it does |
+|---|---|---|
+| Catalog | nightly 02:15 | Pages every commodity Sellfox holds, refreshes the category list, imports the selected categories |
+| Inventory | every 15 min | Reads stock for the selected warehouses and sums it per SKU |
+
+**Scope.** Nothing is imported from a category until it is ticked here, so the first sync
+on a fresh install only fills in the lists. Warehouses work the same way, and a SKU's
+stock is the **sum across the selected warehouses** — which is what keeps China-only
+stock out of a US availability figure.
+
+**Imported products arrive inactive and unpriced.** Sellfox has no dealer price, so the
+admin sets tier pricing and then activates them; a product cannot reach a dealer at
+$0.00 by accident.
+
+**How SPUs are derived.** Sellfox has an `spu` field and leaves it null, so the portal
+works one out. There are two cases and they are not the same kind of thing:
+
+- **Packs are declared.** A pack SKU names the single-unit SKU it contains and how many:
+  `WM7C310J255-QT4-2` says it holds 2 × `WM7C310J255-QT4-1`. The family and its pack
+  quantities come straight from that, with no string parsing — which is why
+  `AX-K210-ZN-4` and `AX-K210-ZN-4 S` stay separate products despite differing by one
+  token, and why `AX-K318-24` correctly groups with `AX-K318-12` even though no suffix
+  rule connects those codes.
+- **Sizes are not declared at all.** `KTG-08-S/M/L/XL` are four unrelated rows as far as
+  Sellfox is concerned, so this one is inferred — deliberately timidly. The trailing
+  token must be a size from a closed list, and at least two SKUs must share a stem with
+  different sizes. A lone SKU ending in `-S` stays its own product.
+
+Where the two disagree, the declared relationship wins: one SPU carries one axis.
+
+The scheduler is off by default (`SELLFOX_SCHEDULE_ENABLED`) — two instances running the
+same cron would double every sync.
+
 ### Inventory (`/admin/inventory`)
 
 - Warehouse dropdown: filter to a single warehouse or show all

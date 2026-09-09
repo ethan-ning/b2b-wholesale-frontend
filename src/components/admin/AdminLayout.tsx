@@ -9,7 +9,7 @@ import {
   InboxOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined,
+  MenuUnfoldOutlined, CloudSyncOutlined,
 } from '@ant-design/icons';
 import { useAdminAuthStore } from '../../store/adminAuthStore';
 
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { key: '/admin/categories', icon: <ApartmentOutlined />, label: 'Categories' },
   { key: '/admin/customers', icon: <TeamOutlined />, label: 'Customers' },
   { key: '/admin/inventory', icon: <InboxOutlined />, label: 'Inventory' },
+  { key: '/admin/sellfox', icon: <CloudSyncOutlined />, label: 'Sellfox Sync' },
 ];
 
 export default function AdminLayout() {
