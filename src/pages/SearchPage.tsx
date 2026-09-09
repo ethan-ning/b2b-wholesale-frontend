@@ -89,7 +89,7 @@ export default function SearchPage() {
   return (
     <Layout style={{ minHeight: 'calc(100vh - 64px)', background: '#f0f2f5' }}>
       <Sider
-        width={220}
+        width={280}
         style={{
           background: '#fff',
           padding: '16px 12px',

@@ -11,7 +11,6 @@ import type { Category, CustomerTier, Product, TierPrice, Variant } from '../../
 
 const { Title, Text } = Typography;
 
-// Flatten categories for checkbox display
 function flattenCats(cats: Category[], prefix = ''): { id: number; label: string; parentId: number | null }[] {
   const result: { id: number; label: string; parentId: number | null }[] = [];
   for (const c of cats) {
@@ -64,11 +63,8 @@ export default function ProductFormPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Dynamic attribute rows
   const [attrRows, setAttrRows] = useState<{ key: string; value: string }[]>([]);
-  // Image URLs
   const [imageUrls, setImageUrls] = useState<string[]>([]);
-  // Selected category IDs + primary category
   const [selectedCatIds, setSelectedCatIds] = useState<number[]>([]);
   const [primaryCatId, setPrimaryCatId] = useState<number | null>(null);
   // Per-SKU MAP, keyed by variant id — the only place MAP is edited.
@@ -118,8 +114,6 @@ export default function ProductFormPage() {
   }) {
     setSaving(true);
     try {
-      // Only portal-owned fields. The API has no field for name, brand or description,
-      // so there is nothing to accidentally send.
       const payload: api.ProductUpdate = {
         baseWholesalePrice: values.baseWholesalePrice,
         locationCode: values.locationCode || null,
@@ -132,8 +126,7 @@ export default function ProductFormPage() {
         variantMapPrices: Object.fromEntries(
           product!.variants.map((v) => [v.id!, variantMaps[v.id!] ?? null])
         ),
-        // Only the rows someone actually filled in. Sending a blank as 0 would price
-        // the SKU at nothing and let it go on sale for free.
+        // Only the rows someone actually filled in — a blank is not a zero.
         tierPrices: tierRows
           .filter((r): r is DraftTierPrice & { price: number } => r.price !== null)
           .map((r) => ({ sku: r.sku, tierId: r.tierId, price: r.price, minQty: r.minQty })),

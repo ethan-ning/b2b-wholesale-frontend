@@ -16,9 +16,8 @@ const VISIBILITY_OPTIONS = [
 ];
 
 /**
- * "Unpriced" is not a status — a product is inactive *because* it is unpriced — so it is
- * its own filter rather than another entry in the status one, which would let you ask for
- * two contradictory things at once.
+ * Its own filter rather than another entry in the visibility one — a product is hidden
+ * *because* it is unpriced, so the two would otherwise be askable in contradiction.
  *
  * Applied to the page in hand, not by the API: it narrows what you are looking at, but
  * the count and the pager still describe the unfiltered result. Enough to work through a
@@ -59,11 +58,6 @@ export default function ProductListPage() {
     { search, visibility: visibilityFilter, size: pageSize, sort: sort.field, direction: sort.direction }
   );
 
-  /**
-   * Products come from the ERP, so there is no delete — a portal delete would be undone
-   * by the next sync and would take the pricing attached to it. Hiding one from dealers
-   * is a status change, and reversible.
-   */
   async function setActive(product: Product, active: boolean) {
     try {
       await api.setProductActive(product.id, active);
@@ -72,8 +66,7 @@ export default function ProductListPage() {
       );
       reload();
     } catch (e: unknown) {
-      // The API refuses to activate an unpriced product. Surfaced verbatim: it names the
-      // SPU and says what to do about it.
+      // Surfaced verbatim: the API's refusal names the SPU and says what to do about it.
       const detail = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
       message.error(detail ?? 'Could not change visibility.');
     }
