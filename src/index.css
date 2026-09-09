@@ -13,3 +13,11 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/*
+ * A SKU the supplier has withdrawn. Dimmed rather than hidden: the admin needs to see
+ * that it exists and that its pricing is still there, but none of it is on offer.
+ */
+.row-withdrawn td {
+  opacity: 0.55;
+}

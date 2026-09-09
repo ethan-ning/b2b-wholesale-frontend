@@ -165,6 +165,17 @@ Three overlapping ideas turned out to be two, and they now have separate names:
 | `product.visibility` | the portal | `VISIBLE` / `HIDDEN` | Whether dealers see it. **The portal's only lever** |
 | `product_variant.status` | Sellfox | `ACTIVE` / `DISCONTINUED` | Whether the supplier still sells the SKU |
 
+A withdrawn SKU is kept, not deleted — its tier prices hang off it, and a supplier
+dropping a SKU for a month should not cost the pricing set for it. Dealers never see one:
+the catalog returns only SKUs still on sale, and a product with none left is not returned
+at all. The admin sees it dimmed and tagged **Withdrawn**, and it gets no pricing row,
+since pricing something nobody can buy is work that changes nothing.
+
+Deleting withdrawn SKUs instead would cascade to `tier_price` and destroy that pricing —
+and the trigger is *absence from an import*, which also happens when a category is
+temporarily out of scope or Sellfox returns a short page. Absence is not proof of
+withdrawal.
+
 Only **在售** commodities are imported at all, so a product that goes off sale leaves the
 catalog by not being imported — never by the portal's flag. The two never had to mean the
 same thing, and calling both of them "active" invited them to.

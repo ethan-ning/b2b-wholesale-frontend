@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Form, Input, InputNumber, Select, Button, Card, Typography, Space, Table,
-  Spin, Alert, Divider, Tag, message, Checkbox, Row, Col, Descriptions,
+  Spin, Alert, Divider, Tag, message, Checkbox, Row, Col, Descriptions, Tooltip,
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -227,8 +227,15 @@ export default function ProductFormPage() {
     { title: 'UPC', dataIndex: 'upc', key: 'upc', render: (v: string | null) => v ?? '—' },
     { title: 'Weight', dataIndex: 'weight', key: 'weight', width: 80, align: 'right', render: (v: number | null) => v ? `${v} kg` : '—' },
     {
-      title: 'Supply', dataIndex: 'status', key: 'status', width: 110,
-      render: (s: string) => <Tag color={s === 'ACTIVE' ? 'success' : 'default'}>{s}</Tag>,
+      title: 'Supply', dataIndex: 'status', key: 'status', width: 130,
+      render: (status: string) =>
+        status === 'ACTIVE' ? (
+          <Tag color="success">On sale</Tag>
+        ) : (
+          <Tooltip title="Sellfox no longer sells this SKU. Dealers cannot see it; its pricing is kept in case it returns.">
+            <Tag color="default">Withdrawn</Tag>
+          </Tooltip>
+        ),
     },
     {
       title: 'Stock (available)', key: 'stock', align: 'right', width: 130,
@@ -441,6 +448,9 @@ export default function ProductFormPage() {
             rowKey="id"
             size="small"
             pagination={false}
+            /* Dimmed whole-row: the tag alone reads as a detail, but a withdrawn SKU
+               changes what the row means — none of it is on offer. */
+            rowClassName={(v) => (v.status === 'DISCONTINUED' ? 'row-withdrawn' : '')}
           />
         </Card>
 
