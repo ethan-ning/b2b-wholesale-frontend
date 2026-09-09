@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Input, Select, Button, Space, Tag, Typography, Popconfirm, message } from 'antd';
+import { Table, Input, Select, Button, Space, Tag, Typography, Popconfirm, message, Tooltip } from 'antd';
 import { EditOutlined, EyeInvisibleOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
@@ -13,6 +13,21 @@ const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
   { value: 'ACTIVE', label: 'Active' },
   { value: 'INACTIVE', label: 'Inactive' },
+];
+
+/**
+ * "Unpriced" is not a status — a product is inactive *because* it is unpriced — so it is
+ * its own filter rather than another entry in the status one, which would let you ask for
+ * two contradictory things at once.
+ *
+ * Applied to the page in hand, not by the API: it narrows what you are looking at, but
+ * the count and the pager still describe the unfiltered result. Enough to work through a
+ * page; if it needs to answer "how many are still unpriced", that has to move server-side.
+ */
+const PRICING_OPTIONS = [
+  { value: '', label: 'Any pricing' },
+  { value: 'unpriced', label: 'Unpriced only' },
+  { value: 'priced', label: 'Priced only' },
 ];
 
 /** The backend caps a page at 200 (domain Page.MAX_SIZE), so these stay well inside it. */
@@ -33,6 +48,7 @@ export default function ProductListPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [pricingFilter, setPricingFilter] = useState('');
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
 
@@ -49,14 +65,29 @@ export default function ProductListPage() {
    * is a status change, and reversible.
    */
   async function setActive(product: Product, active: boolean) {
-    await api.setProductActive(product.id, active);
-    message.success(active ? `${product.spuCode} is visible to dealers` : `${product.spuCode} is hidden from dealers`);
-    reload();
+    try {
+      await api.setProductActive(product.id, active);
+      message.success(
+        active ? `${product.spuCode} is visible to dealers` : `${product.spuCode} is hidden from dealers`,
+      );
+      reload();
+    } catch (e: unknown) {
+      // The API refuses to activate an unpriced product. Surfaced verbatim: it names the
+      // SPU and says what to do about it.
+      const detail = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      message.error(detail ?? 'Could not change visibility.');
+    }
   }
 
   /** antd's order values; the API takes asc/desc, so the two are mapped at the boundary. */
   const orderFor = (field: string) =>
     sort.field === field ? (sort.direction === 'asc' ? 'ascend' : 'descend') : null;
+
+  const rows = (data?.content ?? []).filter((p) => {
+    if (pricingFilter === 'unpriced') return p.sellable === false;
+    if (pricingFilter === 'priced') return p.sellable !== false;
+    return true;
+  });
 
   const columns: ColumnsType<Product> = [
     {
@@ -101,10 +132,20 @@ export default function ProductListPage() {
     },
     {
       title: 'Status',
-      dataIndex: 'status',
       key: 'status',
-      width: 90,
-      render: (s: string) => <Tag color={STATUS_COLORS[s] ?? 'default'}>{s}</Tag>,
+      width: 150,
+      render: (_: unknown, r: Product) => (
+        <Space size={4} wrap>
+          <Tag color={STATUS_COLORS[r.status] ?? 'default'}>{r.status}</Tag>
+          {/* Says why it is inactive. Without this, a product imported five minutes ago
+              and one an admin hid on purpose look identical. */}
+          {r.sellable === false && (
+            <Tooltip title="No tier pricing yet, so it cannot be shown to dealers">
+              <Tag color="orange">Unpriced</Tag>
+            </Tooltip>
+          )}
+        </Space>
+      ),
     },
     {
       title: 'Actions',
@@ -118,7 +159,14 @@ export default function ProductListPage() {
             title="Edit"
             onClick={() => navigate(`/admin/products/${r.id}/edit`)}
           />
-          {r.status === 'ACTIVE' ? (
+          {r.status !== 'ACTIVE' && r.sellable === false ? (
+            <Tooltip title="Set tier pricing for every SKU before this can go live">
+              {/* A disabled button swallows hover, so the tooltip needs a wrapper. */}
+              <span>
+                <Button size="small" type="primary" ghost disabled icon={<EyeOutlined />} />
+              </span>
+            </Tooltip>
+          ) : r.status === 'ACTIVE' ? (
             <Popconfirm
               title="Hide from dealers?"
               description="The product and its pricing are kept. You can make it visible again at any time."
@@ -161,12 +209,18 @@ export default function ProductListPage() {
             onChange={(v) => setStatusFilter(v)}
             style={{ width: 140 }}
           />
+          <Select
+            value={pricingFilter}
+            options={PRICING_OPTIONS}
+            onChange={(v) => setPricingFilter(v)}
+            style={{ width: 140 }}
+          />
         </Space>
       </div>
 
       <Table<Product>
         columns={columns}
-        dataSource={data?.content ?? []}
+        dataSource={rows}
         rowKey="id"
         loading={loading}
         onChange={(_pagination, _filters, sorter) => {

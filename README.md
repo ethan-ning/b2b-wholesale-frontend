@@ -150,6 +150,13 @@ Shows live stat cards:
 - Page size selector: 20 (default), 50 or 100. Changing it returns to the first page, since page 3 of 20-per-page does not exist at 100 per page
 - Click the **edit** button (pencil icon) to open the edit form
 - Click the **eye** button to hide a product from dealers, or show it again. There is no delete: products come from Sellfox, so a portal delete would be undone by the next sync and would take the pricing with it. Hiding keeps the product, its pricing and its history
+- An **Unpriced** tag marks a product where some SKU has no tier price, and its eye button
+  is disabled. **Activating one is refused by the API**, not only by the button: an
+  unpriced product would be offered at its base price, which for a Sellfox import is
+  $0.00. The pricing filter narrows the page to unpriced or priced products
+
+That tag is what tells apart the two reasons a product is inactive — freshly imported and
+not yet priced, versus deliberately hidden. Before it they looked identical.
 
 **Product edit form** (`/admin/products/:id/edit`):
 

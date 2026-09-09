@@ -47,6 +47,11 @@ export interface ProductCategory {
 }
 
 export interface Product {
+  /**
+   * False when some SKU has no tier price. Such a product cannot be activated — it would
+   * be offered at its base price, which for an ERP import is zero.
+   */
+  sellable?: boolean;
   id: number;
   spuCode: string;
   name: string;
