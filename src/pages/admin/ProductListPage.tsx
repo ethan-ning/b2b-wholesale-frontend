@@ -20,6 +20,11 @@ const STATUS_OPTIONS = [
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = ['20', '50', '100'];
 
+/** The catalog's natural order, and what the API sorts by when asked for nothing. */
+const DEFAULT_SORT = { field: 'spuCode', direction: 'asc' } as const;
+
+type SortState = { field: string; direction: 'asc' | 'desc' };
+
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'success',
   DRAFT: 'default',
@@ -31,12 +36,13 @@ export default function ProductListPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
 
   // pageSize sits in the filters rather than beside them, so changing it returns to the
   // first page — page 3 of 10-per-page is out of range at 100 per page.
   const { data, loading, page, setPage, reload } = usePagedQuery(
     (f, p) => api.fetchProducts({ ...f, page: p }),
-    { search, status: statusFilter, size: pageSize }
+    { search, status: statusFilter, size: pageSize, sort: sort.field, direction: sort.direction }
   );
 
   async function handleDelete(id: number) {
@@ -45,22 +51,40 @@ export default function ProductListPage() {
     reload();
   }
 
+  /** antd's order values; the API takes asc/desc, so the two are mapped at the boundary. */
+  const orderFor = (field: string) =>
+    sort.field === field ? (sort.direction === 'asc' ? 'ascend' : 'descend') : null;
+
   const columns: ColumnsType<Product> = [
     {
       title: 'SPU Code',
       dataIndex: 'spuCode',
       key: 'spuCode',
       width: 140,
+      // Sorting is done by the API over the whole result set, not by antd over the
+      // current page — sorting one page of 24 products would order only those rows.
+      sorter: true,
+      sortOrder: orderFor('spuCode'),
       render: (v: string) => <code style={{ fontSize: 12 }}>{v}</code>,
     },
     { title: 'Name', dataIndex: 'name', key: 'name' },
-    { title: 'Brand', dataIndex: 'brand', key: 'brand', width: 100, render: (v: string | null) => v ?? '—' },
+    {
+      title: 'Brand',
+      dataIndex: 'brand',
+      key: 'brand',
+      width: 100,
+      sorter: true,
+      sortOrder: orderFor('brand'),
+      render: (v: string | null) => v ?? '—',
+    },
     {
       title: 'Base Price',
       dataIndex: 'baseWholesalePrice',
       key: 'price',
       width: 100,
       align: 'right',
+      sorter: true,
+      sortOrder: orderFor('price'),
       render: (v: number) => `$${v.toFixed(2)}`,
     },
     {
@@ -129,6 +153,13 @@ export default function ProductListPage() {
         dataSource={data?.content ?? []}
         rowKey="id"
         loading={loading}
+        onChange={(_pagination, _filters, sorter) => {
+          // Clearing a sort (antd's third click) returns to the catalog's natural order
+          // rather than to whatever the database happens to yield.
+          const s = Array.isArray(sorter) ? sorter[0] : sorter;
+          if (!s?.order) setSort(DEFAULT_SORT);
+          else setSort({ field: String(s.columnKey), direction: s.order === 'ascend' ? 'asc' : 'desc' });
+        }}
         pagination={{
           current: page + 1,
           total: data?.totalElements ?? 0,

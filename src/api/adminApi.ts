@@ -24,6 +24,9 @@ export async function fetchDashboard(): Promise<DashboardStats> {
 export interface AdminProductQuery {
   search?: string;
   status?: string;
+  /** spuCode (default), name, brand or price. */
+  sort?: string;
+  direction?: 'asc' | 'desc';
   page?: number;
   size?: number;
 }
@@ -35,6 +38,8 @@ export async function fetchProducts(query: AdminProductQuery): Promise<PagedResu
   };
   if (query.search) params.search = query.search;
   if (query.status) params.status = query.status;
+  if (query.sort) params.sort = query.sort;
+  if (query.direction) params.direction = query.direction;
 
   const { data } = await adminClient.get<PagedResult<Product>>('/admin/products', { params });
   return data;
