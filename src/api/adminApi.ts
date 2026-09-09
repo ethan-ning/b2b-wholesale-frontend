@@ -2,7 +2,7 @@ import { adminClient, authClient } from './http';
 import type {
   AdminLoginResponse, AdminProductDetail, Category, CategoryNode, Customer, CustomerCreated,
   CustomerTier, DashboardStats, PagedResult, Product, SkuStock,
-  SellfoxHistory, SellfoxScope, SellfoxSyncRun,
+  SellfoxHistory, SellfoxScope, SellfoxSyncRun, SyncMode,
 } from './types';
 
 /** Every admin endpoint the app calls. See catalog.ts for the dealer side. */
@@ -201,13 +201,17 @@ export async function fetchSellfoxScope(): Promise<SellfoxScope> {
   return data;
 }
 
-/** Replaces the whole selection, so clearing is one call rather than one per row. */
-export async function selectCategories(cids: string[]): Promise<void> {
-  await adminClient.put('/admin/sellfox/scope/categories', { cids });
-}
-
-export async function selectWarehouses(warehouseIds: number[]): Promise<void> {
-  await adminClient.put('/admin/sellfox/scope/warehouses', { warehouseIds });
+/**
+ * Replaces the whole scope and starts the full sync that enacts it. Not optional:
+ * narrowing the scope leaves products in the catalog that should no longer be there,
+ * and that run is what deactivates them.
+ */
+export async function setScope(cids: string[], warehouseIds: number[]): Promise<SellfoxSyncRun> {
+  const { data } = await adminClient.put<SellfoxSyncRun>('/admin/sellfox/scope', {
+    cids,
+    warehouseIds,
+  });
+  return data;
 }
 
 export async function fetchSyncRuns(limit = 25): Promise<SellfoxHistory> {
@@ -222,7 +226,9 @@ export async function fetchSyncRuns(limit = 25): Promise<SellfoxHistory> {
  * fetchSyncRuns — a run pages every commodity Sellfox holds and takes a couple of
  * minutes, far longer than a request should be held open.
  */
-export async function triggerSync(): Promise<SellfoxSyncRun> {
-  const { data } = await adminClient.post<SellfoxSyncRun>('/admin/sellfox/runs');
+export async function triggerSync(mode: SyncMode = 'FULL'): Promise<SellfoxSyncRun> {
+  const { data } = await adminClient.post<SellfoxSyncRun>('/admin/sellfox/runs', null, {
+    params: mode === 'INVENTORY' ? { mode: 'inventory' } : undefined,
+  });
   return data;
 }

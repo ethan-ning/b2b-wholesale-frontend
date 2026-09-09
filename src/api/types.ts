@@ -228,9 +228,13 @@ export interface SellfoxScope {
   warehouses: SellfoxWarehouse[];
 }
 
+/** How deep a run went. Not a job type — there is one scope and one place to set it. */
+export type SyncMode = 'FULL' | 'INVENTORY';
+
 export interface SellfoxSyncRun {
   id: number;
-  trigger: 'SCHEDULED' | 'MANUAL';
+  mode: SyncMode;
+  trigger: 'SCHEDULED' | 'MANUAL' | 'SCOPE_CHANGE';
   status: 'RUNNING' | 'SUCCESS' | 'FAILED';
   triggeredBy: string | null;
   startedAt: string;

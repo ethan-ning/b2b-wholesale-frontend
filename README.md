@@ -210,21 +210,32 @@ both a parent and one of its children is one product.
 
 ### Sellfox Sync (`/admin/sellfox`)
 
-Sellfox is the ERP the catalog comes from. **One job**: it imports the products in the
-selected categories, then counts them in the selected warehouses. Scheduled hourly and
-runnable by hand from this page; every run is recorded, including the ones that fail.
+Sellfox is the ERP the catalog comes from. **One scope, two cadences:**
 
-The two halves are one run and in that order on purpose — a SKU imported by the first
-half gets its stock from the second half of the same run. Separately-scheduled jobs meant
-a newly imported product sat at zero until the other one came round, which reads to a
-dealer as out of stock.
+| Run | When | What it does |
+|---|---|---|
+| Stock | hourly | Reads the selected warehouses and sums stock per SKU. Seconds |
+| Full | nightly 02:15 | Imports the selected categories, **deactivates anything that has left the scope**, then counts stock. ~2 minutes |
 
-**Scope — both halves are required.** Categories decide which products are imported;
-warehouses decide where their stock is counted. A sync with only one is **refused**: a
-category with no warehouse imports products that read as out of stock, and a warehouse
-with no category counts a catalog that is not there. The one exception is a first run on
-a fresh install, when there is nothing to choose from yet — that run is how the two lists
-get filled.
+A full run does both halves in that order on purpose — a SKU it imports gets its stock
+from the same run. Separately *scoped* jobs meant a newly imported product sat at zero
+until the other came round, which reads to a dealer as out of stock. What differs here is
+only depth, not configuration: there is one scope and one place to set it.
+
+**The scope is set once.** Which product lines this site carries and which warehouses can
+ship them is a fixed decision, so the page shows it read-only; **Change** opens the
+pickers. Saving replaces the whole scope in one call and **immediately starts a full
+sync** — that is not optional, because narrowing the scope leaves products in the catalog
+that should no longer be there and only that run deactivates them.
+
+Deactivated, never deleted: the tier pricing an admin set hangs off those rows, and a
+category removed by mistake would otherwise cost all of it. Putting the category back
+re-imports them, though they come back inactive like any import.
+
+Both halves are required — a category with no warehouse imports products that read as out
+of stock, and a warehouse with no category counts a catalog that is not there. The one
+exception is a first run on a fresh install, when there is nothing to choose from yet:
+that run is how the two lists get filled.
 
 Categories are chosen at the **second level** of Sellfox's tree — `供应商甲/重卡配件`, not
 the leaves beneath it. Selecting a group takes everything under it. The leaves are the
