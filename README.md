@@ -145,18 +145,32 @@ Shows live stat cards:
 ### Products (`/admin/products`)
 
 - Search by name or SPU code
-- Filter by status (Active / Inactive)
+- Filter by visibility (Visible / Hidden) and by pricing
 - Sort by SPU code (default), brand or base price, ascending or descending. Clearing a sort returns to SPU code rather than to an undefined order. Sorting is done by the API over the whole result set, not by the table over the current page
 - Page size selector: 20 (default), 50 or 100. Changing it returns to the first page, since page 3 of 20-per-page does not exist at 100 per page
 - Click the **edit** button (pencil icon) to open the edit form
-- Click the **eye** button to hide a product from dealers, or show it again. There is no delete: products come from Sellfox, so a portal delete would be undone by the next sync and would take the pricing with it. Hiding keeps the product, its pricing and its history
-- An **Unpriced** tag marks a product where some SKU has no tier price, and its eye button
-  is disabled. **Activating one is refused by the API**, not only by the button: an
-  unpriced product would be offered at its base price, which for a Sellfox import is
-  $0.00. The pricing filter narrows the page to unpriced or priced products
+- Click the **eye** button to hide a product from dealers, or show it again. There is no
+  delete: products come from Sellfox, so a portal delete would be undone by the next sync
+  and would take the pricing with it
+- An **Unpriced** tag marks a product where some SKU still on sale has no tier price, and
+  its eye button is disabled. **Making it visible is refused by the API**, not only by the
+  button: it would be offered at its base price, which for a Sellfox import is $0.00
 
-That tag is what tells apart the two reasons a product is inactive — freshly imported and
-not yet priced, versus deliberately hidden. Before it they looked identical.
+### One word for each thing
+
+Three overlapping ideas turned out to be two, and they now have separate names:
+
+| | Owned by | Values | Means |
+|---|---|---|---|
+| `product.visibility` | the portal | `VISIBLE` / `HIDDEN` | Whether dealers see it. **The portal's only lever** |
+| `product_variant.status` | Sellfox | `ACTIVE` / `DISCONTINUED` | Whether the supplier still sells the SKU |
+
+Only **在售** commodities are imported at all, so a product that goes off sale leaves the
+catalog by not being imported — never by the portal's flag. The two never had to mean the
+same thing, and calling both of them "active" invited them to.
+
+The `Unpriced` tag is derived, not stored: it is what tells apart the two reasons a
+product is hidden — freshly imported and not yet priced, versus hidden on purpose.
 
 **Product edit form** (`/admin/products/:id/edit`):
 

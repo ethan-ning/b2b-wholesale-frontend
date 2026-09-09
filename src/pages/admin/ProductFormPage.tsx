@@ -62,7 +62,7 @@ export default function ProductFormPage() {
         form.setFieldsValue({
           baseWholesalePrice: p.baseWholesalePrice,
           locationCode: p.locationCode,
-          status: p.status,
+          status: p.visibility,
         });
       })
       .catch(() => setError('Failed to load product.'))
@@ -80,7 +80,7 @@ export default function ProductFormPage() {
       const payload: api.ProductUpdate = {
         baseWholesalePrice: values.baseWholesalePrice,
         locationCode: values.locationCode || null,
-        status: values.status,
+        visibility: values.status,
         attributes: Object.fromEntries(attrRows.filter((r) => r.key.trim()).map((r) => [r.key.trim(), r.value])),
         imageUrls,
         categoryIds: selectedCatIds,
@@ -181,7 +181,7 @@ export default function ProductFormPage() {
     { title: 'UPC', dataIndex: 'upc', key: 'upc', render: (v: string | null) => v ?? '—' },
     { title: 'Weight', dataIndex: 'weight', key: 'weight', width: 80, align: 'right', render: (v: number | null) => v ? `${v} kg` : '—' },
     {
-      title: 'Status', dataIndex: 'status', key: 'status', width: 100,
+      title: 'Supply', dataIndex: 'status', key: 'status', width: 110,
       render: (s: string) => <Tag color={s === 'ACTIVE' ? 'success' : 'default'}>{s}</Tag>,
     },
     {
@@ -239,10 +239,10 @@ export default function ProductFormPage() {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="status" label="Status" rules={[{ required: true }]} tooltip="Controls dealer visibility.">
+              <Form.Item name="status" label="Visibility" rules={[{ required: true }]} tooltip="Controls dealer visibility.">
                 <Select options={[
-                  { value: 'ACTIVE', label: 'Active' },
-                  { value: 'INACTIVE', label: 'Inactive' },
+                  { value: 'VISIBLE', label: 'Visible to dealers' },
+                  { value: 'HIDDEN', label: 'Hidden' },
                 ]} />
               </Form.Item>
             </Col>

@@ -24,7 +24,8 @@ export async function fetchDashboard(): Promise<DashboardStats> {
 // ─── Products ────────────────────────────────────────────────────────────────
 export interface AdminProductQuery {
   search?: string;
-  status?: string;
+  /** VISIBLE or HIDDEN. */
+  visibility?: string;
   /** spuCode (default), name, brand or price. */
   sort?: string;
   direction?: 'asc' | 'desc';
@@ -38,7 +39,7 @@ export async function fetchProducts(query: AdminProductQuery): Promise<PagedResu
     size: String(query.size ?? PAGE_SIZE),
   };
   if (query.search) params.search = query.search;
-  if (query.status) params.status = query.status;
+  if (query.visibility) params.visibility = query.visibility;
   if (query.sort) params.sort = query.sort;
   if (query.direction) params.direction = query.direction;
 
@@ -59,7 +60,8 @@ export async function fetchProduct(id: string | number): Promise<AdminProductDet
 export interface ProductUpdate {
   baseWholesalePrice: number;
   locationCode: string | null;
-  status: string;
+  /** VISIBLE or HIDDEN. */
+  visibility: string;
   attributes: Record<string, string>;
   imageUrls: string[];
   categoryIds: number[];

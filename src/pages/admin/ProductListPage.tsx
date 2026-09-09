@@ -9,10 +9,10 @@ import { usePagedQuery } from '../../hooks/usePagedQuery';
 
 const { Title } = Typography;
 
-const STATUS_OPTIONS = [
-  { value: '', label: 'All statuses' },
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'INACTIVE', label: 'Inactive' },
+const VISIBILITY_OPTIONS = [
+  { value: '', label: 'All products' },
+  { value: 'VISIBLE', label: 'Visible' },
+  { value: 'HIDDEN', label: 'Hidden' },
 ];
 
 /**
@@ -39,15 +39,15 @@ const DEFAULT_SORT = { field: 'spuCode', direction: 'asc' } as const;
 
 type SortState = { field: string; direction: 'asc' | 'desc' };
 
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: 'success',
-  INACTIVE: 'default',
+const VISIBILITY_COLORS: Record<string, string> = {
+  VISIBLE: 'green',
+  HIDDEN: 'default',
 };
 
 export default function ProductListPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [visibilityFilter, setVisibilityFilter] = useState('');
   const [pricingFilter, setPricingFilter] = useState('');
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
@@ -56,7 +56,7 @@ export default function ProductListPage() {
   // first page — page 3 of 10-per-page is out of range at 100 per page.
   const { data, loading, page, setPage, reload } = usePagedQuery(
     (f, p) => api.fetchProducts({ ...f, page: p }),
-    { search, status: statusFilter, size: pageSize, sort: sort.field, direction: sort.direction }
+    { search, visibility: visibilityFilter, size: pageSize, sort: sort.field, direction: sort.direction }
   );
 
   /**
@@ -131,12 +131,12 @@ export default function ProductListPage() {
       render: (_: unknown, r: Product) => r.variants.length,
     },
     {
-      title: 'Status',
-      key: 'status',
+      title: 'Visibility',
+      key: 'visibility',
       width: 150,
       render: (_: unknown, r: Product) => (
         <Space size={4} wrap>
-          <Tag color={STATUS_COLORS[r.status] ?? 'default'}>{r.status}</Tag>
+          <Tag color={VISIBILITY_COLORS[r.visibility] ?? 'default'}>{r.visibility}</Tag>
           {/* Says why it is inactive. Without this, a product imported five minutes ago
               and one an admin hid on purpose look identical. */}
           {r.sellable === false && (
@@ -159,14 +159,14 @@ export default function ProductListPage() {
             title="Edit"
             onClick={() => navigate(`/admin/products/${r.id}/edit`)}
           />
-          {r.status !== 'ACTIVE' && r.sellable === false ? (
+          {r.visibility !== 'VISIBLE' && r.sellable === false ? (
             <Tooltip title="Set tier pricing for every SKU before this can go live">
               {/* A disabled button swallows hover, so the tooltip needs a wrapper. */}
               <span>
                 <Button size="small" type="primary" ghost disabled icon={<EyeOutlined />} />
               </span>
             </Tooltip>
-          ) : r.status === 'ACTIVE' ? (
+          ) : r.visibility === 'VISIBLE' ? (
             <Popconfirm
               title="Hide from dealers?"
               description="The product and its pricing are kept. You can make it visible again at any time."
@@ -204,9 +204,9 @@ export default function ProductListPage() {
             style={{ width: 240 }}
           />
           <Select
-            value={statusFilter}
-            options={STATUS_OPTIONS}
-            onChange={(v) => setStatusFilter(v)}
+            value={visibilityFilter}
+            options={VISIBILITY_OPTIONS}
+            onChange={(v) => setVisibilityFilter(v)}
             style={{ width: 140 }}
           />
           <Select

@@ -47,9 +47,11 @@ export interface ProductCategory {
 }
 
 export interface Product {
+  /** VISIBLE or HIDDEN — the portal's only lever. Not the ERP's on-sale state. */
+  visibility: string;
   /**
-   * False when some SKU has no tier price. Such a product cannot be activated — it would
-   * be offered at its base price, which for an ERP import is zero.
+   * False when some SKU still on sale has no tier price. Such a product cannot be made
+   * visible — it would be offered at its base price, which for an ERP import is zero.
    */
   sellable?: boolean;
   id: number;
