@@ -16,6 +16,10 @@ const STATUS_OPTIONS = [
   { value: 'ARCHIVED', label: 'Archived' },
 ];
 
+/** The backend caps a page at 200 (domain Page.MAX_SIZE), so these stay well inside it. */
+const DEFAULT_PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = ['20', '50', '100'];
+
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'success',
   DRAFT: 'default',
@@ -26,10 +30,13 @@ export default function ProductListPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
+  // pageSize sits in the filters rather than beside them, so changing it returns to the
+  // first page — page 3 of 10-per-page is out of range at 100 per page.
   const { data, loading, page, setPage, reload } = usePagedQuery(
     (f, p) => api.fetchProducts({ ...f, page: p }),
-    { search, status: statusFilter }
+    { search, status: statusFilter, size: pageSize }
   );
 
   async function handleDelete(id: number) {
@@ -125,9 +132,15 @@ export default function ProductListPage() {
         pagination={{
           current: page + 1,
           total: data?.totalElements ?? 0,
-          pageSize: 10,
-          onChange: (p) => setPage(p - 1),
-          showTotal: (t) => `${t} products`,
+          pageSize,
+          showSizeChanger: true,
+          pageSizeOptions: PAGE_SIZE_OPTIONS,
+          onChange: (p, size) => {
+            // antd reports both together; only one of them actually changed.
+            if (size !== pageSize) setPageSize(size);
+            else setPage(p - 1);
+          },
+          showTotal: (t, [from, to]) => `${from}-${to} of ${t} products`,
         }}
         size="small"
       />

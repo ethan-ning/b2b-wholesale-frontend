@@ -156,6 +156,7 @@ Shows live stat cards:
 
 - Search by name or SPU code
 - Filter by status (Active / Draft / Archived)
+- Page size selector: 20 (default), 50 or 100. Changing it returns to the first page, since page 3 of 20-per-page does not exist at 100 per page
 - Click the **edit** button (pencil icon) to open the edit form
 - Click the **delete** button (trash icon) → confirm popover → product removed
 
