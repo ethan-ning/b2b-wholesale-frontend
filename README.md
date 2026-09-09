@@ -210,18 +210,24 @@ both a parent and one of its children is one product.
 
 ### Sellfox Sync (`/admin/sellfox`)
 
-Sellfox is the ERP the catalog comes from. Two jobs, both scheduled and both runnable by
-hand from this page; every run is recorded, including the ones that fail.
+Sellfox is the ERP the catalog comes from. **One job**: it imports the products in the
+selected categories, then counts them in the selected warehouses. Scheduled hourly and
+runnable by hand from this page; every run is recorded, including the ones that fail.
 
-| Job | When | What it does |
-|---|---|---|
-| Catalog | nightly 02:15 | Pages every commodity Sellfox holds, refreshes the category list, imports the selected categories |
-| Inventory | every 15 min | Reads stock for the selected warehouses and sums it per SKU |
+The two halves are one run and in that order on purpose — a SKU imported by the first
+half gets its stock from the second half of the same run. Separately-scheduled jobs meant
+a newly imported product sat at zero until the other one came round, which reads to a
+dealer as out of stock.
 
-**Scope.** Nothing is imported from a category until it is ticked here, so the first sync
-on a fresh install only fills in the lists. Warehouses work the same way, and a SKU's
-stock is the **sum across the selected warehouses** — which is what keeps China-only
-stock out of a US availability figure.
+**Scope.** Nothing is imported from a category until it is ticked here, and no stock is
+read from a warehouse until that is ticked too, so the first sync on a fresh install only
+fills in the two lists. A SKU's stock is the **sum across the selected warehouses** —
+which is what keeps China-only stock out of a US availability figure.
+
+**Frequency is set by the expensive half.** Sellfox's commodity endpoint accepts no
+category filter, so every run pages the whole catalog — about two minutes. Hourly is the
+default; going much below that is mostly re-reading 6,400 rows to find the handful that
+changed.
 
 **Imported products arrive inactive and unpriced.** Sellfox has no dealer price, so the
 admin sets tier pricing and then activates them; a product cannot reach a dealer at
@@ -244,7 +250,9 @@ works one out. There are two cases and they are not the same kind of thing:
 Where the two disagree, the declared relationship wins: one SPU carries one axis.
 
 The scheduler is off by default (`SELLFOX_SCHEDULE_ENABLED`) — two instances running the
-same cron would double every sync.
+same cron would double every sync. A run left `RUNNING` by a crashed process is closed at
+startup; otherwise it would refuse every later run as concurrent, showing up only as a
+button that stays disabled.
 
 ### Inventory (`/admin/inventory`)
 

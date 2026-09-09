@@ -3,11 +3,11 @@ import {
   Typography, Card, Table, Tag, Button, Space, Alert, Spin, Checkbox, Input,
   Tooltip, message, Empty,
 } from 'antd';
-import { SyncOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { SyncOutlined, ReloadOutlined, SearchOutlined, CloudDownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
 import type {
-  SellfoxCategory, SellfoxHistory, SellfoxJob, SellfoxScope, SellfoxSyncRun, SellfoxWarehouse,
+  SellfoxCategory, SellfoxHistory, SellfoxScope, SellfoxSyncRun, SellfoxWarehouse,
 } from '../../api/types';
 
 const { Title, Text, Paragraph } = Typography;
@@ -47,7 +47,7 @@ export default function SellfoxPage() {
     try {
       const [nextScope, nextHistory] = await Promise.all([
         api.fetchSellfoxScope(),
-        api.fetchSyncRuns(undefined, 25),
+        api.fetchSyncRuns(25),
       ]);
       setScope(nextScope);
       setHistory(nextHistory);
@@ -63,17 +63,17 @@ export default function SellfoxPage() {
 
   // While a run is in flight its outcome only arrives by asking again. Polling stops
   // the moment nothing is running, so an idle screen is not making requests.
-  const anyRunning = Object.values(history?.running ?? {}).some(Boolean);
+  const running = history?.running ?? false;
   useEffect(() => {
-    if (!anyRunning) return;
+    if (!running) return;
     const timer = setInterval(load, 5000);
     return () => clearInterval(timer);
-  }, [anyRunning, load]);
+  }, [running, load]);
 
-  async function trigger(job: SellfoxJob) {
+  async function trigger() {
     try {
-      await api.triggerSync(job);
-      message.success(`${job === 'CATALOG' ? 'Catalog' : 'Inventory'} sync started`);
+      await api.triggerSync();
+      message.success('Sync started');
       load();
     } catch (e: unknown) {
       const detail = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -140,12 +140,6 @@ export default function SellfoxPage() {
 
   const runColumns: ColumnsType<SellfoxSyncRun> = [
     {
-      title: 'Job',
-      dataIndex: 'job',
-      width: 110,
-      render: (job: SellfoxJob) => <Tag color={job === 'CATALOG' ? 'blue' : 'geekblue'}>{job}</Tag>,
-    },
-    {
       title: 'Status',
       dataIndex: 'status',
       width: 110,
@@ -196,33 +190,27 @@ export default function SellfoxPage() {
         <Title level={4} style={{ margin: 0 }}>Sellfox Sync</Title>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
-          <Tooltip title="Reads only the selected warehouses. Takes a few seconds.">
-            <Button
-              onClick={() => trigger('INVENTORY')}
-              loading={history?.running.INVENTORY}
-              disabled={history?.running.INVENTORY}
-            >
-              Sync stock now
-            </Button>
-          </Tooltip>
-          <Tooltip title="Pages every commodity Sellfox holds — around two minutes.">
+          <Tooltip title="Imports the selected categories, then counts them in the selected warehouses. Around two minutes.">
             <Button
               type="primary"
-              onClick={() => trigger('CATALOG')}
-              loading={history?.running.CATALOG}
-              disabled={history?.running.CATALOG}
+              icon={<CloudDownloadOutlined />}
+              onClick={trigger}
+              loading={running}
+              disabled={running}
             >
-              Sync catalog now
+              {running ? 'Syncing…' : 'Sync now'}
             </Button>
           </Tooltip>
         </Space>
       </div>
 
       <Paragraph type="secondary" style={{ fontSize: 13 }}>
-        Sellfox is the system of record for what a product is and how many there are.
-        Nothing is imported from a category until you select it below, so a first sync only
-        fills in the lists. Imported products arrive <b>inactive and unpriced</b> — set tier
-        pricing, then activate them.
+        Sellfox is the system of record for what a product is and how many there are. A sync
+        imports the products in the <b>selected categories</b>, then counts them in the
+        <b> selected warehouses</b> — so a newly imported SKU has its stock in the same run.
+        Nothing is imported until you select it, so a first sync only fills in the lists
+        below. Imported products arrive <b>inactive and unpriced</b> — set tier pricing,
+        then activate them.
       </Paragraph>
 
       <Space align="start" size={16} style={{ display: 'flex', marginBottom: 16 }} wrap>

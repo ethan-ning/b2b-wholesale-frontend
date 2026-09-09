@@ -224,11 +224,8 @@ export interface SellfoxScope {
   warehouses: SellfoxWarehouse[];
 }
 
-export type SellfoxJob = 'CATALOG' | 'INVENTORY';
-
 export interface SellfoxSyncRun {
   id: number;
-  job: SellfoxJob;
   trigger: 'SCHEDULED' | 'MANUAL';
   status: 'RUNNING' | 'SUCCESS' | 'FAILED';
   triggeredBy: string | null;
@@ -243,6 +240,6 @@ export interface SellfoxSyncRun {
 
 export interface SellfoxHistory {
   runs: SellfoxSyncRun[];
-  /** Job name -> whether one is in flight. */
-  running: Record<string, boolean>;
+  /** Whether a run is in flight. */
+  running: boolean;
 }
