@@ -261,20 +261,6 @@ export default function SellfoxPage() {
             : <Tag color="warning">Both are required</Tag>
         }
       >
-        {!scopeReady && discovered && (
-          <Alert
-            type="info"
-            showIcon
-            style={{ marginBottom: 12 }}
-            message="Pick at least one of each"
-            description={
-              'Categories decide which products are imported; warehouses decide where their '
-              + 'stock is counted. A sync with only one of them would import products that read '
-              + 'as out of stock, or count a catalog that is not there — so it is refused.'
-            }
-          />
-        )}
-
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div style={{ flex: '1 1 440px', minWidth: 400 }}>
             <Space style={{ marginBottom: 8, width: '100%', justifyContent: 'space-between' }}>
