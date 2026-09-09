@@ -86,13 +86,17 @@ function toTreeData(cats: CategoryNode[], state: EditState, handlers: Handlers):
         <span style={{ color: level.accent }}>{level.icon}</span>
         <span style={{ fontSize: level.size, fontWeight: level.weight }}>{c.name}</span>
 
+        {/* The count colours stay clear of every level accent — a blue tag beside a blue
+            Department row reads as part of the row rather than as a number about it. */}
         {showDirect && (
-          <Tooltip title={isParent ? 'Filed directly under this node' : undefined}>
+          <Tooltip
+            title={`${c.productCount} product${c.productCount === 1 ? '' : 's'} filed directly here`}
+          >
             <Tag
-              color={c.productCount > 0 ? 'blue' : 'default'}
+              color={c.productCount > 0 ? 'purple' : 'default'}
               style={{ fontSize: 11, marginInlineEnd: 0 }}
             >
-              {c.productCount} {c.productCount === 1 ? 'product' : 'products'}
+              {c.productCount}
             </Tag>
           </Tooltip>
         )}
@@ -101,7 +105,7 @@ function toTreeData(cats: CategoryNode[], state: EditState, handlers: Handlers):
             — which is why this is not the sum of the children's tags. */}
         {isParent && (
           <Tooltip title="Distinct products in this category and everything beneath it">
-            <Tag color="geekblue" style={{ fontSize: 11, marginInlineEnd: 0 }}>
+            <Tag color="magenta" style={{ fontSize: 11, marginInlineEnd: 0 }}>
               {c.totalProductCount} in total
             </Tag>
           </Tooltip>
