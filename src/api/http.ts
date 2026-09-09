@@ -1,7 +1,7 @@
 import axios, { type AxiosInstance } from 'axios';
 
 /**
- * Base URL for every API call. MSW intercepts these in dev; point VITE_API_BASE_URL at
+ * Base URL for every API call. Vite proxies this to the backend in dev; point VITE_API_BASE_URL at
  * the real service to run against it instead — no other code changes.
  */
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';

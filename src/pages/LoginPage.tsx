@@ -24,7 +24,9 @@ export default function LoginPage() {
     try {
       const data = await loginRequest(values.email, values.password);
       login(data.token, data.user);
-      navigate('/');
+      // The token they just received reaches only the change-password endpoint, so this
+      // is the only page that will work for them.
+      navigate(data.user.mustChangePassword ? '/change-password' : '/');
     } catch {
       setError('Invalid email or password.');
     } finally {

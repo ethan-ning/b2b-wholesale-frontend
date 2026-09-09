@@ -1,6 +1,8 @@
 # B2B Wholesale Portal
 
-A dealer-facing catalog and order-inquiry portal plus an admin management panel for a B2B wholesale business. No backend required during development — all API calls are intercepted by [MSW (Mock Service Worker)](https://mswjs.io/) with realistic mock data.
+A dealer-facing catalog and order-inquiry portal plus an admin management panel for a B2B
+wholesale business. Both portals talk to the [Kotlin/Spring backend](../b2b-wholesale-backend),
+so it has to be running — see [Running locally](#running-locally).
 
 ## Tech stack
 
@@ -11,22 +13,30 @@ A dealer-facing catalog and order-inquiry portal plus an admin management panel 
 | UI | Ant Design 6 |
 | Routing | React Router v7 |
 | State | Zustand 5 |
-| HTTP | Axios (separate dealer / admin instances) |
-| Mocking | MSW 2 (browser mode) |
+| HTTP | Axios (separate dealer / admin / auth instances) |
 
 ---
 
-## Getting started
+## Running locally
+
+Two processes. The frontend has nothing to show without the backend.
 
 ```bash
-# Install dependencies
-npm install
+# terminal 1 — backend (Postgres via Docker, then the app on :8080)
+cd ../b2b-wholesale-backend
+docker compose up -d
+SPRING_PROFILES_ACTIVE=local ./gradlew :b2b-start:bootRun
 
-# Start dev server (MSW auto-starts in dev mode)
+# terminal 2 — frontend
+npm install
 npm run dev
 ```
 
-Open http://localhost:5173.
+Open http://localhost:5173. Vite proxies `/api` to `localhost:8080`, so the browser stays
+on one origin and no CORS is involved.
+
+The `local` profile adds `classpath:db/seed` to Flyway's locations, which is what loads the
+sample catalog and the accounts below. Production never lists that location.
 
 ---
 
@@ -45,8 +55,12 @@ npm run preview     # serve the production build locally
 
 | Email | Password | Tier |
 |---|---|---|
-| dealer1@example.com | password | Gold (best pricing — 10–16% under Silver depending on the product) |
-| dealer2@example.com | password | Silver |
+| dealer1@example.com | dealer123 | Gold (best pricing — 10–16% under Silver depending on the product) |
+| dealer2@example.com | dealer123 | Silver |
+
+Both are seeded with the password change already done. To exercise the forced-change
+screen, create a customer in the admin portal and sign in with the temporary password it
+hands back.
 
 ### Admin account
 
@@ -63,6 +77,9 @@ Entry point: http://localhost:5173/login
 ### Step-by-step
 
 1. **Login** — enter dealer credentials → redirected to the search home page.
+   A dealer still on an admin-issued temporary password lands on **Choose a password**
+   (`/change-password`) instead, and cannot leave it: the token they hold reaches that
+   one endpoint and nothing else. Setting a password swaps in a full token.
 2. **Search home** — centered search bar with welcome message. Try searching `jacket`, `exhaust`, or `PL001-BLK`.
 3. **Search results** (`/search?q=…`) — each result is an inline-expanded card showing:
    - Product image, name, brand, location code, attributes
@@ -84,10 +101,9 @@ Entry point: http://localhost:5173/login
 Login as `dealer1@example.com` (Gold) and note the prices. Sign out, login as
 `dealer2@example.com` (Silver) — the same products cost more.
 
-Pricing is not a blanket percentage: `src/mocks/data/tierPrices.ts` holds one row per
-SKU per tier (50 rows, 25 SKUs). Spreads vary by margin — exhaust parts ~10%
-Gold-to-Silver, apparel ~15–16% — and `JK400-BLK-S` is an overstock closeout priced
-flat below the rest of its size run.
+Pricing is not a blanket percentage: the `tier_price` table holds one row per SKU per
+tier. Spreads vary by margin — exhaust parts ~10% Gold-to-Silver, apparel ~15–16% — and
+`JK400-BLK-S` is an overstock closeout priced flat below the rest of its size run.
 
 ### The pricing model in one table
 
@@ -114,32 +130,6 @@ here:
 | Quantity-based pricing is deferred, and kept INSERT-only to re-enable | §2.2.1 |
 
 ---
-
-## Running against the real backend
-
-The **admin portal talks to the real backend**; the dealer portal is still mocked, because
-dealer login does not exist server-side yet.
-
-```bash
-# terminal 1 — backend
-cd ../b2b-wholesale-backend
-docker compose up -d
-./gradlew :b2b-start:bootRun
-
-# terminal 2 — frontend
-npm run dev
-```
-
-Vite proxies `/api` to `localhost:8080`, so the browser stays on one origin and no CORS is
-involved. MSW starts with `onUnhandledRequest: 'bypass'` and now registers dealer handlers
-only, so `/api/admin/*` falls straight through to the backend while dealer routes are still
-served from mocks.
-
-The admin mocks were deleted rather than kept in step with the backend. Two implementations
-of one contract drift, and the backend is the one that counts now. The consequence is that
-the admin portal needs the backend running.
-
-Sign in with `admin@example.com` / `admin123` (seeded by the backend's `V2` migration).
 
 ## Flow 2 — Admin portal
 
@@ -187,8 +177,8 @@ Two rules follow, and both are visible in the admin:
    admin-entered figure would be reverted by the next 15-minute sync, and the admin
    would believe it stuck.
 
-The mock `PUT /api/admin/products/:id` **rejects** Sellfox-owned fields with a 400
-rather than ignoring them, so a client that tries to edit one fails loudly.
+`PUT /api/admin/products/:id` **rejects** Sellfox-owned fields with a 400 rather than
+ignoring them, so a client that tries to edit one fails loudly.
 
 ### Categories (`/admin/categories`)
 
@@ -215,20 +205,22 @@ rather than ignoring them, so a client that tries to edit one fails loudly.
 
 ---
 
-## Mock data summary
+## Seeded data summary
+
+Loaded by the backend's `db/seed` migrations under the `local` profile only.
 
 | Entity | Count |
 |---|---|
-| SPUs (products) | 10 (Auto Parts > Exhaust/Lighting, Apparel > Jackets/Gloves, Tools > Hand Tools) |
-| SKUs (variants) | 25 total, 1–4 per SPU |
-| Tier price rows | 50 — one per SKU per tier, all at `minQty: 1` |
+| SPUs (products) | 24 (Auto Parts > Exhaust/Lighting/Hand Tools/Wheels/Brakes, Apparel > Jackets/Gloves/Luggage) |
+| SKUs (variants) | 55 total, 1–4 per SPU |
+| Tier price rows | 100 — one per SKU per tier |
 | Variant axes | Apparel SPUs vary by `Size` (`GL100-BLK-M`); parts and tools vary by `Pack Qty` (`PL001-BLK-06`) |
-| Categories | 3 top-level, 2 sub-levels each |
+| Categories | 2 top-level, 8 leaves |
 | Dealer accounts | 2 (Gold, Silver) |
 | Admin accounts | 1 (Super Admin) |
-| Warehouses | 2 (Main, East Coast) |
 
-MSW mock state is **in-memory per page load** — edits made in the admin panel persist for the browser session but reset on refresh.
+Unlike the mocks this replaced, edits made in the admin panel are **written to Postgres**
+and survive a refresh. `docker compose down -v` resets everything.
 
 ---
 
@@ -237,31 +229,23 @@ MSW mock state is **in-memory per page load** — edits made in the admin panel 
 ```
 src/
 ├── api/
-│   ├── http.ts            # The two axios instances (dealer / admin) + base URL
+│   ├── http.ts            # The three axios instances (dealer / admin / auth) + base URL
 │   ├── catalog.ts         # Every dealer endpoint, as typed functions
 │   ├── adminApi.ts        # Every admin endpoint, as typed functions
 │   └── types.ts           # The API contract — all shared interfaces
 ├── hooks/
 │   └── usePagedQuery.ts   # Filter + page + fetch state for every list screen
 ├── store/                 # Zustand: authStore, adminAuthStore
-├── mocks/
-│   ├── browser.ts         # MSW worker setup
-│   ├── data/              # products, tierPrices, categories, users, admin
-│   └── handlers/          # dealerHandlers, adminHandlers, index
 ├── components/            # Layout, ProductCard, SkuTable, CategoryTree, …
 │   └── admin/             # AdminLayout, AdminProtectedRoute
-├── pages/                 # Login, Home, Search, ProductDetail
+├── pages/                 # Login, ChangePassword, Home, Search, ProductDetail
 │   └── admin/             # Dashboard, Product/Customer list+form, Category, Inventory
 └── utils/                 # money.ts (formatting), stockBadge.tsx
 ```
 
-## Switching to a real backend
+## Pointing at a different backend
 
 Pages never call axios directly — everything goes through `api/catalog.ts` or
-`api/adminApi.ts`. To run against a real service:
-
-1. Set `VITE_API_BASE_URL` to its base URL.
-2. Stop starting the MSW worker in `main.tsx` (it is already dev-only).
-
-No page or component changes. If a response shape differs from `api/types.ts`, the
-service module is the single place to reconcile it.
+`api/adminApi.ts`. Set `VITE_API_BASE_URL` to another service's base URL and no page or
+component changes. If a response shape differs from `api/types.ts`, the service module is
+the single place to reconcile it.

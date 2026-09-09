@@ -23,6 +23,24 @@ export async function login(email: string, password: string): Promise<LoginRespo
   return data;
 }
 
+/**
+ * Ends a forced password change and returns a full catalog token. Uses authClient: the
+ * caller may be holding a password-change token, and a 401 here should surface on the
+ * page rather than bounce them to a login they have just completed.
+ */
+export async function changePassword(
+  token: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<LoginResponse> {
+  const { data } = await authClient.post<LoginResponse>(
+    '/auth/change-password',
+    { currentPassword, newPassword },
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  return data;
+}
+
 export async function fetchCategories(): Promise<Category[]> {
   const { data } = await dealerClient.get<Category[]>('/categories');
   return data;

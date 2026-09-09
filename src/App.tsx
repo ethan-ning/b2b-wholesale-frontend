@@ -5,6 +5,7 @@ import { ConfigProvider } from 'antd';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 import HomePage from './pages/HomePage';
 import SearchPage from './pages/SearchPage';
 import ProductDetailPage from './pages/ProductDetailPage';
@@ -28,6 +29,9 @@ export default function App() {
         {/* Dealer routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
+          {/* Outside the Layout: a dealer who has not finished here has no catalog to
+              browse, so the header's search bar would be a dead end. */}
+          <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/search" element={<SearchPage />} />

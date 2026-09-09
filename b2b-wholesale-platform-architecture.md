@@ -897,15 +897,17 @@ unlock; plain text with a "Synced from Sellfox" tag on the section says who owns
 | Router | React Router v7 | SPA routing |
 | State | Zustand | Lightweight global state (auth, session) |
 | UI Library | Ant Design 6 | Data-dense B2B tables, editable grids, form validation |
-| HTTP | Axios | Separate dealer/admin instances; JWT interceptor, 401 redirect |
-| Mocking | MSW | Full API mocked in the browser, so the frontend runs with no backend |
+| HTTP | Axios | Separate dealer/admin/auth instances; JWT interceptor, 401 redirect |
 | API Types | OpenAPI Generator | TypeScript client from Springdoc `/v3/api-docs` (post-MVP; hand-written today) |
 
-**Swapping the mock for the real backend**: every call goes through `api/catalog.ts`
-(dealer) or `api/adminApi.ts` (admin), which wrap the two axios instances in
-`api/http.ts`. Point `VITE_API_BASE_URL` at the service and stop starting the MSW
-worker in `main.tsx`; no page or component changes. If a response shape differs from
-`api/types.ts`, that one service module is where it is reconciled.
+**Pointing at another backend**: every call goes through `api/catalog.ts` (dealer) or
+`api/adminApi.ts` (admin), which wrap the axios instances in `api/http.ts`. Point
+`VITE_API_BASE_URL` at the service; no page or component changes. If a response shape
+differs from `api/types.ts`, that one service module is where it is reconciled.
+
+The third instance, `authClient`, exists because the other two carry a 401 interceptor
+that redirects to the login page. On a login or change-password call a 401 *is* the
+answer — the page needs to render it, not navigate away from it.
 
 ### 4.2 Page Map (MVP Scope)
 
@@ -914,6 +916,7 @@ Built today:
 ```
 — Dealer —
 /login                              (public)
+/change-password                    forced while must_change_password is set
 /                                   search home
 /search?q=                          results: category + price filters, sort, active-filter tags
 /products/:spuCode                  detail + VariantGrid, CSV export
@@ -928,8 +931,8 @@ Built today:
 /admin/inventory                    read-only stock view
 ```
 
-Not yet built: `/change-password` (forced on first login), `/admin/tiers` (tier CRUD),
-`/admin/sellfox` (sync log, manual trigger, SKU mapping editor).
+Not yet built: `/admin/tiers` (tier CRUD), `/admin/sellfox` (sync log, manual trigger,
+SKU mapping editor).
 
 ### 4.3 Key Component: VariantGrid
 
