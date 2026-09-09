@@ -57,10 +57,10 @@ export default function ProductListPage() {
 
   const columns: ColumnsType<Product> = [
     {
-      title: 'SPU Code',
+      title: 'SPU',
       dataIndex: 'spuCode',
       key: 'spuCode',
-      width: 140,
+      width: 130,
       // Sorting is done by the API over the whole result set, not by antd over the
       // current page — sorting one page of 24 products would order only those rows.
       sorter: true,
@@ -81,7 +81,9 @@ export default function ProductListPage() {
       title: 'Base Price',
       dataIndex: 'baseWholesalePrice',
       key: 'price',
-      width: 100,
+      // Wide enough for the label and the sort arrow side by side; at 100 the header
+      // wrapped onto two lines and pushed the row height around.
+      width: 140,
       align: 'right',
       sorter: true,
       sortOrder: orderFor('price'),
