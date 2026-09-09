@@ -199,12 +199,16 @@ export interface DashboardStats {
 
 // ─── Sellfox sync ────────────────────────────────────────────────────────
 
-/** A Sellfox category, as discovered by a catalog scan. */
+/**
+ * A second-level Sellfox category group — "供应商甲/重卡配件" — as discovered by a sync.
+ * Selecting it imports everything beneath it.
+ */
 export interface SellfoxCategory {
   cid: string;
   fullCid: string;
-  /** Path of names, e.g. "供应商乙/服装配饰/手套". */
+  /** First two segments of the path's names. */
   fullName: string;
+  /** Commodities anywhere beneath the group. */
   commodityCount: number;
   selected: boolean;
   lastSeenAt: string | null;

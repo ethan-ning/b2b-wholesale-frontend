@@ -26,6 +26,10 @@ const STATUS_COLOR: Record<SellfoxSyncRun['status'], string> = {
   FAILED: 'error',
 };
 
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 function formatTime(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString() : '—';
 }
@@ -42,6 +46,7 @@ export default function SellfoxPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [warehouseFilter, setWarehouseFilter] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -81,14 +86,27 @@ export default function SellfoxPage() {
     }
   }
 
-  async function toggleCategory(row: SellfoxCategory, selected: boolean) {
-    await api.setCategorySelected(row.cid, selected);
+  // The API takes the whole selection, so a toggle and a clear are the same call.
+  async function applyCategories(cids: string[]) {
+    await api.selectCategories(cids);
     load();
   }
 
-  async function toggleWarehouse(row: SellfoxWarehouse, selected: boolean) {
-    await api.setWarehouseSelected(row.warehouseId, selected);
+  async function applyWarehouses(ids: number[]) {
+    await api.selectWarehouses(ids);
     load();
+  }
+
+  function toggleCategory(row: SellfoxCategory, on: boolean) {
+    const next = new Set(selectedCategoryIds);
+    if (on) next.add(row.cid); else next.delete(row.cid);
+    applyCategories([...next]);
+  }
+
+  function toggleWarehouse(row: SellfoxWarehouse, on: boolean) {
+    const next = new Set(selectedWarehouseIds);
+    if (on) next.add(row.warehouseId); else next.delete(row.warehouseId);
+    applyWarehouses([...next]);
   }
 
   if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
@@ -96,8 +114,13 @@ export default function SellfoxPage() {
 
   const categories = (scope?.categories ?? []).filter((c) =>
     c.fullName.toLowerCase().includes(categoryFilter.trim().toLowerCase()));
-  const selectedCategories = scope?.categories.filter((c) => c.selected).length ?? 0;
-  const selectedWarehouses = scope?.warehouses.filter((w) => w.selected).length ?? 0;
+  const warehouses = (scope?.warehouses ?? []).filter((w) =>
+    w.name.toLowerCase().includes(warehouseFilter.trim().toLowerCase()));
+
+  const selectedCategoryIds = (scope?.categories ?? []).filter((c) => c.selected).map((c) => c.cid);
+  const selectedWarehouseIds = (scope?.warehouses ?? []).filter((w) => w.selected).map((w) => w.warehouseId);
+  const scopeReady = selectedCategoryIds.length > 0 && selectedWarehouseIds.length > 0;
+  const discovered = (scope?.categories.length ?? 0) > 0 || (scope?.warehouses.length ?? 0) > 0;
 
   const categoryColumns: ColumnsType<SellfoxCategory> = [
     {
@@ -108,7 +131,7 @@ export default function SellfoxPage() {
         <Checkbox checked={row.selected} onChange={(e) => toggleCategory(row, e.target.checked)} />
       ),
     },
-    { title: 'Category', dataIndex: 'fullName' },
+    { title: 'Category group', dataIndex: 'fullName' },
     {
       title: 'SKUs',
       dataIndex: 'commodityCount',
@@ -190,16 +213,25 @@ export default function SellfoxPage() {
         <Title level={4} style={{ margin: 0 }}>Sellfox Sync</Title>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
-          <Tooltip title="Imports the selected categories, then counts them in the selected warehouses. Around two minutes.">
-            <Button
-              type="primary"
-              icon={<CloudDownloadOutlined />}
-              onClick={trigger}
-              loading={running}
-              disabled={running}
-            >
-              {running ? 'Syncing…' : 'Sync now'}
-            </Button>
+          <Tooltip
+            title={
+              scopeReady || !discovered
+                ? 'Imports the selected categories, then counts them in the selected warehouses. Around two minutes.'
+                : 'Select at least one category and one warehouse first'
+            }
+          >
+            {/* A disabled button swallows hover, so the tooltip needs a wrapper. */}
+            <span>
+              <Button
+                type="primary"
+                icon={<CloudDownloadOutlined />}
+                onClick={trigger}
+                loading={running}
+                disabled={running || (discovered && !scopeReady)}
+              >
+                {running ? 'Syncing…' : discovered ? 'Sync now' : 'Discover lists'}
+              </Button>
+            </span>
           </Tooltip>
         </Space>
       </div>
@@ -208,71 +240,141 @@ export default function SellfoxPage() {
         Sellfox is the system of record for what a product is and how many there are. A sync
         imports the products in the <b>selected categories</b>, then counts them in the
         <b> selected warehouses</b> — so a newly imported SKU has its stock in the same run.
-        Nothing is imported until you select it, so a first sync only fills in the lists
-        below. Imported products arrive <b>inactive and unpriced</b> — set tier pricing,
-        then activate them.
+        Imported products arrive <b>inactive and unpriced</b>: set tier pricing, then
+        activate them.
       </Paragraph>
 
-      <Space align="start" size={16} style={{ display: 'flex', marginBottom: 16 }} wrap>
-        <Card
-          size="small"
-          title={`Categories to import — ${selectedCategories} selected`}
-          style={{ flex: '1 1 460px', minWidth: 420 }}
-          extra={
-            <Input
-              size="small"
-              placeholder="Filter"
-              prefix={<SearchOutlined />}
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              style={{ width: 160 }}
-              allowClear
-            />
-          }
-        >
-          {scope?.categories.length === 0 ? (
-            <Empty
-              description="No categories yet — run a catalog sync to discover them"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
-          ) : (
-            <Table
-              rowKey="cid"
-              size="small"
-              columns={categoryColumns}
-              dataSource={categories}
-              pagination={{ pageSize: 8, size: 'small', showSizeChanger: false }}
-            />
-          )}
-        </Card>
+      {/* One section, two halves. They were separate cards, which read as two
+          independent settings when in fact neither does anything without the other. */}
+      <Card
+        size="small"
+        title="Import scope"
+        style={{ marginBottom: 16 }}
+        extra={
+          scopeReady
+            ? (
+              <Tag color="success">
+                {plural(selectedCategoryIds.length, 'category', 'categories')} ·{' '}
+                {plural(selectedWarehouseIds.length, 'warehouse', 'warehouses')}
+              </Tag>
+            )
+            : <Tag color="warning">Both are required</Tag>
+        }
+      >
+        {!scopeReady && discovered && (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message="Pick at least one of each"
+            description={
+              'Categories decide which products are imported; warehouses decide where their '
+              + 'stock is counted. A sync with only one of them would import products that read '
+              + 'as out of stock, or count a catalog that is not there — so it is refused.'
+            }
+          />
+        )}
 
-        <Card
-          size="small"
-          title={`Warehouses to count — ${selectedWarehouses} selected`}
-          style={{ flex: '1 1 420px', minWidth: 380 }}
-        >
-          {scope?.warehouses.length === 0 ? (
-            <Empty
-              description="No warehouses yet — run a stock sync to discover them"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
-          ) : (
-            <>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <div style={{ flex: '1 1 440px', minWidth: 400 }}>
+            <Space style={{ marginBottom: 8, width: '100%', justifyContent: 'space-between' }}>
+              <Text strong>
+                Categories to import{' '}
+                <Text type="secondary" style={{ fontWeight: 400 }}>
+                  — {selectedCategoryIds.length} of {scope?.categories.length ?? 0}
+                </Text>
+              </Text>
+              <Space size={8}>
+                <Input
+                  size="small"
+                  placeholder="Filter"
+                  prefix={<SearchOutlined />}
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  style={{ width: 150 }}
+                  allowClear
+                />
+                <Button
+                  size="small"
+                  type="link"
+                  disabled={selectedCategoryIds.length === 0}
+                  onClick={() => applyCategories([])}
+                >
+                  Clear
+                </Button>
+              </Space>
+            </Space>
+
+            {scope?.categories.length === 0 ? (
+              <Empty
+                description="Run a sync to discover them"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            ) : (
+              <Table
+                rowKey="cid"
+                size="small"
+                columns={categoryColumns}
+                dataSource={categories}
+                pagination={{ pageSize: 8, size: 'small', showSizeChanger: false }}
+              />
+            )}
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Chosen at the second level of Sellfox's tree — selecting a group takes
+              everything beneath it.
+            </Text>
+          </div>
+
+          <div style={{ flex: '1 1 400px', minWidth: 360 }}>
+            <Space style={{ marginBottom: 8, width: '100%', justifyContent: 'space-between' }}>
+              <Text strong>
+                Warehouses to count{' '}
+                <Text type="secondary" style={{ fontWeight: 400 }}>
+                  — {selectedWarehouseIds.length} of {scope?.warehouses.length ?? 0}
+                </Text>
+              </Text>
+              <Space size={8}>
+                <Input
+                  size="small"
+                  placeholder="Filter"
+                  prefix={<SearchOutlined />}
+                  value={warehouseFilter}
+                  onChange={(e) => setWarehouseFilter(e.target.value)}
+                  style={{ width: 150 }}
+                  allowClear
+                />
+                <Button
+                  size="small"
+                  type="link"
+                  disabled={selectedWarehouseIds.length === 0}
+                  onClick={() => applyWarehouses([])}
+                >
+                  Clear
+                </Button>
+              </Space>
+            </Space>
+
+            {scope?.warehouses.length === 0 ? (
+              <Empty
+                description="Run a sync to discover them"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            ) : (
               <Table
                 rowKey="warehouseId"
                 size="small"
                 columns={warehouseColumns}
-                dataSource={scope?.warehouses ?? []}
+                dataSource={warehouses}
                 pagination={{ pageSize: 8, size: 'small', showSizeChanger: false }}
               />
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                A SKU's stock is the sum across the warehouses selected here — which is what
-                keeps stock you cannot ship from out of the number a dealer sees.
-              </Text>
-            </>
-          )}
-        </Card>
-      </Space>
+            )}
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              A SKU's stock is the sum across these — which is what keeps stock you cannot
+              ship from out of the number a dealer sees.
+            </Text>
+          </div>
+        </div>
+      </Card>
 
       <Card size="small" title="Run history">
         <Table

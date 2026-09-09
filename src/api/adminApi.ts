@@ -201,12 +201,13 @@ export async function fetchSellfoxScope(): Promise<SellfoxScope> {
   return data;
 }
 
-export async function setCategorySelected(cid: string, selected: boolean): Promise<void> {
-  await adminClient.put(`/admin/sellfox/scope/categories/${encodeURIComponent(cid)}`, { selected });
+/** Replaces the whole selection, so clearing is one call rather than one per row. */
+export async function selectCategories(cids: string[]): Promise<void> {
+  await adminClient.put('/admin/sellfox/scope/categories', { cids });
 }
 
-export async function setWarehouseSelected(warehouseId: number, selected: boolean): Promise<void> {
-  await adminClient.put(`/admin/sellfox/scope/warehouses/${warehouseId}`, { selected });
+export async function selectWarehouses(warehouseIds: number[]): Promise<void> {
+  await adminClient.put('/admin/sellfox/scope/warehouses', { warehouseIds });
 }
 
 export async function fetchSyncRuns(limit = 25): Promise<SellfoxHistory> {

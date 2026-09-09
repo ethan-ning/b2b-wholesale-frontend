@@ -219,10 +219,20 @@ half gets its stock from the second half of the same run. Separately-scheduled j
 a newly imported product sat at zero until the other one came round, which reads to a
 dealer as out of stock.
 
-**Scope.** Nothing is imported from a category until it is ticked here, and no stock is
-read from a warehouse until that is ticked too, so the first sync on a fresh install only
-fills in the two lists. A SKU's stock is the **sum across the selected warehouses** —
-which is what keeps China-only stock out of a US availability figure.
+**Scope — both halves are required.** Categories decide which products are imported;
+warehouses decide where their stock is counted. A sync with only one is **refused**: a
+category with no warehouse imports products that read as out of stock, and a warehouse
+with no category counts a catalog that is not there. The one exception is a first run on
+a fresh install, when there is nothing to choose from yet — that run is how the two lists
+get filled.
+
+Categories are chosen at the **second level** of Sellfox's tree — `供应商甲/重卡配件`, not
+the leaves beneath it. Selecting a group takes everything under it. The leaves are the
+wrong unit: 90 of them against 38 groups, most holding a handful of SKUs, so picking one
+product line would mean ticking a dozen boxes.
+
+A SKU's stock is the **sum across the selected warehouses** — which is what keeps
+China-only stock out of a US availability figure.
 
 **Frequency is set by the expensive half.** Sellfox's commodity endpoint accepts no
 category filter, so every run pages the whole catalog — about two minutes. Hourly is the
@@ -253,6 +263,13 @@ The scheduler is off by default (`SELLFOX_SCHEDULE_ENABLED`) — two instances r
 same cron would double every sync. A run left `RUNNING` by a crashed process is closed at
 startup; otherwise it would refuse every later run as concurrent, showing up only as a
 button that stays disabled.
+
+**Failures.** Transport faults are retried three times with backoff, and Sellfox's rate
+limit (code `40019`, which arrives as HTTP 400) backs off and retries up to four times —
+a run is ~65 sequential pages over two minutes, and one dropped connection used to
+discard all of it. Anything else fails the run, with Sellfox's own code and message in
+the history. Families whose SKU the catalog rejects are **named** in the run summary, not
+just counted: a number alone says something is wrong and nothing about where to look.
 
 ### Inventory (`/admin/inventory`)
 
