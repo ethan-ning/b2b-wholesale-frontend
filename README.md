@@ -155,11 +155,11 @@ Shows live stat cards:
 ### Products (`/admin/products`)
 
 - Search by name or SPU code
-- Filter by status (Active / Draft / Archived)
+- Filter by status (Active / Inactive)
 - Sort by SPU code (default), brand or base price, ascending or descending. Clearing a sort returns to SPU code rather than to an undefined order. Sorting is done by the API over the whole result set, not by the table over the current page
 - Page size selector: 20 (default), 50 or 100. Changing it returns to the first page, since page 3 of 20-per-page does not exist at 100 per page
 - Click the **edit** button (pencil icon) to open the edit form
-- Click the **delete** button (trash icon) → confirm popover → product removed
+- Click the **eye** button to hide a product from dealers, or show it again. There is no delete: products come from Sellfox, so a portal delete would be undone by the next sync and would take the pricing with it. Hiding keeps the product, its pricing and its history
 
 **Product edit form** (`/admin/products/:id/edit`):
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Input, Select, Button, Space, Tag, Typography, Popconfirm, message } from 'antd';
-import { EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import { EditOutlined, EyeInvisibleOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
 import type { Product } from '../../api/types';
@@ -12,8 +12,7 @@ const { Title } = Typography;
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
   { value: 'ACTIVE', label: 'Active' },
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'ARCHIVED', label: 'Archived' },
+  { value: 'INACTIVE', label: 'Inactive' },
 ];
 
 /** The backend caps a page at 200 (domain Page.MAX_SIZE), so these stay well inside it. */
@@ -27,8 +26,7 @@ type SortState = { field: string; direction: 'asc' | 'desc' };
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'success',
-  DRAFT: 'default',
-  ARCHIVED: 'error',
+  INACTIVE: 'default',
 };
 
 export default function ProductListPage() {
@@ -45,9 +43,14 @@ export default function ProductListPage() {
     { search, status: statusFilter, size: pageSize, sort: sort.field, direction: sort.direction }
   );
 
-  async function handleDelete(id: number) {
-    await api.deleteProduct(id);
-    message.success('Product deleted');
+  /**
+   * Products come from the ERP, so there is no delete — a portal delete would be undone
+   * by the next sync and would take the pricing attached to it. Hiding one from dealers
+   * is a status change, and reversible.
+   */
+  async function setActive(product: Product, active: boolean) {
+    await api.setProductActive(product.id, active);
+    message.success(active ? `${product.spuCode} is visible to dealers` : `${product.spuCode} is hidden from dealers`);
     reload();
   }
 
@@ -106,23 +109,34 @@ export default function ProductListPage() {
     {
       title: 'Actions',
       key: 'actions',
-      width: 110,
+      width: 150,
       render: (_: unknown, r: Product) => (
         <Space size={4}>
           <Button
             size="small"
             icon={<EditOutlined />}
+            title="Edit"
             onClick={() => navigate(`/admin/products/${r.id}/edit`)}
           />
-          <Popconfirm
-            title="Delete this product?"
-            description="This action cannot be undone."
-            onConfirm={() => handleDelete(r.id)}
-            okText="Delete"
-            okButtonProps={{ danger: true }}
-          >
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
+          {r.status === 'ACTIVE' ? (
+            <Popconfirm
+              title="Hide from dealers?"
+              description="The product and its pricing are kept. You can make it visible again at any time."
+              onConfirm={() => setActive(r, false)}
+              okText="Hide"
+            >
+              <Button size="small" icon={<EyeInvisibleOutlined />} title="Hide from dealers" />
+            </Popconfirm>
+          ) : (
+            <Button
+              size="small"
+              type="primary"
+              ghost
+              icon={<EyeOutlined />}
+              title="Make visible to dealers"
+              onClick={() => setActive(r, true)}
+            />
+          )}
         </Space>
       ),
     },

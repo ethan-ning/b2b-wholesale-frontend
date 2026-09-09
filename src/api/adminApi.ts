@@ -73,8 +73,15 @@ export async function updateProduct(id: string | number, update: ProductUpdate):
   return data;
 }
 
-export async function deleteProduct(id: number): Promise<void> {
-  await adminClient.delete(`/admin/products/${id}`);
+/**
+ * Hides a product from dealers, or brings it back. There is no delete: products come from
+ * the ERP, so a portal delete would be undone by the next sync and would take the pricing
+ * attached to it.
+ */
+export async function setProductActive(id: number, active: boolean): Promise<AdminProductDetail> {
+  const action = active ? 'activate' : 'deactivate';
+  const { data } = await adminClient.post<AdminProductDetail>(`/admin/products/${id}/${action}`);
+  return data;
 }
 
 // ─── Categories ──────────────────────────────────────────────────────────────

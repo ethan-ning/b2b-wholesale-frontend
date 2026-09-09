@@ -242,8 +242,7 @@ export default function ProductFormPage() {
               <Form.Item name="status" label="Status" rules={[{ required: true }]} tooltip="Controls dealer visibility.">
                 <Select options={[
                   { value: 'ACTIVE', label: 'Active' },
-                  { value: 'DRAFT', label: 'Draft' },
-                  { value: 'ARCHIVED', label: 'Archived' },
+                  { value: 'INACTIVE', label: 'Inactive' },
                 ]} />
               </Form.Item>
             </Col>
