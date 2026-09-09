@@ -47,6 +47,9 @@ BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;
 
 -- Category tree (e.g., Auto Parts > Exhaust, Apparel > Jackets)
+-- Capped at three levels — Department > Category > Sub-category. Enforced in the domain
+-- (Category.MAX_DEPTH) rather than by a constraint, because the depth of a row is a fact
+-- about its ancestors and checking it in SQL means a recursive CTE on every insert.
 CREATE TABLE category (
     id           BIGSERIAL PRIMARY KEY,
     name         TEXT NOT NULL,
@@ -112,7 +115,9 @@ CREATE TABLE product_image (
 CREATE INDEX idx_product_image_product ON product_image (product_id, sort_order);
 
 -- Product ↔ Category: many-to-many (a product can appear in multiple categories)
--- is_primary = TRUE on exactly one row per product — drives breadcrumb and default category display
+-- is_primary = TRUE on at most one row per product — drives breadcrumb and default category
+-- display. At most, not exactly: deleting a category unfiles its products, and a product
+-- whose only category was the deleted one is left filed nowhere rather than deleted.
 -- Category hierarchy is queried via recursive CTE on category.parent_id (see §3.4)
 CREATE TABLE product_category (
     product_id   BIGINT NOT NULL REFERENCES product(id) ON DELETE CASCADE,

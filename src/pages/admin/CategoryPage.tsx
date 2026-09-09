@@ -2,90 +2,199 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Typography, Button, Input, Space, Spin, Alert, Popconfirm, message, Tree, Card, Tag, Tooltip,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined, DeleteOutlined, EditOutlined, CheckOutlined, CloseOutlined,
+  FolderFilled, FolderOpenOutlined, TagOutlined,
+} from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 import * as api from '../../api/adminApi';
 import type { CategoryNode } from '../../api/types';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
-function toTreeData(
-  cats: CategoryNode[],
-  editingId: number | null,
-  editingName: string,
-  handlers: {
-    onEdit: (id: number, name: string) => void;
-    onSave: (id: number) => void;
-    onCancel: () => void;
-    onDelete: (id: number) => void;
-    onAddChild: (parentId: number) => void;
-  }
-): DataNode[] {
-  return cats.map((c) => ({
-    key: String(c.id),
-    title:
-      editingId === c.id ? (
-        <Space>
-          <Input
-            size="small"
-            value={editingName}
-            onChange={(e) => handlers.onEdit(c.id, e.target.value)}
-            style={{ width: 160 }}
-            onPressEnter={() => handlers.onSave(c.id)}
-          />
-          <Button size="small" icon={<CheckOutlined />} type="primary" onClick={() => handlers.onSave(c.id)} />
-          <Button size="small" icon={<CloseOutlined />} onClick={handlers.onCancel} />
-        </Space>
-      ) : (
-        <Space size={6}>
-          <span>{c.name}</span>
+/** Matches the backend's Category.MAX_DEPTH. */
+const MAX_DEPTH = 3;
 
-          {/* What is filed here, so the admin knows the weight of the node before
-              acting on it. Muted at zero so a populated category stands out. */}
-          <Tag
-            color={c.productCount > 0 ? 'blue' : 'default'}
-            style={{ fontSize: 11, marginInlineEnd: 0 }}
-          >
-            {c.productCount} {c.productCount === 1 ? 'product' : 'products'}
-          </Tag>
+/**
+ * One visual identity per level, so depth reads at a glance instead of being inferred
+ * from indentation. Ant's tree indents by a single tab stop, which at three levels is
+ * easy to lose track of once nodes carry buttons and tags.
+ */
+const LEVEL = {
+  1: { label: 'Department', accent: '#1677ff', tint: '#f0f7ff', size: 15, weight: 600, icon: <FolderFilled /> },
+  2: { label: 'Category', accent: '#52c41a', tint: '#f6ffed', size: 14, weight: 500, icon: <FolderOpenOutlined /> },
+  3: { label: 'Sub-category', accent: '#faad14', tint: '#fffbe6', size: 13, weight: 400, icon: <TagOutlined /> },
+} as const;
 
-          <Button
-            size="small" type="text" icon={<EditOutlined />}
-            onClick={() => handlers.onEdit(c.id, c.name)}
-            title="Rename"
-          />
+function levelStyle(depth: number) {
+  return LEVEL[Math.min(depth, MAX_DEPTH) as 1 | 2 | 3];
+}
+
+interface Handlers {
+  onEdit: (id: number, name: string) => void;
+  onSave: (id: number) => void;
+  onCancel: () => void;
+  onDelete: (id: number) => void;
+  onStartAddChild: (parentId: number) => void;
+  onConfirmAddChild: (parentId: number) => void;
+  onCancelAddChild: () => void;
+  onDraftChange: (name: string) => void;
+}
+
+interface EditState {
+  editingId: number | null;
+  editingName: string;
+  addingUnder: number | null;
+  draftChildName: string;
+}
+
+/**
+ * What deleting this node will actually do. The API no longer refuses over products — it
+ * unfiles them — so the confirmation has to say how many, or the admin is agreeing to
+ * something the button did not mention.
+ */
+function deleteDescription(c: CategoryNode): string {
+  if (c.productCount === 0) return 'Nothing is filed under it.';
+  const n = c.productCount;
+  return `${n} product${n === 1 ? '' : 's'} will be removed from this category. `
+    + `${n === 1 ? 'It is' : 'They are'} not deleted — just no longer filed here.`;
+}
+
+function toTreeData(cats: CategoryNode[], state: EditState, handlers: Handlers): DataNode[] {
+  return cats.map((c) => {
+    const level = levelStyle(c.depth);
+    const isParent = c.children.length > 0;
+    // On a parent the subtree total is the number that means something; its own direct
+    // count is worth the space only when it actually holds something.
+    const showDirect = !isParent || c.productCount > 0;
+
+    const row = state.editingId === c.id ? (
+      <Space>
+        <Input
+          size="small"
+          value={state.editingName}
+          onChange={(e) => handlers.onEdit(c.id, e.target.value)}
+          style={{ width: 180 }}
+          onPressEnter={() => handlers.onSave(c.id)}
+          autoFocus
+        />
+        <Button size="small" icon={<CheckOutlined />} type="primary" onClick={() => handlers.onSave(c.id)} />
+        <Button size="small" icon={<CloseOutlined />} onClick={handlers.onCancel} />
+      </Space>
+    ) : (
+      <Space size={6}>
+        <span style={{ color: level.accent }}>{level.icon}</span>
+        <span style={{ fontSize: level.size, fontWeight: level.weight }}>{c.name}</span>
+
+        {showDirect && (
+          <Tooltip title={isParent ? 'Filed directly under this node' : undefined}>
+            <Tag
+              color={c.productCount > 0 ? 'blue' : 'default'}
+              style={{ fontSize: 11, marginInlineEnd: 0 }}
+            >
+              {c.productCount} {c.productCount === 1 ? 'product' : 'products'}
+            </Tag>
+          </Tooltip>
+        )}
+
+        {/* Distinct products, so one filed under both a parent and its child counts once
+            — which is why this is not the sum of the children's tags. */}
+        {isParent && (
+          <Tooltip title="Distinct products in this category and everything beneath it">
+            <Tag color="geekblue" style={{ fontSize: 11, marginInlineEnd: 0 }}>
+              {c.totalProductCount} in total
+            </Tag>
+          </Tooltip>
+        )}
+
+        <Button
+          size="small" type="text" icon={<EditOutlined />}
+          onClick={() => handlers.onEdit(c.id, c.name)}
+          title="Rename"
+        />
+
+        {c.canAddChild ? (
           <Button
             size="small" type="text" icon={<PlusOutlined />}
-            onClick={() => handlers.onAddChild(c.id)}
+            onClick={() => handlers.onStartAddChild(c.id)}
             title="Add sub-category"
           />
+        ) : (
+          <Tooltip title={`Categories go ${MAX_DEPTH} levels deep at most`}>
+            {/* A disabled button swallows hover, so the tooltip needs a wrapper. */}
+            <span>
+              <Button size="small" type="text" disabled icon={<PlusOutlined />} />
+            </span>
+          </Tooltip>
+        )}
 
-          {/* The server refuses to delete a node with children or products. Showing that
-              here — disabled, with the reason — beats letting the admin press it and
-              read a 409 they cannot act on. */}
-          {c.deletable ? (
-            <Popconfirm
-              title="Delete this category?"
-              description="It has no sub-categories and no products."
-              onConfirm={() => handlers.onDelete(c.id)}
-              okText="Delete" okButtonProps={{ danger: true }}
-            >
-              <Button size="small" type="text" danger icon={<DeleteOutlined />} title="Delete" />
-            </Popconfirm>
-          ) : (
-            <Tooltip title={`Cannot delete: ${c.blockedReason}`}>
-              {/* A disabled button swallows hover, so the tooltip needs a wrapper. */}
-              <span>
-                <Button size="small" type="text" danger disabled icon={<DeleteOutlined />} />
-              </span>
-            </Tooltip>
-          )}
-        </Space>
+        {c.deletable ? (
+          <Popconfirm
+            title="Delete this category?"
+            description={deleteDescription(c)}
+            onConfirm={() => handlers.onDelete(c.id)}
+            okText="Delete" okButtonProps={{ danger: true }}
+          >
+            <Button size="small" type="text" danger icon={<DeleteOutlined />} title="Delete" />
+          </Popconfirm>
+        ) : (
+          <Tooltip title={`Cannot delete: ${c.blockedReason}`}>
+            <span>
+              <Button size="small" type="text" danger disabled icon={<DeleteOutlined />} />
+            </span>
+          </Tooltip>
+        )}
+      </Space>
+    );
+
+    const childNodes = toTreeData(c.children, state, handlers);
+
+    // The new-child field sits where the child will appear, so the level it is being
+    // added at is obvious before it exists.
+    if (state.addingUnder === c.id) {
+      const childLevel = levelStyle(c.depth + 1);
+      childNodes.push({
+        key: `new-under-${c.id}`,
+        title: (
+          <Space size={6} style={{ padding: '2px 0' }}>
+            <span style={{ color: childLevel.accent }}>{childLevel.icon}</span>
+            <Input
+              size="small"
+              placeholder={`New ${childLevel.label.toLowerCase()} name`}
+              value={state.draftChildName}
+              onChange={(e) => handlers.onDraftChange(e.target.value)}
+              onPressEnter={() => handlers.onConfirmAddChild(c.id)}
+              style={{ width: 200 }}
+              autoFocus
+            />
+            <Button
+              size="small" type="primary" icon={<CheckOutlined />}
+              onClick={() => handlers.onConfirmAddChild(c.id)}
+            />
+            <Button size="small" icon={<CloseOutlined />} onClick={handlers.onCancelAddChild} />
+          </Space>
+        ),
+      });
+    }
+
+    return {
+      key: String(c.id),
+      title: (
+        <div
+          style={{
+            display: 'inline-block',
+            borderLeft: `3px solid ${level.accent}`,
+            background: level.tint,
+            borderRadius: 4,
+            padding: '2px 8px',
+          }}
+        >
+          {row}
+        </div>
       ),
-    children: c.children.length > 0
-      ? toTreeData(c.children, editingId, editingName, handlers)
-      : undefined,
-  }));
+      children: childNodes.length > 0 ? childNodes : undefined,
+    };
+  });
 }
 
 export default function CategoryPage() {
@@ -95,6 +204,9 @@ export default function CategoryPage() {
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
+
+  const [addingUnder, setAddingUnder] = useState<number | null>(null);
+  const [draftChildName, setDraftChildName] = useState('');
 
   const [newRootName, setNewRootName] = useState('');
   const [addingRoot, setAddingRoot] = useState(false);
@@ -133,18 +245,25 @@ export default function CategoryPage() {
     fetchCategories();
   }
 
-  async function handleAddChild(parentId: number) {
-    const name = prompt('New category name:');
-    if (!name?.trim()) return;
-    await api.createCategory(name.trim(), parentId);
-    message.success('Category added');
+  function startAddChild(parentId: number) {
+    setAddingUnder(parentId);
+    setDraftChildName('');
+  }
+
+  function cancelAddChild() { setAddingUnder(null); setDraftChildName(''); }
+
+  async function confirmAddChild(parentId: number) {
+    if (!draftChildName.trim()) { message.warning('Name cannot be empty'); return; }
+    await api.createCategory(draftChildName.trim(), parentId);
+    message.success('Sub-category added');
+    cancelAddChild();
     fetchCategories();
   }
 
   async function handleAddRoot() {
     if (!newRootName.trim()) { message.warning('Name cannot be empty'); return; }
     await api.createCategory(newRootName.trim(), null);
-    message.success('Root category added');
+    message.success('Department added');
     setNewRootName('');
     setAddingRoot(false);
     fetchCategories();
@@ -153,27 +272,48 @@ export default function CategoryPage() {
   if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
   if (error) return <Alert type="error" message={error} />;
 
-  const treeData = toTreeData(categories, editingId, editingName, {
-    onEdit: startEdit,
-    onSave: saveEdit,
-    onCancel: cancelEdit,
-    onDelete: handleDelete,
-    onAddChild: handleAddChild,
-  });
+  const treeData = toTreeData(
+    categories,
+    { editingId, editingName, addingUnder, draftChildName },
+    {
+      onEdit: startEdit,
+      onSave: saveEdit,
+      onCancel: cancelEdit,
+      onDelete: handleDelete,
+      onStartAddChild: startAddChild,
+      onConfirmAddChild: confirmAddChild,
+      onCancelAddChild: cancelAddChild,
+      onDraftChange: setDraftChildName,
+    },
+  );
 
   return (
-    <div style={{ maxWidth: 640 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+    <div style={{ maxWidth: 720 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <Title level={4} style={{ margin: 0 }}>Categories</Title>
         <Button icon={<PlusOutlined />} onClick={() => setAddingRoot(true)}>
-          Add root category
+          Add department
         </Button>
       </div>
 
+      {/* Names the levels the colours stand for, and states the cap once rather than only
+          on the disabled button an admin has to go looking for. */}
+      <Space size={12} style={{ marginBottom: 16 }} wrap>
+        {([1, 2, 3] as const).map((d) => (
+          <Space key={d} size={4}>
+            <span style={{ color: LEVEL[d].accent }}>{LEVEL[d].icon}</span>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Level {d} · {LEVEL[d].label}
+            </Text>
+          </Space>
+        ))}
+        <Text type="secondary" style={{ fontSize: 12 }}>— {MAX_DEPTH} levels maximum</Text>
+      </Space>
+
       {addingRoot && (
-        <Space style={{ marginBottom: 16 }}>
+        <Space style={{ marginBottom: 16, display: 'flex' }}>
           <Input
-            placeholder="New category name"
+            placeholder="New department name"
             value={newRootName}
             onChange={(e) => setNewRootName(e.target.value)}
             onPressEnter={handleAddRoot}
@@ -189,7 +329,15 @@ export default function CategoryPage() {
         {categories.length === 0 ? (
           <Typography.Text type="secondary">No categories yet.</Typography.Text>
         ) : (
-          <Tree treeData={treeData} defaultExpandAll blockNode selectable={false} />
+          <Tree
+            treeData={treeData}
+            defaultExpandAll
+            // Keyed on the node ids so a newly added node appears expanded rather than
+            // collapsing the tree back to its first-render state.
+            key={categories.map((c) => c.id).join(',') + String(addingUnder)}
+            blockNode
+            selectable={false}
+          />
         )}
       </Card>
     </div>

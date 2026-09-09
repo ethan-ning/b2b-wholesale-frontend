@@ -182,10 +182,23 @@ ignoring them, so a client that tries to edit one fails loudly.
 
 ### Categories (`/admin/categories`)
 
-- Click **Add root category** → enter name → added as a top-level node
-- Click **+** next to any node → browser prompt for child name
+Three levels, no more: **Department › Category › Sub-category**. Each has its own colour,
+icon and weight, because at three levels indentation alone stops being legible once nodes
+carry counts and buttons. A legend above the tree names them.
+
+- Click **Add department** → enter name → added as a top-level node
+- Click **+** next to any node → inline field, placed where the child will appear. The
+  button is disabled at level 3, with the reason on hover — the API refuses there too
 - Click the **pencil** icon → inline text field → press Enter or click ✓ to save
-- Click the **trash** icon → confirm popover → node and all its children removed
+- Click the **trash** icon → confirm popover → the node goes; any products filed under it
+  are **unfiled, not deleted**, and the popover says how many. If one of them had this as
+  its primary category, another of its categories takes over
+- A node with sub-categories still cannot be deleted. Removing a branch would take nodes
+  with it that the admin never saw
+
+Each node carries its own product count. A node with children also carries the **distinct**
+products across its whole subtree — distinct, not summed, because a product filed under
+both a parent and one of its children is one product.
 
 ### Customers (`/admin/customers`)
 

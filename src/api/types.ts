@@ -165,8 +165,15 @@ export interface CategoryNode {
   slug: string;
   parentId: number | null;
   sortOrder: number;
+  /** 1 for a root. The taxonomy is capped at 3. */
+  depth: number;
   /** Products filed directly under this node, not counting sub-categories. */
   productCount: number;
+  /** Distinct products across this node and everything beneath it. */
+  totalProductCount: number;
+  /** False at the deepest allowed level. */
+  canAddChild: boolean;
+  /** Only sub-categories block a delete — products are unfiled, not deleted. */
   deletable: boolean;
   blockedReason: string | null;
   children: CategoryNode[];
