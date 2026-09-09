@@ -39,3 +39,16 @@ function createClient(tokenKey: string, userKey: string, loginPath: string): Axi
 
 export const dealerClient = createClient('auth_token', 'auth_user', '/login');
 export const adminClient = createClient('admin_token', 'admin_user', '/admin/login');
+
+/**
+ * For the login endpoints only: no token to attach, and deliberately no 401 redirect.
+ *
+ * A failed sign-in must reach the page so it can say "Invalid email or password". Sent
+ * through one of the clients above, the interceptor would treat that 401 as an expired
+ * session and navigate away before the page could render anything — an admin who mistyped
+ * their password would land on the dealer login screen with no explanation.
+ */
+export const authClient = axios.create({
+  baseURL: BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+});

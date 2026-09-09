@@ -127,29 +127,41 @@ export interface TierPrice {
   minQty: number;
 }
 
-export interface AdminProduct extends Product {
+/**
+ * The admin product detail response. The price book is a sibling of the product rather
+ * than a field on it: tier_price is a separate table keyed by SKU, and flattening it
+ * would imply the product owns rows it does not.
+ */
+export interface AdminProductDetail {
+  product: Product;
   tierPrices: TierPrice[];
 }
 
-export interface Warehouse {
-  id: number;
-  name: string;
-  code: string;
-  active: boolean;
-}
-
-export interface InventoryRow {
+/**
+ * One SKU's stock. No warehouse dimension: stock is held per SKU in the MVP, and a
+ * multi-warehouse breakdown arrives with the ERP sync. Reserved and defective stock are
+ * tracked upstream but never shown here.
+ */
+export interface SkuStock {
   variantId: number;
   sku: string;
-  productName: string;
   spuCode: string;
-  warehouseId: number;
-  warehouseName: string;
+  productName: string;
+  variantValue: string | null;
   availableStock: number;
   incomingStock: number;
-  reservedStock: number;
-  defectiveStock: number;
-  updatedAt: string;
+  lowStock: boolean;
+  outOfStock: boolean;
+  lastSyncedAt: string;
+}
+
+/**
+ * Returned once when a dealer is created or has their password reset. Only a hash is
+ * stored, so this response is the sole opportunity to pass the password on.
+ */
+export interface CustomerCreated {
+  customer: Customer;
+  temporaryPassword: string;
 }
 
 export interface DashboardStats {

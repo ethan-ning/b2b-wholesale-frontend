@@ -27,7 +27,15 @@ export default function CustomerListPage() {
 
   async function toggleStatus(customer: Customer) {
     const newStatus = customer.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
-    await api.updateCustomer(customer.id, { status: newStatus });
+    // The API takes the whole profile rather than a patch — an update states what the
+    // dealer's details now are, so the unchanged fields are sent back as they stand.
+    await api.updateCustomer(customer.id, {
+      name: customer.name,
+      companyName: customer.companyName,
+      tierId: customer.tierId,
+      phone: customer.phone,
+      status: newStatus,
+    });
     message.success(`Account ${newStatus === 'ACTIVE' ? 'enabled' : 'disabled'}`);
     reload();
   }

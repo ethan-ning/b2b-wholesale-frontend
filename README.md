@@ -115,6 +115,32 @@ here:
 
 ---
 
+## Running against the real backend
+
+The **admin portal talks to the real backend**; the dealer portal is still mocked, because
+dealer login does not exist server-side yet.
+
+```bash
+# terminal 1 — backend
+cd ../b2b-wholesale-backend
+docker compose up -d
+./gradlew :b2b-start:bootRun
+
+# terminal 2 — frontend
+npm run dev
+```
+
+Vite proxies `/api` to `localhost:8080`, so the browser stays on one origin and no CORS is
+involved. MSW starts with `onUnhandledRequest: 'bypass'` and now registers dealer handlers
+only, so `/api/admin/*` falls straight through to the backend while dealer routes are still
+served from mocks.
+
+The admin mocks were deleted rather than kept in step with the backend. Two implementations
+of one contract drift, and the backend is the one that counts now. The consequence is that
+the admin portal needs the backend running.
+
+Sign in with `admin@example.com` / `admin123` (seeded by the backend's `V2` migration).
+
 ## Flow 2 — Admin portal
 
 Entry point: http://localhost:5173/admin/login

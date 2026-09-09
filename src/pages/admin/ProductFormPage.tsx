@@ -7,7 +7,7 @@ import {
 import { PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
-import type { AdminProduct, Category, Variant, TierPrice } from '../../api/types';
+import type { Category, Product, TierPrice, Variant } from '../../api/types';
 
 const { Title, Text } = Typography;
 
@@ -26,7 +26,7 @@ export default function ProductFormPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
 
-  const [product, setProduct] = useState<AdminProduct | null>(null);
+  const [product, setProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<{ id: number; label: string; parentId: number | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -45,14 +45,16 @@ export default function ProductFormPage() {
 
   useEffect(() => {
     Promise.all([api.fetchProduct(id!), api.fetchCategories()])
-      .then(([p, cats]) => {
+      .then(([detail, cats]) => {
+        // The price book is a sibling of the product, not a field on it.
+        const p = detail.product;
         setProduct(p);
         setAttrRows(Object.entries(p.attributes).map(([k, v]) => ({ key: k, value: v })));
         setImageUrls(
           [...p.images].sort((a, b) => a.sortOrder - b.sortOrder).map((img) => img.url)
         );
-        setVariantMaps(Object.fromEntries(p.variants.map((v) => [v.id, v.mapPrice])));
-        setTierRows(p.tierPrices);
+        setVariantMaps(Object.fromEntries(p.variants.map((v) => [v.id!, v.mapPrice])));
+        setTierRows(detail.tierPrices);
         const catIds = p.categories.map((c) => c.id);
         setSelectedCatIds(catIds);
         setPrimaryCatId(p.categories.find((c) => c.isPrimary)?.id ?? catIds[0] ?? null);
@@ -73,18 +75,23 @@ export default function ProductFormPage() {
   }) {
     setSaving(true);
     try {
-      const payload = {
-        ...values,
+      // Only portal-owned fields. The API has no field for name, brand or description,
+      // so there is nothing to accidentally send.
+      const payload: api.ProductUpdate = {
+        baseWholesalePrice: values.baseWholesalePrice,
+        locationCode: values.locationCode || null,
+        status: values.status,
         attributes: Object.fromEntries(attrRows.filter((r) => r.key.trim()).map((r) => [r.key.trim(), r.value])),
-        images: imageUrls.map((url, i) => ({ url, altText: null, sortOrder: i })),
-        categories: selectedCatIds.map((cid) => ({
-          id: cid,
-          name: categories.find((c) => c.id === cid)?.label ?? '',
-          isPrimary: cid === primaryCatId,
+        imageUrls,
+        categoryIds: selectedCatIds,
+        primaryCategoryId: primaryCatId,
+        // Variants are otherwise the ERP's, but MAP is ours.
+        variantMapPrices: Object.fromEntries(
+          product!.variants.map((v) => [v.id!, variantMaps[v.id!] ?? null])
+        ),
+        tierPrices: tierRows.map((r) => ({
+          sku: r.sku, tierId: r.tierId, price: r.price, minQty: r.minQty,
         })),
-        // Variants are otherwise read-only (synced from Sellfox), but MAP is ours.
-        variants: product!.variants.map((v) => ({ id: v.id, mapPrice: variantMaps[v.id] ?? null })),
-        tierPrices: tierRows,
       };
       await api.updateProduct(id!, payload);
       message.success('Product saved');

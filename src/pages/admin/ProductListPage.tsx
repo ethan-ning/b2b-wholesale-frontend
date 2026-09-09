@@ -4,7 +4,7 @@ import { Table, Input, Select, Button, Space, Tag, Typography, Popconfirm, messa
 import { EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
-import type { AdminProduct } from '../../api/types';
+import type { Product } from '../../api/types';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 
 const { Title } = Typography;
@@ -38,7 +38,7 @@ export default function ProductListPage() {
     reload();
   }
 
-  const columns: ColumnsType<AdminProduct> = [
+  const columns: ColumnsType<Product> = [
     {
       title: 'SPU Code',
       dataIndex: 'spuCode',
@@ -61,7 +61,7 @@ export default function ProductListPage() {
       key: 'variants',
       width: 60,
       align: 'right',
-      render: (_: unknown, r: AdminProduct) => r.variants.length,
+      render: (_: unknown, r: Product) => r.variants.length,
     },
     {
       title: 'Status',
@@ -74,7 +74,7 @@ export default function ProductListPage() {
       title: 'Actions',
       key: 'actions',
       width: 110,
-      render: (_: unknown, r: AdminProduct) => (
+      render: (_: unknown, r: Product) => (
         <Space size={4}>
           <Button
             size="small"
@@ -117,7 +117,7 @@ export default function ProductListPage() {
         </Space>
       </div>
 
-      <Table<AdminProduct>
+      <Table<Product>
         columns={columns}
         dataSource={data?.content ?? []}
         rowKey="id"

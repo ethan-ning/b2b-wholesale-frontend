@@ -1,7 +1,7 @@
-import { adminClient, dealerClient } from './http';
+import { adminClient, authClient } from './http';
 import type {
-  AdminLoginResponse, AdminProduct, Category, Customer, CustomerTier,
-  DashboardStats, InventoryRow, PagedResult, Warehouse,
+  AdminLoginResponse, AdminProductDetail, Category, Customer, CustomerCreated,
+  CustomerTier, DashboardStats, PagedResult, Product, SkuStock,
 } from './types';
 
 /** Every admin endpoint the app calls. See catalog.ts for the dealer side. */
@@ -9,9 +9,8 @@ import type {
 export const PAGE_SIZE = 10;
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
-// Login goes through the dealer client because no admin token exists yet.
 export async function login(email: string, password: string): Promise<AdminLoginResponse> {
-  const { data } = await dealerClient.post<AdminLoginResponse>('/admin/auth/login', { email, password });
+  const { data } = await authClient.post<AdminLoginResponse>('/admin/auth/login', { email, password });
   return data;
 }
 
@@ -29,7 +28,7 @@ export interface AdminProductQuery {
   size?: number;
 }
 
-export async function fetchProducts(query: AdminProductQuery): Promise<PagedResult<AdminProduct>> {
+export async function fetchProducts(query: AdminProductQuery): Promise<PagedResult<Product>> {
   const params: Record<string, string> = {
     page: String(query.page ?? 0),
     size: String(query.size ?? PAGE_SIZE),
@@ -37,32 +36,35 @@ export async function fetchProducts(query: AdminProductQuery): Promise<PagedResu
   if (query.search) params.search = query.search;
   if (query.status) params.status = query.status;
 
-  const { data } = await adminClient.get<PagedResult<AdminProduct>>('/admin/products', { params });
+  const { data } = await adminClient.get<PagedResult<Product>>('/admin/products', { params });
   return data;
 }
 
-export async function fetchProduct(id: string | number): Promise<AdminProduct> {
-  const { data } = await adminClient.get<AdminProduct>(`/admin/products/${id}`);
+export async function fetchProduct(id: string | number): Promise<AdminProductDetail> {
+  const { data } = await adminClient.get<AdminProductDetail>(`/admin/products/${id}`);
   return data;
 }
 
 /**
- * Portal-owned fields only — the API rejects Sellfox-owned ones (architecture doc
- * §3.7.7), so the payload type is the contract rather than a partial product.
+ * Portal-owned fields only. The API has no field for name, brand, description, SPU code
+ * or variant axis — the ERP owns those, so they cannot be sent rather than being rejected
+ * (architecture doc §3.7.7).
  */
 export interface ProductUpdate {
   baseWholesalePrice: number;
-  locationCode: string;
+  locationCode: string | null;
   status: string;
   attributes: Record<string, string>;
-  images: { url: string; altText: string | null; sortOrder: number }[];
-  categories: { id: number; name: string; isPrimary: boolean }[];
-  variants: { id: number; mapPrice: number | null }[];
-  tierPrices: AdminProduct['tierPrices'];
+  imageUrls: string[];
+  categoryIds: number[];
+  primaryCategoryId: number | null;
+  /** variantId -> MAP. An absent entry means "leave it", not "clear it". */
+  variantMapPrices: Record<number, number | null>;
+  tierPrices: { sku: string; tierId: number; price: number; minQty: number }[];
 }
 
-export async function updateProduct(id: string | number, update: ProductUpdate): Promise<AdminProduct> {
-  const { data } = await adminClient.put<AdminProduct>(`/admin/products/${id}`, update);
+export async function updateProduct(id: string | number, update: ProductUpdate): Promise<AdminProductDetail> {
+  const { data } = await adminClient.put<AdminProductDetail>(`/admin/products/${id}`, update);
   return data;
 }
 
@@ -114,12 +116,39 @@ export async function fetchCustomer(id: string | number): Promise<Customer> {
   return data;
 }
 
-export async function createCustomer(values: Partial<Customer>): Promise<Customer> {
-  const { data } = await adminClient.post<Customer>('/admin/customers', values);
+export interface CreateCustomer {
+  email: string;
+  name: string;
+  companyName: string;
+  tierId: number;
+  phone?: string | null;
+}
+
+/** Returns the generated password — shown once, never retrievable afterwards. */
+export async function createCustomer(values: CreateCustomer): Promise<CustomerCreated> {
+  const { data } = await adminClient.post<CustomerCreated>('/admin/customers', values);
   return data;
 }
 
-export async function updateCustomer(id: string | number, values: Partial<Customer>): Promise<Customer> {
+/**
+ * The whole profile, not a patch: an update states what the dealer's details now are.
+ * Email and password are absent — changing an email is an identity change with its own
+ * use case, and an admin never sets a password, only resets it.
+ */
+export interface UpdateCustomer {
+  name: string;
+  companyName: string;
+  tierId: number;
+  phone?: string | null;
+  status?: string;
+}
+
+export async function resetCustomerPassword(id: number): Promise<CustomerCreated> {
+  const { data } = await adminClient.post<CustomerCreated>(`/admin/customers/${id}/reset-password`);
+  return data;
+}
+
+export async function updateCustomer(id: string | number, values: UpdateCustomer): Promise<Customer> {
   const { data } = await adminClient.put<Customer>(`/admin/customers/${id}`, values);
   return data;
 }
@@ -132,26 +161,22 @@ export async function fetchTiers(): Promise<CustomerTier[]> {
 // ─── Inventory ───────────────────────────────────────────────────────────────
 // Read-only: stock is Sellfox's, and an override here would be reverted by the next
 // sync (architecture doc §3.7.7).
-export interface InventoryQuery {
-  warehouseId?: number | null;
+export interface StockQuery {
+  search?: string;
   lowStockOnly?: boolean;
   page?: number;
   size?: number;
 }
 
-export async function fetchInventory(query: InventoryQuery): Promise<PagedResult<InventoryRow>> {
+export async function fetchInventory(query: StockQuery): Promise<PagedResult<SkuStock>> {
   const params: Record<string, string> = {
     page: String(query.page ?? 0),
     size: String(query.size ?? 20),
   };
-  if (query.warehouseId) params.warehouse = String(query.warehouseId);
+  if (query.search) params.search = query.search;
   if (query.lowStockOnly) params.lowStock = 'true';
 
-  const { data } = await adminClient.get<PagedResult<InventoryRow>>('/admin/inventory', { params });
+  const { data } = await adminClient.get<PagedResult<SkuStock>>('/admin/inventory', { params });
   return data;
 }
 
-export async function fetchWarehouses(): Promise<Warehouse[]> {
-  const { data } = await adminClient.get<Warehouse[]>('/admin/warehouses');
-  return data;
-}

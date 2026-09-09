@@ -1,28 +1,24 @@
-import { useEffect, useState } from 'react';
-import { Table, Select, Checkbox, Typography, Space, Tag } from 'antd';
+import { useState } from 'react';
+import { Table, Input, Checkbox, Typography, Space, Tag } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
-import type { InventoryRow, Warehouse } from '../../api/types';
+import type { SkuStock } from '../../api/types';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 import { StockBadge } from '../../utils/stockBadge';
 
 const { Title } = Typography;
 
 export default function InventoryPage() {
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [warehouseId, setWarehouseId] = useState<number | null>(null);
+  const [search, setSearch] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
-
-  useEffect(() => {
-    api.fetchWarehouses().then(setWarehouses);
-  }, []);
 
   const { data, loading, page, setPage } = usePagedQuery(
     (f, p) => api.fetchInventory({ ...f, page: p }),
-    { warehouseId, lowStockOnly }
+    { search, lowStockOnly }
   );
 
-  const columns: ColumnsType<InventoryRow> = [
+  const columns: ColumnsType<SkuStock> = [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -37,7 +33,6 @@ export default function InventoryPage() {
       width: 130,
       render: (v: string) => <code style={{ fontSize: 11 }}>{v}</code>,
     },
-    { title: 'Warehouse', dataIndex: 'warehouseName', key: 'warehouse', width: 140 },
     {
       title: 'Available',
       dataIndex: 'availableStock',
@@ -56,33 +51,29 @@ export default function InventoryPage() {
         v > 0 ? <span style={{ color: '#1677ff' }}>+{v}</span> : <span style={{ color: '#999' }}>—</span>,
     },
     {
-      title: 'Reserved',
-      dataIndex: 'reservedStock',
-      key: 'reserved',
-      width: 85,
+      title: 'Variant',
+      dataIndex: 'variantValue',
+      key: 'variantValue',
+      width: 90,
       align: 'right',
-      render: (v: number) => v > 0 ? <Tag color="orange">{v}</Tag> : '—',
+      render: (v: string | null) => v ?? '—',
     },
     {
-      title: 'Defective',
-      dataIndex: 'defectiveStock',
-      key: 'defective',
-      width: 85,
-      align: 'right',
-      render: (v: number) => v > 0 ? <Tag color="red">{v}</Tag> : '—',
+      title: 'State',
+      key: 'state',
+      width: 120,
+      render: (_: unknown, row: SkuStock) =>
+        row.outOfStock ? <Tag color="red">Out of stock</Tag>
+          : row.lowStock ? <Tag color="orange">Low</Tag>
+          : <Tag color="green">OK</Tag>,
     },
     {
-      title: 'Last Updated',
-      dataIndex: 'updatedAt',
-      key: 'updatedAt',
-      width: 160,
+      title: 'Last Synced',
+      dataIndex: 'lastSyncedAt',
+      key: 'lastSyncedAt',
+      width: 170,
       render: (v: string) => new Date(v).toLocaleString(),
     },
-  ];
-
-  const warehouseOptions = [
-    { value: 0, label: 'All warehouses' },
-    ...warehouses.map((w) => ({ value: w.id, label: w.name })),
   ];
 
   return (
@@ -90,25 +81,26 @@ export default function InventoryPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Inventory</Title>
         <Space>
-          <Select
-            value={warehouseId ?? 0}
-            options={warehouseOptions}
-            onChange={(v) => setWarehouseId(v === 0 ? null : v)}
-            style={{ width: 180 }}
+          <Input
+            placeholder="Search SKU or product"
+            prefix={<SearchOutlined />}
+            allowClear
+            style={{ width: 240 }}
+            onChange={(e) => setSearch(e.target.value)}
           />
           <Checkbox
             checked={lowStockOnly}
             onChange={(e) => setLowStockOnly(e.target.checked)}
           >
-            Low stock only (&lt; 5)
+            Low stock only
           </Checkbox>
         </Space>
       </div>
 
-      <Table<InventoryRow>
+      <Table<SkuStock>
         columns={columns}
         dataSource={data?.content ?? []}
-        rowKey={(r) => `${r.variantId}-${r.warehouseId}`}
+        rowKey={(r) => String(r.variantId)}
         loading={loading}
         pagination={{
           current: page + 1,

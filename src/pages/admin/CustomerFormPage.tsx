@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Form, Input, Select, Button, Card, Typography, Space, Spin, Alert, Divider, message } from 'antd';
+import { Form, Input, Select, Button, Card, Typography, Space, Spin, Alert, Divider, Modal, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import * as api from '../../api/adminApi';
 import type { Customer, CustomerTier } from '../../api/types';
@@ -18,6 +18,7 @@ export default function CustomerFormPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const creating = isNew(id);
+  const [issuedPassword, setIssuedPassword] = useState<string | null>(null);
 
   useEffect(() => {
     const p: Promise<unknown>[] = [
@@ -49,12 +50,14 @@ export default function CustomerFormPage() {
     setSaving(true);
     try {
       if (creating) {
-        await api.createCustomer(values);
-        message.success('Customer created');
-      } else {
-        await api.updateCustomer(id!, values);
-        message.success('Customer updated');
+        const created = await api.createCustomer(values);
+        // The API returns the generated password once and only once — it is stored as a
+        // hash, so navigating away without showing it loses it for good.
+        setIssuedPassword(created.temporaryPassword);
+        return;
       }
+      await api.updateCustomer(id!, values);
+      message.success('Customer updated');
       navigate('/admin/customers');
     } catch {
       message.error('Failed to save.');
@@ -78,6 +81,27 @@ export default function CustomerFormPage() {
       </Space>
 
       <Card size="small">
+        <Modal
+          open={issuedPassword !== null}
+          title="Dealer created"
+          closable={false}
+          maskClosable={false}
+          onOk={() => navigate('/admin/customers')}
+          okText="Done"
+          cancelButtonProps={{ style: { display: 'none' } }}
+        >
+          <Alert
+            type="warning"
+            showIcon
+            message="Copy this password now"
+            description="It is stored only as a hash, so it cannot be shown again. The dealer must change it at first login."
+            style={{ marginBottom: 12 }}
+          />
+          <Typography.Paragraph copyable strong style={{ fontSize: 18, textAlign: 'center' }}>
+            {issuedPassword}
+          </Typography.Paragraph>
+        </Modal>
+
         <Form form={form} layout="vertical" onFinish={onFinish}>
           <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
             <Input placeholder="dealer@company.com" disabled={!creating} />

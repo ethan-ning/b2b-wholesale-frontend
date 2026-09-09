@@ -1,4 +1,4 @@
-import { dealerClient } from './http';
+import { authClient, dealerClient } from './http';
 import type { Category, LoginResponse, PagedResult, Product } from './types';
 
 /**
@@ -19,7 +19,7 @@ export interface ProductQuery {
 export const PAGE_SIZE = 10;
 
 export async function login(email: string, password: string): Promise<LoginResponse> {
-  const { data } = await dealerClient.post<LoginResponse>('/auth/login', { email, password });
+  const { data } = await authClient.post<LoginResponse>('/auth/login', { email, password });
   return data;
 }
 
