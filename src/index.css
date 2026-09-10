@@ -90,3 +90,17 @@ body {
   padding-top: 12px;
   border-top: 1px dashed #e3e8ef;
 }
+
+/*
+ * The admin sidebar is a column with a pinned foot: navigation scrolls, while the sync
+ * entry and the collapse control stay at the bottom edge.
+ *
+ * The flex lives here rather than on the Sider's style prop because antd renders its
+ * children inside a wrapper div of its own, and a flex container that is not the direct
+ * parent of the things it should be laying out does nothing at all.
+ */
+.admin-sider > .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
