@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, Alert, Space } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import { login } from '../../api/adminApi';
+import { authFailureMessage } from '../../api/http';
 import { useAdminAuthStore } from '../../store/adminAuthStore';
 
 const { Title, Text } = Typography;
@@ -25,8 +26,8 @@ export default function AdminLoginPage() {
       const data = await login(values.email, values.password);
       adminLogin(data.token, data.admin);
       navigate('/admin');
-    } catch {
-      setError('Invalid email or password.');
+    } catch (e: unknown) {
+      setError(authFailureMessage(e, 'Invalid email or password.'));
     } finally {
       setLoading(false);
     }

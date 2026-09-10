@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, Alert, Space } from 'antd';
 import { ShopOutlined } from '@ant-design/icons';
 import { login as loginRequest } from '../api/catalog';
+import { authFailureMessage } from '../api/http';
 import { useAuthStore } from '../store/authStore';
 
 const { Title, Text } = Typography;
@@ -27,8 +28,8 @@ export default function LoginPage() {
       // The token they just received reaches only the change-password endpoint, so this
       // is the only page that will work for them.
       navigate(data.user.mustChangePassword ? '/change-password' : '/');
-    } catch {
-      setError('Invalid email or password.');
+    } catch (e: unknown) {
+      setError(authFailureMessage(e, 'Invalid email or password.'));
     } finally {
       setLoading(false);
     }

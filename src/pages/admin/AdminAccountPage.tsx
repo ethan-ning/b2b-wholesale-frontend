@@ -3,7 +3,7 @@ import { Alert, Button, Card, Descriptions, Form, Input, Space, Tag, Typography,
 import { LockOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/admin/PageHeader';
 import { changeOwnPassword } from '../../api/adminApi';
-import { apiErrorMessage } from '../../api/http';
+import { authFailureMessage } from '../../api/http';
 import { useAdminAuthStore } from '../../store/adminAuthStore';
 
 const { Text } = Typography;
@@ -32,7 +32,7 @@ export default function AdminAccountPage() {
       form.resetFields();
       message.success('Password changed.');
     } catch (e) {
-      setError(apiErrorMessage(e, 'Could not change the password.'));
+      setError(authFailureMessage(e, 'Could not change the password.'));
     } finally {
       setSaving(false);
     }

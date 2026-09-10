@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, Alert, Space } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
-import { apiErrorMessage } from '../api/http';
+import { authFailureMessage } from '../api/http';
 import { changePassword } from '../api/catalog';
 import { useAuthStore } from '../store/authStore';
 
@@ -29,7 +29,7 @@ export default function ChangePasswordPage() {
       login(data.token, data.user);
       navigate('/', { replace: true });
     } catch (e: unknown) {
-      setError(apiErrorMessage(e, 'Could not change your password.'));
+      setError(authFailureMessage(e, 'Could not change your password.'));
     } finally {
       setLoading(false);
     }
