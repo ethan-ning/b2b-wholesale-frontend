@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Alert, Form, Input, Select, Button, Card, Typography, Space, Divider, Modal, message } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
 import * as api from '../../api/adminApi';
+import PageHeader from '../../components/admin/PageHeader';
 import { PageError, PageLoading } from '../../components/PageState';
 import type { Customer, CustomerTier } from '../../api/types';
 
-const { Title } = Typography;
 const isNew = (id: string | undefined) => id === 'new' || id === undefined;
 
 export default function CustomerFormPage() {
@@ -72,16 +71,13 @@ export default function CustomerFormPage() {
 
   return (
     <div style={{ maxWidth: 600 }}>
-      <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/admin/customers')}>
-          Back
-        </Button>
-        <Title level={4} style={{ margin: 0 }}>
-          {creating ? 'New Customer' : 'Edit Customer'}
-        </Title>
-      </Space>
+      <PageHeader
+        title={creating ? 'New Customer' : 'Edit Customer'}
+        backTo="/admin/customers"
+        backLabel="Back to Customers"
+      />
 
-      <Card size="small">
+      <Card size="small" className="section-card section-card--people">
         <Modal
           open={issuedPassword !== null}
           title="Dealer created"

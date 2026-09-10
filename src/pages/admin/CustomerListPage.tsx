@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Table, Input, Select, Button, Space, Tag, Typography, Switch, message, Modal, Alert, Tooltip,
+  Table, Input, Select, Button, Card, Space, Tag, Typography, Switch, message, Modal, Alert, Tooltip,
 } from 'antd';
 import { PlusOutlined, EditOutlined, SearchOutlined, KeyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
 import type { Customer } from '../../api/types';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
-
-const { Title } = Typography;
+import PageHeader from '../../components/admin/PageHeader';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
@@ -150,29 +149,33 @@ export default function CustomerListPage() {
         </Typography.Paragraph>
       </Modal>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Customers</Title>
-        <Space>
-          <Input
-            placeholder="Search name, email, company..."
-            prefix={<SearchOutlined />}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            allowClear
-            style={{ width: 260 }}
-          />
-          <Select
-            value={statusFilter}
-            options={STATUS_OPTIONS}
-            onChange={(v) => setStatusFilter(v)}
-            style={{ width: 130 }}
-          />
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/admin/customers/new')}>
-            New Customer
-          </Button>
-        </Space>
-      </div>
+      <PageHeader
+        title="Customers"
+        subtitle="Dealer accounts and the tier that decides what each of them pays."
+        actions={
+          <>
+            <Input
+              placeholder="Search name, email, company..."
+              prefix={<SearchOutlined />}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              allowClear
+              style={{ width: 260 }}
+            />
+            <Select
+              value={statusFilter}
+              options={STATUS_OPTIONS}
+              onChange={(v) => setStatusFilter(v)}
+              style={{ width: 130 }}
+            />
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/admin/customers/new')}>
+              New Customer
+            </Button>
+          </>
+        }
+      />
 
+      <Card size="small" className="section-card section-card--people">
       <Table<Customer>
         columns={columns}
         dataSource={data?.content ?? []}
@@ -187,6 +190,7 @@ export default function CustomerListPage() {
         }}
         size="small"
       />
+      </Card>
     </div>
   );
 }

@@ -8,10 +8,11 @@ import {
 } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 import * as api from '../../api/adminApi';
+import PageHeader from '../../components/admin/PageHeader';
 import { PageError, PageLoading } from '../../components/PageState';
 import type { CategoryNode } from '../../api/types';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 /** Matches the backend's Category.MAX_DEPTH. */
 const MAX_DEPTH = 3;
@@ -290,12 +291,15 @@ export default function CategoryPage() {
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <Title level={4} style={{ margin: 0 }}>Categories</Title>
-        <Button icon={<PlusOutlined />} onClick={() => setAddingRoot(true)}>
-          Add department
-        </Button>
-      </div>
+      <PageHeader
+        title="Categories"
+        subtitle="Ours, not the ERP's — how a dealer looks for a part, not how a warehouse files it."
+        actions={
+          <Button icon={<PlusOutlined />} onClick={() => setAddingRoot(true)}>
+            Add department
+          </Button>
+        }
+      />
 
       {/* Names the levels the colours stand for, and states the cap once rather than only
           on the disabled button an admin has to go looking for. */}
@@ -326,7 +330,7 @@ export default function CategoryPage() {
         </Space>
       )}
 
-      <Card size="small">
+      <Card size="small" className="section-card section-card--categories">
         {categories.length === 0 ? (
           <Typography.Text type="secondary">No categories yet.</Typography.Text>
         ) : (

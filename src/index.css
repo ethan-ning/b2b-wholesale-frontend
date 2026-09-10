@@ -21,3 +21,72 @@ body {
 .row-withdrawn td {
   opacity: 0.55;
 }
+
+/*
+ * Admin section cards.
+ *
+ * The page is a stack of long cards, and on a flat white background the eye has nothing
+ * to catch: where one section ends and the next begins is only a hairline. A tinted head
+ * and a coloured spine give each section an edge you can scan to, and the spine colour
+ * says what kind of section it is — slate for the parts the ERP owns and we only display,
+ * a live colour for the parts an admin can change.
+ */
+.section-card {
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.section-card > .ant-card-head {
+  background: #f8fafc;
+  border-bottom: 1px solid #e3e8ef;
+  min-height: 44px;
+}
+
+.section-card > .ant-card-head .ant-card-head-title {
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+
+/* The spine. Colour is set per card by the modifier below. */
+.section-card {
+  border-left: 3px solid #cbd5e1;
+}
+.section-card--pricing { border-left-color: #1677ff; }
+.section-card--categories { border-left-color: #16a34a; }
+.section-card--media { border-left-color: #722ed1; }
+.section-card--people { border-left-color: #0891b2; }
+.section-card--sync { border-left-color: #7c3aed; }
+.section-card--attention { border-left-color: #f59e0b; }
+.section-card--danger { border-left-color: #dc2626; }
+
+/*
+ * A stat tile. Same border and shadow as a section card, and the same spine, so a number
+ * on the dashboard belongs to the same family as the section it came from.
+ */
+.stat-card {
+  border: 1px solid #e3e8ef;
+  border-left: 3px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  height: 100%;
+}
+
+/* Read-only content: flat, recessed, visibly not a form. */
+.section-readonly .ant-descriptions-item-label {
+  background: #f8fafc;
+  width: 150px;
+}
+
+/* Keeps a section's Save button on the same line as its dirty marker. */
+.section-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed #e3e8ef;
+}

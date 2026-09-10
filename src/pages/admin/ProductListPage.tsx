@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Input, Select, Button, Space, Tag, Typography, Popconfirm, message, Tooltip } from 'antd';
+import { Table, Input, Select, Button, Card, Space, Tag, Popconfirm, message, Tooltip } from 'antd';
 import { EditOutlined, EyeInvisibleOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
@@ -8,8 +8,7 @@ import { apiErrorMessage } from '../../api/http';
 import type { Product } from '../../api/types';
 import { formatMoney } from '../../utils/money';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
-
-const { Title } = Typography;
+import PageHeader from '../../components/admin/PageHeader';
 
 const VISIBILITY_OPTIONS = [
   { value: '', label: 'All products' },
@@ -185,32 +184,36 @@ export default function ProductListPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Products</Title>
-        <Space>
-          <Input
-            placeholder="Search name or SPU code..."
-            prefix={<SearchOutlined />}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            allowClear
-            style={{ width: 240 }}
-          />
-          <Select
-            value={visibilityFilter}
-            options={VISIBILITY_OPTIONS}
-            onChange={(v) => setVisibilityFilter(v)}
-            style={{ width: 140 }}
-          />
-          <Select
-            value={pricingFilter}
-            options={PRICING_OPTIONS}
-            onChange={(v) => setPricingFilter(v)}
-            style={{ width: 140 }}
-          />
-        </Space>
-      </div>
+      <PageHeader
+        title="Products"
+        subtitle="Identity and stock come from Sellfox; pricing, categories and visibility are ours."
+        actions={
+          <>
+            <Input
+              placeholder="Search name or SPU code..."
+              prefix={<SearchOutlined />}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              allowClear
+              style={{ width: 240 }}
+            />
+            <Select
+              value={visibilityFilter}
+              options={VISIBILITY_OPTIONS}
+              onChange={(v) => setVisibilityFilter(v)}
+              style={{ width: 140 }}
+            />
+            <Select
+              value={pricingFilter}
+              options={PRICING_OPTIONS}
+              onChange={(v) => setPricingFilter(v)}
+              style={{ width: 140 }}
+            />
+          </>
+        }
+      />
 
+      <Card size="small" className="section-card section-card--pricing">
       <Table<Product>
         columns={columns}
         dataSource={rows}
@@ -238,6 +241,7 @@ export default function ProductListPage() {
         }}
         size="small"
       />
+      </Card>
     </div>
   );
 }

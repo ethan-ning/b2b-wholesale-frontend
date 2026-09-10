@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { Table, Input, Checkbox, Typography, Space, Tag } from 'antd';
+import { Table, Input, Checkbox, Card, Tag } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
 import type { SkuStock } from '../../api/types';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 import { StockBadge } from '../../components/StockBadge';
-
-const { Title } = Typography;
+import PageHeader from '../../components/admin/PageHeader';
 
 export default function InventoryPage() {
   const [search, setSearch] = useState('');
@@ -78,25 +77,29 @@ export default function InventoryPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Inventory</Title>
-        <Space>
-          <Input
-            placeholder="Search SKU or product"
-            prefix={<SearchOutlined />}
-            allowClear
-            style={{ width: 240 }}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <Checkbox
-            checked={lowStockOnly}
-            onChange={(e) => setLowStockOnly(e.target.checked)}
-          >
-            Low stock only
-          </Checkbox>
-        </Space>
-      </div>
+      <PageHeader
+        title="Inventory"
+        subtitle="Read-only. Sellfox owns these numbers; the portal refreshes them hourly."
+        actions={
+          <>
+            <Input
+              placeholder="Search SKU or product"
+              prefix={<SearchOutlined />}
+              allowClear
+              style={{ width: 240 }}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <Checkbox
+              checked={lowStockOnly}
+              onChange={(e) => setLowStockOnly(e.target.checked)}
+            >
+              Low stock only
+            </Checkbox>
+          </>
+        }
+      />
 
+      <Card size="small" className="section-card">
       <Table<SkuStock>
         columns={columns}
         dataSource={data?.content ?? []}
@@ -112,6 +115,7 @@ export default function InventoryPage() {
         size="small"
         scroll={{ x: 'max-content' }}
       />
+      </Card>
     </div>
   );
 }

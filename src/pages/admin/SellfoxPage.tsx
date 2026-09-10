@@ -8,13 +8,14 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
+import PageHeader from '../../components/admin/PageHeader';
 import { PageError, PageLoading } from '../../components/PageState';
 import { apiErrorMessage } from '../../api/http';
 import type {
   SellfoxCategory, SellfoxHistory, SellfoxScope, SellfoxSyncRun, SellfoxWarehouse, SyncMode, TriggerableSyncMode,
 } from '../../api/types';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 
 /** Sellfox's own warehouse classification. */
 const WAREHOUSE_TYPE: Record<number, string> = {
@@ -279,9 +280,10 @@ export default function SellfoxPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <Title level={4} style={{ margin: 0 }}>Sellfox Sync</Title>
-        <Space>
+      <PageHeader
+        title="Sellfox Sync"
+        actions={
+          <>
           <Tooltip title="Stock only, for the warehouses in scope. A few seconds.">
             <span>
               <Button onClick={() => trigger('INVENTORY')} disabled={running || !configured}>
@@ -311,10 +313,11 @@ export default function SellfoxPage() {
               </Button>
             </span>
           </Tooltip>
-        </Space>
-      </div>
+          </>
+        }
+      />
 
-      <Paragraph type="secondary" style={{ fontSize: 13 }}>
+      <Paragraph type="secondary" style={{ fontSize: 13, marginTop: -8 }}>
         Sellfox is the system of record for what a product is and how many there are. The
         import scope is set once and then left alone — stock refreshes <b>hourly</b> and
         the whole catalog re-imports <b>nightly</b>. Imported products arrive{' '}
@@ -325,7 +328,7 @@ export default function SellfoxPage() {
         <Card
           size="small"
           title="Change import scope"
-          style={{ marginBottom: 16 }}
+          className="section-card section-card--sync"
           extra={
             <Space>
               <Button size="small" onClick={() => setEditing(false)}>Cancel</Button>
@@ -442,7 +445,7 @@ export default function SellfoxPage() {
         <Card
           size="small"
           title="Import scope"
-          style={{ marginBottom: 16 }}
+          className="section-card"
           extra={
             <Tooltip title={running ? 'Wait for the running sync to finish' : undefined}>
               <span>
@@ -497,7 +500,7 @@ export default function SellfoxPage() {
         </Card>
       )}
 
-      <Card size="small" title="Run history">
+      <Card size="small" title="Run history" className="section-card">
         <Table
           rowKey="id"
           size="small"

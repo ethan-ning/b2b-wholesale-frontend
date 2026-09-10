@@ -1,4 +1,5 @@
 import { Card, Checkbox, Space, Tag, Tooltip, Typography } from 'antd';
+import type { ReactNode } from 'react';
 import type { Category } from '../../api/types';
 
 const { Text } = Typography;
@@ -20,6 +21,8 @@ interface Props {
   primaryId: number | null;
   onToggle: (categoryId: number, checked: boolean) => void;
   onPrimary: (categoryId: number) => void;
+  /** Rendered below the list — where the page puts this section's Save button. */
+  footer?: ReactNode;
 }
 
 /**
@@ -36,7 +39,7 @@ interface Props {
  * filed *directly* under each of them in the category admin's tallies.
  */
 export default function CategoryPicker({
-  categories, selectedIds, primaryId, onToggle, onPrimary,
+  categories, selectedIds, primaryId, onToggle, onPrimary, footer,
 }: Props) {
   const parentOf = new Map(categories.map((c) => [c.id, c.parentId]));
 
@@ -62,7 +65,7 @@ export default function CategoryPicker({
     <Card
       title="Categories"
       size="small"
-      style={{ marginBottom: 16 }}
+      className="section-card section-card--categories"
       extra={
         primaryIsAChoice ? (
           <Text type="secondary" style={{ fontSize: 12 }}>
@@ -101,6 +104,7 @@ export default function CategoryPicker({
           );
         })}
       </Space>
+      {footer}
     </Card>
   );
 }
