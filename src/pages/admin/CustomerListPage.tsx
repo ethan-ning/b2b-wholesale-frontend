@@ -24,7 +24,7 @@ export default function CustomerListPage() {
   // moment the password exists anywhere it can be read.
   const [issued, setIssued] = useState<{ email: string; password: string } | null>(null);
 
-  const { data, loading, page, setPage, reload } = usePagedQuery(
+  const { data, loading, error, page, setPage, reload } = usePagedQuery(
     (f, p) => api.fetchCustomers({ ...f, page: p }),
     { search, status: statusFilter }
   );
@@ -175,6 +175,7 @@ export default function CustomerListPage() {
         }
       />
 
+      {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 12 }} />}
       <Card size="small" className="section-card section-card--people">
       <Table<Customer>
         columns={columns}

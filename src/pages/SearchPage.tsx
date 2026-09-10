@@ -5,6 +5,7 @@ import {
   Typography,
   Select,
   Pagination,
+  Alert,
   Spin,
   Empty,
   Button,
@@ -54,7 +55,7 @@ export default function SearchPage() {
   }
 
   // Paging resets itself whenever any of these change.
-  const { data: result, loading, page, setPage } = usePagedQuery(
+  const { data: result, loading, error, page, setPage } = usePagedQuery(
     (f, p) => searchProducts({ ...f, page: p }),
     { search: query, category: categoryId, priceMin, priceMax, sort }
   );
@@ -164,6 +165,10 @@ export default function SearchPage() {
             </Button>
           </Space>
         )}
+
+        {/* A failed request must not read as "nothing matched". The filters stay on
+            screen so the dealer can retry rather than start over. */}
+        {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 12 }} />}
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60 }}>

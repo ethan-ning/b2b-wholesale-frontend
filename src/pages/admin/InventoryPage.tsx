@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Table, Input, Checkbox, Card, Tag } from 'antd';
+import { Table, Input, Checkbox, Card, Tag, Alert } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
@@ -12,7 +12,7 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
 
-  const { data, loading, page, setPage } = usePagedQuery(
+  const { data, loading, error, page, setPage } = usePagedQuery(
     (f, p) => api.fetchInventory({ ...f, page: p }),
     { search, lowStockOnly }
   );
@@ -99,6 +99,7 @@ export default function InventoryPage() {
         }
       />
 
+      {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 12 }} />}
       <Card size="small" className="section-card">
       <Table<SkuStock>
         columns={columns}

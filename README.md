@@ -60,11 +60,22 @@ npm run coverage    # per-directory report → coverage/
 Vitest reads `vite.config.ts`, so there is no second build pipeline to keep in step with
 the app's.
 
+Tests sit beside what they test — `MoneyInput.tsx` next to `MoneyInput.test.tsx` — which
+is the usual arrangement in this ecosystem, and makes a missing test visible in the folder
+listing. Shared machinery lives in `src/test/`: jsdom shims, the MSW lifecycle, the API
+handlers, fixtures, and a helper that renders a page inside a router the way the app does.
+
+Page tests run against MSW rather than a mocked `api/` module, so the axios instances,
+their interceptors and the real request shapes are all exercised — the 401 redirect and
+every failure path live there, and a mocked module would skip all of them. The handlers
+implement filtering rather than stubbing it, so a test can assert that choosing a category
+actually narrows the results.
+
 What is covered is the logic that has been wrong before and would be wrong quietly:
 `MoneyInput` refusing letters, `authFailureMessage` blaming the credentials on a 401 and
-on nothing else, `CategoryTree` opening two layers rather than all three, and the two
-hooks dropping responses whose filters have moved on. Pages are not covered yet — that
-needs MSW standing in for the API.
+on nothing else, `CategoryTree` opening two layers rather than all three, both hooks
+dropping responses whose filters have moved on, and sign-in, search and product pages end
+to end. The admin screens are still uncovered.
 
 CI runs this between `lint` and `build`, so a failing test stops a deploy the same way a
 type error does.

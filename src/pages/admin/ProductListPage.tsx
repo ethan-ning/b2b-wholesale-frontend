@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Input, Select, Button, Card, Space, Tag, Popconfirm, message, Tooltip } from 'antd';
+import { Table, Input, Select, Button, Card, Space, Tag, Popconfirm, message, Tooltip, Alert } from 'antd';
 import { EditOutlined, EyeInvisibleOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
@@ -54,7 +54,7 @@ export default function ProductListPage() {
 
   // pageSize sits in the filters rather than beside them, so changing it returns to the
   // first page — page 3 of 10-per-page is out of range at 100 per page.
-  const { data, loading, page, setPage, reload } = usePagedQuery(
+  const { data, loading, error, page, setPage, reload } = usePagedQuery(
     (f, p) => api.fetchProducts({ ...f, page: p }),
     { search, visibility: visibilityFilter, size: pageSize, sort: sort.field, direction: sort.direction }
   );
@@ -213,6 +213,7 @@ export default function ProductListPage() {
         }
       />
 
+      {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 12 }} />}
       <Card size="small" className="section-card section-card--pricing">
       <Table<Product>
         columns={columns}

@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">90% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/10</span>
+                <span class='fraction'>9/10</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">75% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/12</span>
+                <span class='fraction'>9/12</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">80% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/5</span>
+                <span class='fraction'>4/5</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/6</span>
+                <span class='fraction'>6/6</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -184,7 +184,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -200,13 +200,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">42x</span>
+<span class="cline-any cline-yes">55x</span>
+<span class="cline-any cline-yes">68x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">68x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">42x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -298,7 +298,7 @@ import type { Product } from '../api/types';
 import { formatMoneyRange } from '../utils/money';
 import SkuTable from './SkuTable';
 &nbsp;
-const { Text } = <span class="cstat-no" title="statement not covered" >Typography;</span>
+const { Text } = Typography;
 &nbsp;
 interface Props {
   product: Product;
@@ -313,14 +313,14 @@ interface Props {
  * they could rule any of them out. This is the difference between a trade catalogue and
  * a consumer storefront, so it is worth the vertical space.
  */
-export default function <span class="fstat-no" title="function not covered" >ProductCard({</span> product }: Props) {
-  const primaryImage = <span class="cstat-no" title="statement not covered" >[...product.images].<span class="fstat-no" title="function not covered" >sort((a</span>, b) =&gt; <span class="cstat-no" title="statement not covered" >a.sortOrder - b.sortOrder)</span>[0];</span>
-  const hasStock = <span class="cstat-no" title="statement not covered" >product.variants.<span class="fstat-no" title="function not covered" >some((v</span>) =&gt; <span class="cstat-no" title="statement not covered" >v.inventory.availableStock &gt; 0)</span>;</span>
-  const totalAvailable = <span class="cstat-no" title="statement not covered" >product.variants.<span class="fstat-no" title="function not covered" >reduce((s</span>um, v) =&gt; <span class="cstat-no" title="statement not covered" >sum + v.inventory.availableStock, 0</span>);</span>
+export default function ProductCard({ product }: Props) {
+  const primaryImage = [...product.images].<span class="fstat-no" title="function not covered" >sort((a</span>, b) =&gt; <span class="cstat-no" title="statement not covered" >a.sortOrder - b.sortOrder)</span>[0];
+  const hasStock = product.variants.some((v) =&gt; v.inventory.availableStock &gt; 0);
+  const totalAvailable = product.variants.reduce((sum, v) =&gt; sum + v.inventory.availableStock, 0);
   // Price and MAP both live on the SKU, so an SPU shows a range across its variants.
-  const priceRange = <span class="cstat-no" title="statement not covered" >formatMoneyRange(product.variants.<span class="fstat-no" title="function not covered" >map((v</span>) =&gt; <span class="cstat-no" title="statement not covered" >v.tierPrice)</span>);</span>
+  const priceRange = formatMoneyRange(product.variants.map((v) =&gt; v.tierPrice));
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return (</span>
+  return (
     &lt;Card
       className="result-row"
       size="small"
@@ -343,7 +343,7 @@ export default function <span class="fstat-no" title="function not covered" >Pro
           }}
         &gt;
           {primaryImage ? (
-            &lt;img
+<span class="branch-0 cbranch-no" title="branch not covered" >            &lt;img</span>
               src={primaryImage.url}
               alt={primaryImage.altText ?? product.name}
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
@@ -412,7 +412,7 @@ export default function <span class="fstat-no" title="function not covered" >Pro
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-09-10T17:50:30.193Z
+                at 2026-09-10T18:00:34.018Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
