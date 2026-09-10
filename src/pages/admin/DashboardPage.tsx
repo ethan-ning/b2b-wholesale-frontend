@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { Row, Col, Card, Statistic, Spin, Alert, Typography, Tag } from 'antd';
+import { Row, Col, Card, Statistic, Typography, Tag } from 'antd';
 import {
   ShoppingOutlined,
   CheckCircleOutlined,
@@ -7,25 +6,17 @@ import {
   WarningOutlined,
   StopOutlined,
 } from '@ant-design/icons';
-import type { DashboardStats } from '../../api/types';
 import * as api from '../../api/adminApi';
+import { useResource } from '../../hooks/useResource';
+import { PageError, PageLoading } from '../../components/PageState';
 
 const { Title } = Typography;
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: stats, loading, error } = useResource(() => api.fetchDashboard(), []);
 
-  useEffect(() => {
-    api.fetchDashboard()
-      .then(setStats)
-      .catch(() => setError('Failed to load dashboard stats.'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
-  if (error || !stats) return <Alert type="error" message={error ?? 'Error'} />;
+  if (loading) return <PageLoading />;
+  if (error || !stats) return <PageError message={error ?? 'Could not load the dashboard.'} />;
 
   return (
     <div>

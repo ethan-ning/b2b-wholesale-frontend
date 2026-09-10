@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   Row,
@@ -8,80 +8,35 @@ import {
   Tag,
   Space,
   Button,
-  Spin,
-  Alert,
   Divider,
   Descriptions,
   Breadcrumb,
 } from 'antd';
-import { ArrowLeftOutlined, DownloadOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import { fetchProduct } from '../api/catalog';
-import type { Product, Variant } from '../api/types';
 import { formatMoney, formatMoneyRange } from '../utils/money';
 import SkuTable from '../components/SkuTable';
+import { useResource } from '../hooks/useResource';
+import { PageError, PageLoading } from '../components/PageState';
 
 const { Title, Text } = Typography;
 
-function exportCsv(product: Product) {
-  const headers = [
-    'SKU', product.variantAxis ?? 'Variant', 'Pack Qty',
-    'Price', 'Unit Price', 'MAP', 'Available Stock', 'Incoming Stock', 'UPC',
-  ];
-  const rows = product.variants.map((v: Variant) => [
-    v.sku,
-    v.variantValue ?? v.packQuantity,
-    v.packQuantity,
-    v.tierPrice.toFixed(2),
-    v.unitPrice.toFixed(2),
-    v.mapPrice?.toFixed(2) ?? '',
-    v.inventory.availableStock,
-    v.inventory.incomingStock,
-    v.upc ?? '',
-  ]);
-  const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${product.spuCode}-inventory.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 export default function ProductDetailPage() {
   const { spuCode } = useParams<{ spuCode: string }>();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: product, loading, error } = useResource(() => fetchProduct(spuCode!), [spuCode]);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [galleryFor, setGalleryFor] = useState(spuCode);
 
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    fetchProduct(spuCode!)
-      .then((data) => {
-        setProduct(data);
-        setSelectedImage(0);
-      })
-      .catch(() => setError('Product not found.'))
-      .finally(() => setLoading(false));
-  }, [spuCode]);
-
-  if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: 80 }}>
-        <Spin size="large" />
-      </div>
-    );
+  // Back to the first photo when the product changes: index 3 of the last product's
+  // gallery is a different picture, or no picture at all, on this one. Reset during
+  // render rather than from an effect, so the old index is never painted.
+  if (galleryFor !== spuCode) {
+    setGalleryFor(spuCode);
+    setSelectedImage(0);
   }
 
-  if (error || !product) {
-    return (
-      <div style={{ padding: 40 }}>
-        <Alert type="error" message={error ?? 'Unknown error'} />
-      </div>
-    );
-  }
+  if (loading) return <PageLoading />;
+  if (error || !product) return <PageError message={error ?? 'Product not found.'} />;
 
   const sortedImages = [...product.images].sort((a, b) => a.sortOrder - b.sortOrder);
   const primaryCategory = product.categories.find((c) => c.isPrimary) ?? product.categories[0];
@@ -201,17 +156,12 @@ export default function ProductDetailPage() {
 
       <Divider />
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <Title level={5} style={{ margin: 0 }}>
-          SKUs & Inventory
-          <Text type="secondary" style={{ fontWeight: 400, fontSize: 13, marginLeft: 12 }}>
-            Last synced: {lastSynced}
-          </Text>
-        </Title>
-        <Button icon={<DownloadOutlined />} size="small" onClick={() => exportCsv(product)}>
-          Export CSV
-        </Button>
-      </div>
+      <Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>
+        SKUs & Inventory
+        <Text type="secondary" style={{ fontWeight: 400, fontSize: 13, marginLeft: 12 }}>
+          Last synced: {lastSynced}
+        </Text>
+      </Title>
 
       <SkuTable variants={product.variants} variantAxis={product.variantAxis} compact={false} />
 

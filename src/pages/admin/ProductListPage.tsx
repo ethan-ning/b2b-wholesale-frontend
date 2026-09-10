@@ -4,7 +4,9 @@ import { Table, Input, Select, Button, Space, Tag, Typography, Popconfirm, messa
 import { EditOutlined, EyeInvisibleOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
+import { apiErrorMessage } from '../../api/http';
 import type { Product } from '../../api/types';
+import { formatMoney } from '../../utils/money';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 
 const { Title } = Typography;
@@ -66,9 +68,7 @@ export default function ProductListPage() {
       );
       reload();
     } catch (e: unknown) {
-      // Surfaced verbatim: the API's refusal names the SPU and says what to do about it.
-      const detail = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      message.error(detail ?? 'Could not change visibility.');
+      message.error(apiErrorMessage(e, 'Could not change visibility.'));
     }
   }
 
@@ -114,7 +114,7 @@ export default function ProductListPage() {
       align: 'right',
       sorter: true,
       sortOrder: orderFor('price'),
-      render: (v: number) => `$${v.toFixed(2)}`,
+      render: (v: number) => formatMoney(v),
     },
     {
       title: 'SKUs',

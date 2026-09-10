@@ -41,6 +41,19 @@ export const dealerClient = createClient('auth_token', 'auth_user', '/login');
 export const adminClient = createClient('admin_token', 'admin_user', '/admin/login');
 
 /**
+ * What the API said went wrong, or [fallback] when it did not say.
+ *
+ * Worth surfacing verbatim: the refusals that reach a user name the thing they are about
+ * — which SPU is unpriced, which sync is already running — and a generic message throws
+ * that away. Lives here because this is where the response shape is already known; at the
+ * call sites it was four copies of the same cast.
+ */
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  const said = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+  return said?.trim() || fallback;
+}
+
+/**
  * For the login endpoints only: no token to attach, and deliberately no 401 redirect.
  *
  * A failed sign-in must reach the page so it can say "Invalid email or password". Sent

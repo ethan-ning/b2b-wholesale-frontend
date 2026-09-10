@@ -5,7 +5,7 @@ import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
 import type { SkuStock } from '../../api/types';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
-import { StockBadge } from '../../utils/stockBadge';
+import { StockBadge } from '../../components/StockBadge';
 
 const { Title } = Typography;
 
@@ -39,7 +39,7 @@ export default function InventoryPage() {
       key: 'available',
       width: 100,
       align: 'right',
-      render: (v: number) => <StockBadge qty={v} />,
+      render: (v: number, row: SkuStock) => <StockBadge qty={v} low={row.lowStock} />,
     },
     {
       title: 'Incoming',

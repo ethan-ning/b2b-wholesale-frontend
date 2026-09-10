@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Tree, Spin } from 'antd';
+import { Tree, Spin, Alert } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import { fetchCategories } from '../api/catalog';
 import type { Category } from '../api/types';
+import { useResource } from '../hooks/useResource';
 
 function toTreeData(categories: Category[]): DataNode[] {
   return categories.map((c) => ({
@@ -19,17 +19,14 @@ interface Props {
 }
 
 export default function CategoryTree({ selectedId, onChange }: Props) {
-  const [treeData, setTreeData] = useState<DataNode[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: categories, loading, error } = useResource(() => fetchCategories(), []);
 
-  useEffect(() => {
-    fetchCategories().then((data) => {
-      setTreeData(toTreeData(data));
-      setLoading(false);
-    });
-  }, []);
-
+  // Inline rather than the full-page states: this is a sidebar, and taking over the screen
+  // because a filter list failed would hide the results the dealer came for.
   if (loading) return <Spin size="small" />;
+  if (error) return <Alert type="warning" message="Categories unavailable" showIcon />;
+
+  const treeData = toTreeData(categories ?? []);
 
   return (
     <Tree

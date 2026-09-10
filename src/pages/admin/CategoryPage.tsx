@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
-  Typography, Button, Input, Space, Spin, Alert, Popconfirm, message, Tree, Card, Tag, Tooltip,
+  Typography, Button, Input, Space, Popconfirm, message, Tree, Card, Tag, Tooltip,
 } from 'antd';
 import {
   PlusOutlined, DeleteOutlined, EditOutlined, CheckOutlined, CloseOutlined,
@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 import * as api from '../../api/adminApi';
+import { PageError, PageLoading } from '../../components/PageState';
 import type { CategoryNode } from '../../api/types';
 
 const { Title, Text } = Typography;
@@ -269,8 +270,8 @@ export default function CategoryPage() {
     fetchCategories();
   }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
-  if (error) return <Alert type="error" message={error} />;
+  if (loading) return <PageLoading />;
+  if (error) return <PageError message={error} />;
 
   const treeData = toTreeData(
     categories,

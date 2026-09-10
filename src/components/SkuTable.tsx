@@ -2,7 +2,7 @@ import { Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { Variant } from '../api/types';
 import { formatMoney } from '../utils/money';
-import { StockBadge } from '../utils/stockBadge';
+import { StockBadge } from './StockBadge';
 
 interface Props {
   variants: Variant[];
@@ -68,7 +68,7 @@ export default function SkuTable({ variants, variantAxis, compact = false }: Pro
       key: 'available',
       width: 100,
       align: 'right',
-      render: (_: unknown, v: Variant) => <StockBadge qty={v.inventory.availableStock} />,
+      render: (_: unknown, v: Variant) => <StockBadge qty={v.inventory.availableStock} low={v.inventory.lowStock} />,
     },
     {
       title: 'Incoming',

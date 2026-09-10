@@ -1,56 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Form, Input, InputNumber, Select, Button, Card, Typography, Space, Table,
-  Spin, Alert, Divider, Tag, message, Checkbox, Row, Col, Descriptions, Tooltip,
+  Form, Input, InputNumber, Select, Button, Card, Typography, Space,
+  Divider, Tag, message, Row, Col, Descriptions,
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
-import type { Category, CustomerTier, Product, TierPrice, Variant } from '../../api/types';
+import { PageError, PageLoading } from '../../components/PageState';
+import SkuPricingTable, { buildSkuRows } from '../../components/admin/SkuPricingTable';
+import CategoryPicker, { flattenCategories } from '../../components/admin/CategoryPicker';
+import type { FlatCategory } from '../../components/admin/CategoryPicker';
+import type { SkuRow } from '../../components/admin/SkuPricingTable';
+import type { CustomerTier, Product, Variant, WarehouseStock } from '../../api/types';
 
 const { Title, Text } = Typography;
-
-function flattenCats(cats: Category[], prefix = ''): { id: number; label: string; parentId: number | null }[] {
-  const result: { id: number; label: string; parentId: number | null }[] = [];
-  for (const c of cats) {
-    result.push({ id: c.id, label: prefix + c.name, parentId: c.parentId });
-    if (c.children.length) result.push(...flattenCats(c.children, prefix + c.name + ' › '));
-  }
-  return result;
-}
-
-/** A pricing row being edited. Unlike the saved shape, its price may be blank. */
-type DraftTierPrice = Omit<TierPrice, 'price'> & { price: number | null };
-
-/**
- * One row per SKU per tier, seeded from whatever is already priced.
- *
- * Discontinued SKUs are left out: the supplier has stopped selling them, they no longer
- * count toward whether the product can go on sale, and offering a box to price them
- * would invite work that changes nothing.
- */
-function buildTierGrid(
-  variants: Variant[],
-  tiers: CustomerTier[],
-  existing: TierPrice[],
-): DraftTierPrice[] {
-  const priced = new Map(existing.map((r) => [`${r.sku}:${r.tierId}:${r.minQty}`, r]));
-  return variants
-    .filter((v) => v.status !== 'DISCONTINUED')
-    .flatMap((variant) =>
-      tiers.map((tier) => {
-        const found = priced.get(`${variant.sku}:${tier.id}:1`);
-        return {
-          sku: variant.sku,
-          tierId: tier.id,
-          tierName: tier.name,
-          minQty: 1,
-          price: found?.price ?? null,
-        };
-      }),
-    );
-}
 
 export default function ProductFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -58,7 +21,7 @@ export default function ProductFormPage() {
   const [form] = Form.useForm();
 
   const [product, setProduct] = useState<Product | null>(null);
-  const [categories, setCategories] = useState<{ id: number; label: string; parentId: number | null }[]>([]);
+  const [categories, setCategories] = useState<FlatCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,23 +32,13 @@ export default function ProductFormPage() {
   const [primaryCatId, setPrimaryCatId] = useState<number | null>(null);
   // Per-SKU MAP, keyed by variant id — the only place MAP is edited.
   const [variantMaps, setVariantMaps] = useState<Record<number, number | null>>({});
-  /**
-   * A row per SKU per tier, whether or not a price exists yet.
-   *
-   * Built from the variants rather than from the price book: a product that has never
-   * been priced has an empty price book, and rendering that gave an empty table with
-   * nothing to type into — which is exactly the product that most needs pricing.
-   *
-   * `price` is null for a row nobody has filled in. Null and 0 are not the same thing:
-   * a blank leaves the SKU unpriced, while a zero would price it at nothing and let it
-   * go on sale for free.
-   */
-  const [tierRows, setTierRows] = useState<DraftTierPrice[]>([]);
+  const [skuRows, setSkuRows] = useState<SkuRow[]>([]);
+  const [stock, setStock] = useState<WarehouseStock[]>([]);
 
   useEffect(() => {
     Promise.all([api.fetchProduct(id!), api.fetchCategories(), api.fetchTiers()])
       .then(([detail, cats, tiers]) => {
-        // The price book is a sibling of the product, not a field on it.
+        // The price book and the stock breakdown are siblings of the product, not fields on it.
         const p = detail.product;
         setProduct(p);
         setAttrRows(Object.entries(p.attributes).map(([k, v]) => ({ key: k, value: v })));
@@ -93,11 +46,12 @@ export default function ProductFormPage() {
           [...p.images].sort((a, b) => a.sortOrder - b.sortOrder).map((img) => img.url)
         );
         setVariantMaps(Object.fromEntries(p.variants.map((v) => [v.id!, v.mapPrice])));
-        setTierRows(buildTierGrid(p.variants, tiers, detail.tierPrices));
+        setSkuRows(buildSkuRows(p.variants, tiers, detail.tierPrices));
+        setStock(detail.stockByWarehouse ?? []);
         const catIds = p.categories.map((c) => c.id);
         setSelectedCatIds(catIds);
         setPrimaryCatId(p.categories.find((c) => c.isPrimary)?.id ?? catIds[0] ?? null);
-        setCategories(flattenCats(cats));
+        setCategories(flattenCategories(cats));
         form.setFieldsValue({
           baseWholesalePrice: p.baseWholesalePrice,
           locationCode: p.locationCode,
@@ -124,12 +78,12 @@ export default function ProductFormPage() {
         primaryCategoryId: primaryCatId,
         // Variants are otherwise the ERP's, but MAP is ours.
         variantMapPrices: Object.fromEntries(
-          product!.variants.map((v) => [v.id!, variantMaps[v.id!] ?? null])
+          product!.variants.map((v: Variant) => [v.id!, variantMaps[v.id!] ?? null])
         ),
         // Only the rows someone actually filled in — a blank is not a zero.
-        tierPrices: tierRows
-          .filter((r): r is DraftTierPrice & { price: number } => r.price !== null)
-          .map((r) => ({ sku: r.sku, tierId: r.tierId, price: r.price, minQty: r.minQty })),
+        tierPrices: skuRows
+          .filter((r): r is SkuRow & { tier: CustomerTier; price: number } => r.tier !== null && r.price !== null)
+          .map((r) => ({ sku: r.variant.sku, tierId: r.tier.id, price: r.price, minQty: r.minQty })),
       };
       await api.updateProduct(id!, payload);
       message.success('Product saved');
@@ -141,103 +95,28 @@ export default function ProductFormPage() {
     }
   }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
-  if (error || !product) return <Alert type="error" message={error ?? 'Not found'} />;
+  if (loading) return <PageLoading />;
+  if (error || !product) return <PageError message={error ?? 'Product not found.'} />;
 
-  function updateTierRow(row: DraftTierPrice, patch: Partial<DraftTierPrice>) {
-    setTierRows((prev) =>
-      prev.map((r) =>
-        r.sku === row.sku && r.tierId === row.tierId && r.minQty === row.minQty ? { ...r, ...patch } : r
-      )
-    );
+  function updatePrice(row: SkuRow, price: number | null) {
+    setSkuRows((prev) => prev.map((r) => (r.key === row.key ? { ...r, price } : r)));
   }
 
-  // Merge each SKU's cell down over its tier rows. Precomputed by index and kept
-  // pure — onCell can fire more than once per row, so it must not mutate.
-  const skuRowSpans = tierRows.map((row, i) =>
-    i > 0 && tierRows[i - 1].sku === row.sku
-      ? 0
-      : tierRows.filter((r) => r.sku === row.sku).length
-  );
-
-  const tierPriceColumns: ColumnsType<DraftTierPrice> = [
-    {
-      title: 'SKU',
-      dataIndex: 'sku',
-      key: 'sku',
-      width: 170,
-      render: (sku: string) => <code style={{ fontSize: 12 }}>{sku}</code>,
-      onCell: (_row, index) => ({ rowSpan: skuRowSpans[index ?? 0] ?? 1 }),
-    },
-    {
-      // Every MVP row is minQty 1, so the tag is inert today. Kept so enabling volume
-      // breaks is an insert of rows, not a UI change (architecture doc §2.2.1).
-      title: 'Tier',
-      dataIndex: 'tierName',
-      key: 'tierName',
-      width: 150,
-      render: (tierName: string, row) => (
-        <Space size={6}>
-          <span>{tierName}</span>
-          {row.minQty > 1 && <Tag color="blue" style={{ fontSize: 11, marginInlineEnd: 0 }}>{row.minQty}+</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: 'Price', dataIndex: 'price', key: 'price', width: 130, align: 'right',
-      render: (price: number, row) => (
-        <InputNumber
-          size="small" prefix="$" min={0} precision={2} style={{ width: '100%' }} value={price}
-          // Clearing the box means "not priced", not "priced at zero".
-          onChange={(v) => updateTierRow(row, { price: v ?? null })}
-        />
-      ),
-    },
-  ];
-
-  const variantColumns: ColumnsType<Variant> = [
-    { title: 'SKU', dataIndex: 'sku', key: 'sku', render: (v: string) => <code style={{ fontSize: 12 }}>{v}</code> },
-    {
-      title: product.variantAxis ?? 'Variant', dataIndex: 'variantValue', key: 'variantValue',
-      width: 80, align: 'right',
-      render: (value: string | null, v: Variant) => value ?? v.packQuantity,
-    },
-    {
-      // The one portal-owned field on a variant, so the one input here.
-      title: 'MAP', key: 'mapPrice', width: 130, align: 'right',
-      render: (_: unknown, v: Variant) => (
-        <InputNumber
-          prefix="$"
-          size="small"
-          min={0}
-          precision={2}
-          style={{ width: '100%' }}
-          value={variantMaps[v.id] ?? undefined}
-          onChange={(val) => setVariantMaps((prev) => ({ ...prev, [v.id]: val ?? null }))}
-        />
-      ),
-    },
-    { title: 'UPC', dataIndex: 'upc', key: 'upc', render: (v: string | null) => v ?? '—' },
-    { title: 'Weight', dataIndex: 'weight', key: 'weight', width: 80, align: 'right', render: (v: number | null) => v ? `${v} kg` : '—' },
-    {
-      title: 'Supply', dataIndex: 'status', key: 'status', width: 130,
-      render: (status: string) =>
-        status === 'ACTIVE' ? (
-          <Tag color="success">On sale</Tag>
-        ) : (
-          <Tooltip title="Sellfox no longer sells this SKU. Dealers cannot see it; its pricing is kept in case it returns.">
-            <Tag color="default">Withdrawn</Tag>
-          </Tooltip>
-        ),
-    },
-    {
-      title: 'Stock (available)', key: 'stock', align: 'right', width: 130,
-      render: (_: unknown, v: Variant) => v.inventory.availableStock,
-    },
-  ];
+  function toggleCategory(catId: number, checked: boolean) {
+    if (checked) {
+      setSelectedCatIds([...new Set([...selectedCatIds, catId])]);
+      // First one in takes the primary slot. Silent while it is the only candidate; once a
+      // second category arrives the control appears already pointing at this one.
+      if (primaryCatId === null) setPrimaryCatId(catId);
+      return;
+    }
+    const next = selectedCatIds.filter((x) => x !== catId);
+    setSelectedCatIds(next);
+    if (primaryCatId === catId) setPrimaryCatId(next[0] ?? null);
+  }
 
   return (
-    <div style={{ maxWidth: 900 }}>
+    <div style={{ maxWidth: 1240 }}>
       <Space style={{ marginBottom: 16 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/admin/products')}>
           Back to Products
@@ -274,7 +153,8 @@ export default function ProductFormPage() {
         <Card title="Catalog Settings" size="small" style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="baseWholesalePrice" label="Base Wholesale Price" rules={[{ required: true }]}>
+              <Form.Item name="baseWholesalePrice" label="Base Wholesale Price" rules={[{ required: true }]}
+                tooltip="List price for one unit. Only reached when a SKU has no tier price at all.">
                 <InputNumber prefix="$" style={{ width: '100%' }} min={0} precision={2} />
               </Form.Item>
             </Col>
@@ -285,7 +165,8 @@ export default function ProductFormPage() {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="status" label="Visibility" rules={[{ required: true }]} tooltip="Controls dealer visibility.">
+              <Form.Item name="status" label="Visibility" rules={[{ required: true }]}
+                tooltip="A product cannot be made visible until every SKU still on sale has a tier price.">
                 <Select options={[
                   { value: 'VISIBLE', label: 'Visible to dealers' },
                   { value: 'HIDDEN', label: 'Hidden' },
@@ -295,7 +176,34 @@ export default function ProductFormPage() {
           </Row>
         </Card>
 
-        {/* Section 2: Attributes */}
+        <Card
+          title="SKUs, Pricing & Stock"
+          size="small"
+          style={{ marginBottom: 16 }}
+          extra={<Tag color="default">Prices and MAP are ours — everything else is Sellfox's</Tag>}
+        >
+          <SkuPricingTable
+            rows={skuRows}
+            variantAxis={product.variantAxis}
+            stock={stock}
+            mapPrices={variantMaps}
+            onPrice={updatePrice}
+            onMapPrice={(variantId, price) =>
+              setVariantMaps((prev) => ({ ...prev, [variantId]: price }))}
+          />
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+            A pack SKU's price is for the whole pack, not one of its contents.
+          </Text>
+        </Card>
+
+        <CategoryPicker
+          categories={categories}
+          selectedIds={selectedCatIds}
+          primaryId={primaryCatId}
+          onToggle={toggleCategory}
+          onPrimary={setPrimaryCatId}
+        />
+
         <Card
           title="Display Attributes"
           size="small"
@@ -338,7 +246,6 @@ export default function ProductFormPage() {
           ))}
         </Card>
 
-        {/* Section 3: Images */}
         <Card
           title="Images (URLs, first = primary thumbnail)"
           size="small"
@@ -376,75 +283,6 @@ export default function ProductFormPage() {
                 onClick={() => setImageUrls(imageUrls.filter((_, j) => j !== i))} />
             </Space>
           ))}
-        </Card>
-
-        {/* Section 4: Categories */}
-        <Card title="Categories" size="small" style={{ marginBottom: 16 }}>
-          <Space direction="vertical" size={4} style={{ width: '100%' }}>
-            {categories.map((c) => (
-              <Space key={c.id}>
-                <Checkbox
-                  checked={selectedCatIds.includes(c.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedCatIds([...selectedCatIds, c.id]);
-                      if (selectedCatIds.length === 0) setPrimaryCatId(c.id);
-                    } else {
-                      const next = selectedCatIds.filter((id) => id !== c.id);
-                      setSelectedCatIds(next);
-                      if (primaryCatId === c.id) setPrimaryCatId(next[0] ?? null);
-                    }
-                  }}
-                >
-                  {c.label}
-                </Checkbox>
-                {selectedCatIds.includes(c.id) && (
-                  <Tag
-                    color={primaryCatId === c.id ? 'blue' : 'default'}
-                    style={{ cursor: 'pointer', fontSize: 11 }}
-                    onClick={() => setPrimaryCatId(c.id)}
-                  >
-                    {primaryCatId === c.id ? 'Primary' : 'Set primary'}
-                  </Tag>
-                )}
-              </Space>
-            ))}
-          </Space>
-        </Card>
-
-        {/* Section 5: Tier pricing — one row per SKU per tier per volume break */}
-        <Card
-          title="Tier Pricing"
-          size="small"
-          style={{ marginBottom: 16 }}
-          extra={<Tag>Priced per SKU — a pack SKU's price is the whole pack</Tag>}
-        >
-          <Table<DraftTierPrice>
-            columns={tierPriceColumns}
-            dataSource={tierRows}
-            rowKey={(r) => `${r.sku}:${r.tierId}:${r.minQty}`}
-            size="small"
-            pagination={false}
-            bordered
-          />
-        </Card>
-
-        <Card
-          title="SKU Variants"
-          size="small"
-          style={{ marginBottom: 16 }}
-          extra={<Tag color="default">Synced from Sellfox — except MAP, which is ours</Tag>}
-        >
-          <Table<Variant>
-            columns={variantColumns}
-            dataSource={product.variants}
-            rowKey="id"
-            size="small"
-            pagination={false}
-            /* Dimmed whole-row: the tag alone reads as a detail, but a withdrawn SKU
-               changes what the row means — none of it is on offer. */
-            rowClassName={(v) => (v.status === 'DISCONTINUED' ? 'row-withdrawn' : '')}
-          />
         </Card>
 
         <Divider />

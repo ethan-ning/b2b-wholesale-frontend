@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Form, Input, Select, Button, Card, Typography, Space, Spin, Alert, Divider, Modal, message } from 'antd';
+import { Alert, Form, Input, Select, Button, Card, Typography, Space, Divider, Modal, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import * as api from '../../api/adminApi';
+import { PageError, PageLoading } from '../../components/PageState';
 import type { Customer, CustomerTier } from '../../api/types';
 
 const { Title } = Typography;
@@ -66,8 +67,8 @@ export default function CustomerFormPage() {
     }
   }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
-  if (error) return <Alert type="error" message={error} />;
+  if (loading) return <PageLoading />;
+  if (error) return <PageError message={error} />;
 
   return (
     <div style={{ maxWidth: 600 }}>

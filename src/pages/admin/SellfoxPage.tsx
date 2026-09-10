@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Typography, Card, Table, Tag, Button, Space, Alert, Spin, Checkbox, Input,
+  Typography, Card, Table, Tag, Button, Space, Checkbox, Input,
   Tooltip, message, Empty, Modal, Descriptions,
 } from 'antd';
 import {
@@ -8,6 +8,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
+import { PageError, PageLoading } from '../../components/PageState';
+import { apiErrorMessage } from '../../api/http';
 import type {
   SellfoxCategory, SellfoxHistory, SellfoxScope, SellfoxSyncRun, SellfoxWarehouse, SyncMode, TriggerableSyncMode,
 } from '../../api/types';
@@ -148,8 +150,7 @@ export default function SellfoxPage() {
           setEditing(false);
           load();
         } catch (e: unknown) {
-          const detail = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-          message.error(detail ?? 'Could not save the scope');
+          message.error(apiErrorMessage(e, 'Could not save the scope'));
         } finally {
           setSaving(false);
         }
@@ -163,13 +164,12 @@ export default function SellfoxPage() {
       message.success(`${MODE_LABEL[mode]} started`);
       load();
     } catch (e: unknown) {
-      const detail = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      message.error(detail ?? 'Could not start the sync');
+      message.error(apiErrorMessage(e, 'Could not start the sync'));
     }
   }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
-  if (error) return <Alert type="error" message={error} showIcon />;
+  if (loading) return <PageLoading />;
+  if (error) return <PageError message={error} />;
 
   const categories = (scope?.categories ?? []).filter((c) =>
     c.fullName.toLowerCase().includes(categoryFilter.trim().toLowerCase()));

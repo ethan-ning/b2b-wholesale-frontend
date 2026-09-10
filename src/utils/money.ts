@@ -12,7 +12,3 @@ export function formatMoneyRange(amounts: number[]): string | null {
   const high = Math.max(...amounts);
   return low === high ? formatMoney(low) : `${formatMoney(low)} – ${formatMoney(high)}`;
 }
-
-export function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}

@@ -18,6 +18,9 @@ export interface ProductImage {
 export interface Inventory {
   availableStock: number;
   incomingStock: number;
+  /** In stock but running down. The API decides where that line sits, not the UI. */
+  lowStock: boolean;
+  outOfStock: boolean;
   updatedAt: string;
 }
 
@@ -142,12 +145,24 @@ export interface TierPrice {
 export interface AdminProductDetail {
   product: Product;
   tierPrices: TierPrice[];
+  /** Where each SKU's stock sits. The variant's own availableStock is these summed. */
+  stockByWarehouse: WarehouseStock[];
+}
+
+export interface WarehouseStock {
+  sku: string;
+  warehouseId: number;
+  warehouseName: string;
+  available: number;
+  /** In transit to this warehouse — Sellfox's 在途. */
+  incoming: number;
+  syncedAt: string;
 }
 
 /**
- * One SKU's stock. No warehouse dimension: stock is held per SKU in the MVP, and a
- * multi-warehouse breakdown arrives with the ERP sync. Reserved and defective stock are
- * tracked upstream but never shown here.
+ * One SKU's stock, summed. The inventory screen is a flat list across the catalog, so it
+ * carries the total only — see WarehouseStock for where that total comes from. Reserved
+ * and defective stock are tracked upstream but never shown here.
  */
 export interface SkuStock {
   variantId: number;
