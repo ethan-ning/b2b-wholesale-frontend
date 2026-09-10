@@ -10,6 +10,15 @@ interface Props {
   onApply: (min: number | undefined, max: number | undefined) => void;
 }
 
+/**
+ * Two boxes and an Apply, on the results toolbar beside the sort control.
+ *
+ * It used to sit in the sidebar, where it took a block of height from the only thing
+ * that actually needs the room — the category tree. It is also a narrowing control like
+ * sort is, so the toolbar is where it belongs.
+ *
+ * Enter applies, because a dealer who has just typed a number will press it.
+ */
 export default function PriceRangeFilter({ priceMin, priceMax, onApply }: Props) {
   // Draft values — the filter only applies on Apply, so the boxes are local state.
   const [min, setMin] = useState<number | undefined>(priceMin);
@@ -24,6 +33,9 @@ export default function PriceRangeFilter({ priceMin, priceMax, onApply }: Props)
     setMax(priceMax);
   }
 
+  const isApplied = priceMin !== undefined || priceMax !== undefined;
+  const isDirty = min !== priceMin || max !== priceMax;
+
   function handleApply() {
     onApply(min, max);
   }
@@ -35,32 +47,39 @@ export default function PriceRangeFilter({ priceMin, priceMax, onApply }: Props)
   }
 
   return (
-    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+    <Space size={6} align="center" wrap={false}>
+      <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+        Price
+      </Text>
       {/* MoneyInput, not a bare InputNumber: a price box must refuse a letter as it is
           typed rather than swallow it and quietly correct itself on blur. */}
-      <Space size={8} align="center">
-        <MoneyInput
-          placeholder="Min"
-          value={min}
-          style={{ width: 108 }}
-          onChange={(v) => setMin(v ?? undefined)}
-        />
-        <Text type="secondary">–</Text>
-        <MoneyInput
-          placeholder="Max"
-          value={max}
-          style={{ width: 108 }}
-          onChange={(v) => setMax(v ?? undefined)}
-        />
-      </Space>
-      <Space>
-        <Button size="small" type="primary" onClick={handleApply}>
-          Apply
-        </Button>
-        <Button size="small" onClick={handleClear}>
+      <MoneyInput
+        placeholder="Min"
+        size="small"
+        value={min}
+        style={{ width: 92 }}
+        onChange={(v) => setMin(v ?? undefined)}
+        onPressEnter={handleApply}
+      />
+      <Text type="secondary">–</Text>
+      <MoneyInput
+        placeholder="Max"
+        size="small"
+        value={max}
+        style={{ width: 92 }}
+        onChange={(v) => setMax(v ?? undefined)}
+        onPressEnter={handleApply}
+      />
+      {/* Apply only offers itself once the boxes differ from what is showing, so the
+          toolbar is not permanently occupied by a button with nothing to do. */}
+      <Button size="small" type="primary" onClick={handleApply} disabled={!isDirty}>
+        Apply
+      </Button>
+      {isApplied && (
+        <Button size="small" type="text" onClick={handleClear}>
           Clear
         </Button>
-      </Space>
+      )}
     </Space>
   );
 }

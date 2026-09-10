@@ -99,23 +99,25 @@ export default function SearchPage() {
           overflowY: 'auto',
         }}
       >
-        <div className="filter-rail">
+        <div className="filter-rail" style={{ minHeight: '100%' }}>
           <div className="filter-rail-head">Category</div>
           <div style={{ padding: '10px 8px 14px' }}>
             <CategoryTree selectedId={categoryId} onChange={handleCategoryChange} />
           </div>
         </div>
-
-        <div className="filter-rail" style={{ marginTop: 16 }}>
-          <div className="filter-rail-head">Wholesale price</div>
-          <div style={{ padding: 14 }}>
-            <PriceRangeFilter priceMin={priceMin} priceMax={priceMax} onApply={handlePriceApply} />
-          </div>
-        </div>
       </Sider>
 
       <Content style={{ padding: '20px 24px 32px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            flexWrap: 'wrap',
+            marginBottom: 12,
+          }}
+        >
           <Title level={5} style={{ margin: 0 }}>
             {query ? `Results for "${query}"` : 'All products'}
             {result && (
@@ -124,13 +126,17 @@ export default function SearchPage() {
               </Text>
             )}
           </Title>
-          <Select
-            value={sort}
-            options={SORT_OPTIONS}
-            onChange={setSort}
-            style={{ width: 180 }}
-            size="small"
-          />
+
+          <Space size={16} align="center" wrap>
+            <PriceRangeFilter priceMin={priceMin} priceMax={priceMax} onApply={handlePriceApply} />
+            <Select
+              value={sort}
+              options={SORT_OPTIONS}
+              onChange={setSort}
+              style={{ width: 180 }}
+              size="small"
+            />
+          </Space>
         </div>
 
         {/* The only way out of a search term — it lives in the URL, so the sidebar's
