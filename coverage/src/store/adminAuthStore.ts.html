@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/10</span>
+                <span class='fraction'>10/10</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">50% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>1/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/3</span>
+                <span class='fraction'>3/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/9</span>
+                <span class='fraction'>9/9</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -102,23 +102,23 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">49x</span>
+<span class="cline-any cline-yes">49x</span>
+<span class="cline-any cline-yes">49x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">53x</span>
+<span class="cline-any cline-yes">53x</span>
+<span class="cline-any cline-yes">53x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { create } from 'zustand';
@@ -131,23 +131,23 @@ interface AdminAuthState {
   adminLogout: () =&gt; void;
 }
 &nbsp;
-const storedToken = <span class="cstat-no" title="statement not covered" >localStorage.getItem('admin_token');</span>
-const storedAdmin = <span class="cstat-no" title="statement not covered" >localStorage.getItem('admin_user');</span>
+const storedToken = localStorage.getItem('admin_token');
+const storedAdmin = localStorage.getItem('admin_user');
 &nbsp;
-export const useAdminAuthStore = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >create&lt;AdminAuthState&gt;((s</span>et) =&gt; (<span class="cstat-no" title="statement not covered" >{</span></span>
+export const useAdminAuthStore = create&lt;AdminAuthState&gt;((set) =&gt; ({
   token: storedToken,
-  admin: storedAdmin ? (JSON.parse(storedAdmin) as AdminUser) : null,
+  admin: storedAdmin ? (<span class="branch-0 cbranch-no" title="branch not covered" >JSON.parse(storedAdmin) as AdminUser) : n</span>ull,
 &nbsp;
-<span class="fstat-no" title="function not covered" >  adminLogin: (t</span>oken, admin) =&gt; {
-<span class="cstat-no" title="statement not covered" >    localStorage.setItem('admin_token', token);</span>
-<span class="cstat-no" title="statement not covered" >    localStorage.setItem('admin_user', JSON.stringify(admin));</span>
-<span class="cstat-no" title="statement not covered" >    set({ token, admin });</span>
+  adminLogin: (token, admin) =&gt; {
+    localStorage.setItem('admin_token', token);
+    localStorage.setItem('admin_user', JSON.stringify(admin));
+    set({ token, admin });
   },
 &nbsp;
-<span class="fstat-no" title="function not covered" >  adminLogout: () =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    localStorage.removeItem('admin_token');</span>
-<span class="cstat-no" title="statement not covered" >    localStorage.removeItem('admin_user');</span>
-<span class="cstat-no" title="statement not covered" >    set({ token: null, admin: null });</span>
+  adminLogout: () =&gt; {
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_user');
+    set({ token: null, admin: null });
   },
 }));
 &nbsp;</pre></td></tr></table></pre>
@@ -157,7 +157,7 @@ export const useAdminAuthStore = <span class="cstat-no" title="statement not cov
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-09-10T18:00:34.018Z
+                at 2026-09-10T18:14:10.304Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

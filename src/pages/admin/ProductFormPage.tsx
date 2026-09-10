@@ -26,7 +26,8 @@ const HIDDEN_BUTTON = { background: '#64748b', borderColor: '#64748b', color: '#
 
 /** Everything on this page that an admin can change. */
 type Draft = {
-  baseWholesalePrice: number;
+  /** Undefined while the box is empty mid-edit. A price is never legitimately absent. */
+  baseWholesalePrice: number | undefined;
   locationCode: string;
   visibility: string;
   attrRows: { key: string; value: string }[];
@@ -83,7 +84,7 @@ function withSection(base: Draft, from: Draft, section: SectionKey): Draft {
 
 function toPayload(d: Draft, variants: Variant[]): api.ProductUpdate {
   return {
-    baseWholesalePrice: d.baseWholesalePrice,
+    baseWholesalePrice: d.baseWholesalePrice ?? 0,
     locationCode: d.locationCode || null,
     visibility: d.visibility,
     attributes: Object.fromEntries(
@@ -173,6 +174,10 @@ export default function ProductFormPage() {
 
   async function save(what: SectionKey | 'all') {
     const next = what === 'all' ? draft! : withSection(saved!, draft!, what);
+    if (next.baseWholesalePrice === undefined) {
+      message.error('Base wholesale price is required.');
+      return;
+    }
     setSavingWhat(what);
     try {
       const result = await api.updateProduct(id!, toPayload(next, product!.variants));
@@ -247,7 +252,11 @@ export default function ProductFormPage() {
                 <MoneyInput
                   style={{ width: '100%' }} precision={2}
                   value={draft.baseWholesalePrice}
-                  onChange={(v) => patch({ baseWholesalePrice: v ?? 0 })}
+                  // Empty stays empty. Substituting zero here meant that clearing the box
+                  // to retype a price left "0.00" in it, and the new digits landed on the
+                  // end of that — 12 became 0.0012. Zero is also the one value a price
+                  // must never quietly become.
+                  onChange={(v) => patch({ baseWholesalePrice: v ?? undefined })}
                 />
               </Form.Item>
             </Col>

@@ -2,7 +2,8 @@ import { render } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { ReactElement, ReactNode } from 'react';
 import { useAuthStore } from '../store/authStore';
-import { DEALER } from './fixtures';
+import { useAdminAuthStore } from '../store/adminAuthStore';
+import { DEALER, PLAIN_ADMIN, SUPER_ADMIN } from './fixtures';
 
 /**
  * Renders a page the way the app does: inside a router, with whatever route parameters
@@ -40,4 +41,16 @@ export function signIn(user: ReactNode | undefined = undefined) {
 /** Empties the store between tests that would otherwise inherit a session. */
 export function signOut() {
   useAuthStore.getState().logout();
+}
+
+/**
+ * Puts an admin in the admin store. Which role matters: the roster hides its controls
+ * from anyone who is not a super admin, so tests assert both.
+ */
+export function signInAdmin({ superAdmin = true }: { superAdmin?: boolean } = {}) {
+  useAdminAuthStore.getState().adminLogin('admin-token', superAdmin ? SUPER_ADMIN : PLAIN_ADMIN);
+}
+
+export function signOutAdmin() {
+  useAdminAuthStore.getState().adminLogout();
 }

@@ -1,4 +1,7 @@
-import type { Category, LoginResponse, Product, Variant } from '../api/types';
+import type {
+  AdminUser, Category, CategoryNode, Customer, CustomerTier, DashboardStats,
+  LoginResponse, Product, SkuStock, TierPrice, Variant,
+} from '../api/types';
 
 /**
  * A catalogue small enough to reason about and shaped like the real one: three category
@@ -100,3 +103,79 @@ export const SOLD_OUT = product(3, 'MF-200', 'Rubber Mud Flap', [
 ]);
 
 export const ALL_PRODUCTS = [HUBCAP, LIGHT_BAR, SOLD_OUT];
+
+// ─── Admin ────────────────────────────────────────────────────────────────
+
+export const SUPER_ADMIN: AdminUser = {
+  id: 1, email: 'owner@example.com', name: 'System Admin', role: 'SUPER_ADMIN',
+};
+export const PLAIN_ADMIN: AdminUser = {
+  id: 2, email: 'staff@example.com', name: 'Staff Admin', role: 'ADMIN',
+};
+
+export const ADMIN_LOGIN = { token: 'admin-token', admin: SUPER_ADMIN };
+
+export const DASHBOARD: DashboardStats = {
+  totalProducts: 259, activeProducts: 257, totalCustomers: 2,
+  activeCustomers: 2, lowStockAlerts: 24, outOfStockCount: 205,
+};
+
+export const TIERS: CustomerTier[] = [
+  { id: 1, name: 'Gold', sortOrder: 1 },
+  { id: 2, name: 'Silver', sortOrder: 2 },
+];
+
+export const CUSTOMERS: Customer[] = [
+  {
+    id: 1, email: 'dealer1@example.com', name: 'Gold Dealer', companyName: 'Johnson Auto Supply',
+    tierId: 1, tierName: 'Gold', phone: '555-1001', status: 'ACTIVE',
+    mustChangePassword: false, createdAt: '2026-08-01T00:00:00Z',
+  },
+  {
+    id: 2, email: 'dealer2@example.com', name: 'Silver Dealer', companyName: 'Reeve Trucking',
+    tierId: 2, tierName: 'Silver', phone: null, status: 'DISABLED',
+    mustChangePassword: true, createdAt: '2026-08-02T00:00:00Z',
+  },
+];
+
+const node = (
+  id: number, name: string, depth: number, children: CategoryNode[] = [], parentId: number | null = null,
+): CategoryNode => ({
+  id, name, slug: name.toLowerCase().replace(/\W+/g, '-'), parentId, sortOrder: id, depth,
+  productCount: children.length ? 0 : 4,
+  totalProductCount: children.length ? 8 : 4,
+  // The taxonomy is capped at three levels; the deepest may take no child.
+  canAddChild: depth < 3,
+  deletable: children.length === 0,
+  blockedReason: children.length ? 'Has sub-categories' : null,
+  children,
+});
+
+export const CATEGORY_TREE: CategoryNode[] = [
+  node(1, 'Truck Accessories', 1, [
+    node(10, 'Wheels & Hubs', 2, [node(100, 'Hub Caps', 3, [], 10)], 1),
+  ]),
+  node(2, 'Motorcycle', 1, [], null),
+];
+
+export const STOCK_ROWS: SkuStock[] = [
+  {
+    variantId: 11, sku: 'H1F85N4-H50-1', spuCode: 'H1F85N4-H50', productName: 'Chrome Hubcap – Dome, 4-Clip',
+    variantValue: '1', availableStock: 0, incomingStock: 0, lowStock: false, outOfStock: true,
+    lastSyncedAt: '2026-09-10T11:05:00Z',
+  },
+  {
+    variantId: 12, sku: 'H1F85N4-H50-2', spuCode: 'H1F85N4-H50', productName: 'Chrome Hubcap – Dome, 4-Clip',
+    variantValue: '2', availableStock: 10, incomingStock: 300, lowStock: true, outOfStock: false,
+    lastSyncedAt: '2026-09-10T11:05:00Z',
+  },
+];
+
+export const TIER_PRICES: TierPrice[] = [
+  { sku: 'H1F85N4-H50-1', tierId: 1, tierName: 'Gold', price: 9.24, minQty: 1 },
+  { sku: 'H1F85N4-H50-1', tierId: 2, tierName: 'Silver', price: 10.5, minQty: 1 },
+  { sku: 'H1F85N4-H50-2', tierId: 1, tierName: 'Gold', price: 12.76, minQty: 1 },
+  { sku: 'H1F85N4-H50-2', tierId: 2, tierName: 'Silver', price: 14.0, minQty: 1 },
+  { sku: 'H1F85N4-H50-6', tierId: 1, tierName: 'Gold', price: 24.19, minQty: 1 },
+  { sku: 'H1F85N4-H50-6', tierId: 2, tierName: 'Silver', price: 26.0, minQty: 1 },
+];

@@ -74,8 +74,15 @@ actually narrows the results.
 What is covered is the logic that has been wrong before and would be wrong quietly:
 `MoneyInput` refusing letters, `authFailureMessage` blaming the credentials on a 401 and
 on nothing else, `CategoryTree` opening two layers rather than all three, both hooks
-dropping responses whose filters have moved on, and sign-in, search and product pages end
-to end. The admin screens are still uncovered.
+dropping responses whose filters have moved on, and every page on both sides — sign-in,
+search and product detail for dealers; login, dashboard, products, categories, dealers,
+inventory, the admin roster and the product form for the back office.
+
+Two defects were found by writing them, both of the same kind — a failure wearing the
+costume of an ordinary empty result. `usePagedQuery` had no catch, so a dead API and a
+search that matched nothing were the same screen on four pages. And clearing the base
+price box substituted zero, which the two-decimal display left sitting there as `0.00`, so
+retyping a price appended to it.
 
 CI runs this between `lint` and `build`, so a failing test stops a deploy the same way a
 type error does.

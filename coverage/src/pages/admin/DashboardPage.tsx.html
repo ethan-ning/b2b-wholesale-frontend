@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/10</span>
+                <span class='fraction'>10/10</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">63.63% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/22</span>
+                <span class='fraction'>14/22</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>2/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/7</span>
+                <span class='fraction'>7/7</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -169,21 +169,21 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -260,22 +260,22 @@ import { useResource } from '../../hooks/useResource';
 import { PageError, PageLoading } from '../../components/PageState';
 import PageHeader from '../../components/admin/PageHeader';
 &nbsp;
-export default function <span class="fstat-no" title="function not covered" >DashboardPage() {</span>
-  const { data: stats, loading, error } = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >useResource(() =&gt; <span class="cstat-no" title="statement not covered" >a</span>pi.fetchDashboard(), [</span>]);</span>
+export default function DashboardPage() {
+  const { data: stats, loading, error } = useResource(() =&gt; api.fetchDashboard(), []);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  if (loading) <span class="cstat-no" title="statement not covered" >return &lt;PageLoading /&gt;;</span></span>
-<span class="cstat-no" title="statement not covered" >  if (error || !stats) <span class="cstat-no" title="statement not covered" >return &lt;PageError message={error ?? 'Could not load the dashboard.'} /&gt;;</span></span>
+  if (loading) return &lt;PageLoading /&gt;;
+  if (error || !stats) return &lt;PageError message={error ?? <span class="branch-1 cbranch-no" title="branch not covered" >'Could not load the dashboard.'} /&gt;</span>;
 &nbsp;
-  const visibleShare = <span class="cstat-no" title="statement not covered" >stats.totalProducts &gt; 0</span>
+  const visibleShare = stats.totalProducts &gt; 0
     ? Math.round((stats.activeProducts / stats.totalProducts) * 100)
-    : 0;
+    : <span class="branch-1 cbranch-no" title="branch not covered" >0;</span>
 &nbsp;
   // Amber and red only when there is something to act on. A zero painted red reads as a
   // problem, when it is the best possible answer to "how many SKUs are out of stock".
-  const lowStockSpine = <span class="cstat-no" title="statement not covered" >stats.lowStockAlerts &gt; 0 ? 'section-card--attention' : '';</span>
-  const outOfStockSpine = <span class="cstat-no" title="statement not covered" >stats.outOfStockCount &gt; 0 ? 'section-card--danger' : '';</span>
+  const lowStockSpine = stats.lowStockAlerts &gt; 0 ? 'section-card--attention' : <span class="branch-1 cbranch-no" title="branch not covered" >'';</span>
+  const outOfStockSpine = stats.outOfStockCount &gt; 0 ? 'section-card--danger' : <span class="branch-1 cbranch-no" title="branch not covered" >'';</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return (</span>
+  return (
     &lt;div&gt;
       &lt;PageHeader
         title="Dashboard"
@@ -320,8 +320,8 @@ export default function <span class="fstat-no" title="function not covered" >Das
             &lt;Statistic
               title="Low Stock Alerts"
               value={stats.lowStockAlerts}
-              prefix={&lt;WarningOutlined style={{ color: stats.lowStockAlerts &gt; 0 ? '#f59e0b' : '#94a3b8' }} /&gt;}
-              valueStyle={{ color: stats.lowStockAlerts &gt; 0 ? '#f59e0b' : undefined }}
+              prefix={&lt;WarningOutlined style={{ color: stats.lowStockAlerts &gt; 0 ? '#f59e0b' : <span class="branch-1 cbranch-no" title="branch not covered" >'#94a3b8' }</span>} /&gt;}
+              valueStyle={{ color: stats.lowStockAlerts &gt; 0 ? '#f59e0b' : <span class="branch-1 cbranch-no" title="branch not covered" >undefined }</span>}
             /&gt;
           &lt;/Card&gt;
         &lt;/Col&gt;
@@ -330,8 +330,8 @@ export default function <span class="fstat-no" title="function not covered" >Das
             &lt;Statistic
               title="Out of Stock SKUs"
               value={stats.outOfStockCount}
-              prefix={&lt;StopOutlined style={{ color: stats.outOfStockCount &gt; 0 ? '#dc2626' : '#94a3b8' }} /&gt;}
-              valueStyle={{ color: stats.outOfStockCount &gt; 0 ? '#dc2626' : undefined }}
+              prefix={&lt;StopOutlined style={{ color: stats.outOfStockCount &gt; 0 ? '#dc2626' : <span class="branch-1 cbranch-no" title="branch not covered" >'#94a3b8' }</span>} /&gt;}
+              valueStyle={{ color: stats.outOfStockCount &gt; 0 ? '#dc2626' : <span class="branch-1 cbranch-no" title="branch not covered" >undefined }</span>}
             /&gt;
           &lt;/Card&gt;
         &lt;/Col&gt;
@@ -346,7 +346,7 @@ export default function <span class="fstat-no" title="function not covered" >Das
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-09-10T18:00:34.018Z
+                at 2026-09-10T18:14:10.304Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/17</span>
+                <span class='fraction'>17/17</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">80% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/10</span>
+                <span class='fraction'>8/10</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/5</span>
+                <span class='fraction'>5/5</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/16</span>
+                <span class='fraction'>16/16</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -184,7 +184,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -197,26 +197,26 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">29x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -264,9 +264,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">57x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">57x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -297,7 +297,7 @@ import { changeOwnPassword } from '../../api/adminApi';
 import { authFailureMessage } from '../../api/http';
 import { useAdminAuthStore } from '../../store/adminAuthStore';
 &nbsp;
-const { Text } = <span class="cstat-no" title="statement not covered" >Typography;</span>
+const { Text } = Typography;
 &nbsp;
 interface FormValues {
   currentPassword: string;
@@ -309,27 +309,27 @@ interface FormValues {
  * The signed-in admin's own account. Read-only except the password: an email change is
  * an identity change and a role change belongs to a super admin, so neither is here.
  */
-export default function <span class="fstat-no" title="function not covered" >AdminAccountPage() {</span>
-  const admin = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >useAdminAuthStore((s</span>) =&gt; <span class="cstat-no" title="statement not covered" >s.admin)</span>;</span>
-  const [form] = <span class="cstat-no" title="statement not covered" >Form.useForm&lt;FormValues&gt;();</span>
-  const [saving, setSaving] = <span class="cstat-no" title="statement not covered" >useState(false);</span>
-  const [error, setError] = <span class="cstat-no" title="statement not covered" >useState&lt;string | null&gt;(null);</span>
+export default function AdminAccountPage() {
+  const admin = useAdminAuthStore((s) =&gt; s.admin);
+  const [form] = Form.useForm&lt;FormValues&gt;();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState&lt;string | null&gt;(null);
 &nbsp;
-  async function <span class="fstat-no" title="function not covered" >onFinish(v</span>alues: FormValues) {
-<span class="cstat-no" title="statement not covered" >    setSaving(true);</span>
-<span class="cstat-no" title="statement not covered" >    setError(null);</span>
-<span class="cstat-no" title="statement not covered" >    try {</span>
-<span class="cstat-no" title="statement not covered" >      await changeOwnPassword(values.currentPassword, values.newPassword);</span>
-<span class="cstat-no" title="statement not covered" >      form.resetFields();</span>
-<span class="cstat-no" title="statement not covered" >      message.success('Password changed.');</span>
+  async function onFinish(values: FormValues) {
+    setSaving(true);
+    setError(null);
+    try {
+      await changeOwnPassword(values.currentPassword, values.newPassword);
+      form.resetFields();
+      message.success('Password changed.');
     } catch (e) {
-<span class="cstat-no" title="statement not covered" >      setError(authFailureMessage(e, 'Could not change the password.'));</span>
+      setError(authFailureMessage(e, 'Could not change the password.'));
     } finally {
-<span class="cstat-no" title="statement not covered" >      setSaving(false);</span>
+      setSaving(false);
     }
   }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return (</span>
+  return (
     &lt;&gt;
       &lt;PageHeader title="My account" subtitle="Your sign-in details for the admin portal." /&gt;
 &nbsp;
@@ -339,8 +339,8 @@ export default function <span class="fstat-no" title="function not covered" >Adm
             &lt;Descriptions.Item label="Name"&gt;{admin?.name}&lt;/Descriptions.Item&gt;
             &lt;Descriptions.Item label="Email"&gt;{admin?.email}&lt;/Descriptions.Item&gt;
             &lt;Descriptions.Item label="Role"&gt;
-              &lt;Tag color={admin?.role === 'SUPER_ADMIN' ? 'purple' : 'blue'}&gt;
-                {admin?.role === 'SUPER_ADMIN' ? 'Super admin' : 'Admin'}
+              &lt;Tag color={admin?.role === 'SUPER_ADMIN' ? 'purple' : <span class="branch-1 cbranch-no" title="branch not covered" >'blue'}&gt;</span>
+                {admin?.role === 'SUPER_ADMIN' ? 'Super admin' : <span class="branch-1 cbranch-no" title="branch not covered" >'Admin'}</span>
               &lt;/Tag&gt;
             &lt;/Descriptions.Item&gt;
           &lt;/Descriptions&gt;
@@ -376,10 +376,10 @@ export default function <span class="fstat-no" title="function not covered" >Adm
               label="Confirm new password"
               dependencies={['newPassword']}
               rules={[
-                { required: true, message: 'Repeat the new password' <span class="fstat-no" title="function not covered" >},</span>
-                ({ getFieldValue }) =&gt; (<span class="cstat-no" title="statement not covered" >{</span>
-<span class="fstat-no" title="function not covered" >                  validator: (_</span>, value) =&gt;
-<span class="cstat-no" title="statement not covered" >                    !value || getFieldValue('newPassword') === value</span>
+                { required: true, message: 'Repeat the new password' },
+                ({ getFieldValue }) =&gt; ({
+                  validator: (_, value) =&gt;
+                    !value || getFieldValue('newPassword') === value
                       ? Promise.resolve()
                       : Promise.reject(new Error('The two passwords do not match')),
                 }),
@@ -409,7 +409,7 @@ export default function <span class="fstat-no" title="function not covered" >Adm
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-09-10T18:00:34.018Z
+                at 2026-09-10T18:14:10.304Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>
