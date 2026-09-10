@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
@@ -12,6 +13,20 @@ export default defineConfig({
         target: process.env.VITE_BACKEND_URL ?? 'http://localhost:8080',
         changeOrigin: true,
       },
+    },
+  },
+  // Tests share this config rather than carrying a second build pipeline that has to be
+  // kept in step with it.
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    css: false,
+    coverage: {
+      provider: 'v8',
+      reportsDirectory: 'coverage',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/main.tsx', 'src/**/*.d.ts', 'src/test/**'],
     },
   },
 })

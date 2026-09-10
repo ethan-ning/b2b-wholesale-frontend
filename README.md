@@ -49,6 +49,28 @@ npm run preview     # serve the production build locally
 
 ---
 
+## Tests
+
+```bash
+npm test            # Vitest, jsdom, no browser and no backend
+npm run test:watch  # the same, re-running on change
+npm run coverage    # per-directory report → coverage/
+```
+
+Vitest reads `vite.config.ts`, so there is no second build pipeline to keep in step with
+the app's.
+
+What is covered is the logic that has been wrong before and would be wrong quietly:
+`MoneyInput` refusing letters, `authFailureMessage` blaming the credentials on a 401 and
+on nothing else, `CategoryTree` opening two layers rather than all three, and the two
+hooks dropping responses whose filters have moved on. Pages are not covered yet — that
+needs MSW standing in for the API.
+
+CI runs this between `lint` and `build`, so a failing test stops a deploy the same way a
+type error does.
+
+---
+
 ## Accounts
 
 ### Dealer accounts

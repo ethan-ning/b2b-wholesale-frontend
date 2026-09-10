@@ -1,8 +1,8 @@
 # The portal is deployed inside the API's container image, so its build lives in the API
 # repository. This tells that repository there is something new to build.
 #
-# Checks first: a push that does not compile should not start a deploy that would fail
-# three minutes later in someone else's logs.
+# Checks first: a push that does not compile, or whose tests fail, should not start a
+# deploy that would fail three minutes later in someone else's logs.
 name: Check and notify
 
 on:
@@ -22,6 +22,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm test
       - run: npm run build
 
   notify:
