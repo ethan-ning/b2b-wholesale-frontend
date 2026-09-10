@@ -9,7 +9,7 @@ import {
   InboxOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined, CloudSyncOutlined,
+  MenuUnfoldOutlined, CloudSyncOutlined, SafetyCertificateOutlined, UserOutlined,
 } from '@ant-design/icons';
 import { useAdminAuthStore } from '../../store/adminAuthStore';
 
@@ -23,6 +23,7 @@ const NAV_ITEMS = [
   { key: '/admin/customers', icon: <TeamOutlined />, label: 'Customers' },
   { key: '/admin/inventory', icon: <InboxOutlined />, label: 'Inventory' },
   { key: '/admin/sellfox', icon: <CloudSyncOutlined />, label: 'Sellfox Sync' },
+  { key: '/admin/admins', icon: <SafetyCertificateOutlined />, label: 'Admins' },
 ];
 
 export default function AdminLayout() {
@@ -101,7 +102,11 @@ export default function AdminLayout() {
                 fontSize: 10,
               }}
             />
-            <Text>{admin?.name}</Text>
+            {/* The name is the way to your own account — a separate nav item for one
+                screen about yourself sat oddly next to Products and Customers. */}
+            <Button type="text" icon={<UserOutlined />} onClick={() => navigate('/admin/account')}>
+              {admin?.name}
+            </Button>
             <Button
               type="text"
               icon={<LogoutOutlined />}

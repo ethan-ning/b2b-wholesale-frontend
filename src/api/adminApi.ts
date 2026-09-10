@@ -1,6 +1,6 @@
 import { adminClient, authClient } from './http';
 import type {
-  AdminLoginResponse, AdminProductDetail, Category, CategoryNode, Customer, CustomerCreated,
+  AdminCreated, AdminLoginResponse, AdminProductDetail, AdminUser, Category, CategoryNode, Customer, CustomerCreated,
   CustomerTier, DashboardStats, PagedResult, Product, SkuStock,
   SellfoxHistory, SellfoxScope, SellfoxSyncRun, TriggerableSyncMode,
 } from './types';
@@ -13,6 +13,39 @@ export const PAGE_SIZE = 10;
 export async function login(email: string, password: string): Promise<AdminLoginResponse> {
   const { data } = await authClient.post<AdminLoginResponse>('/admin/auth/login', { email, password });
   return data;
+}
+
+/** Signed-in admin changing their own password. Returns the account, not a new token. */
+export async function changeOwnPassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<AdminUser> {
+  const { data } = await adminClient.post<AdminUser>('/admin/auth/change-password', {
+    currentPassword,
+    newPassword,
+  });
+  return data;
+}
+
+// ─── Admin accounts ──────────────────────────────────────────────────────────
+export async function fetchAdmins(): Promise<AdminUser[]> {
+  const { data } = await adminClient.get<AdminUser[]>('/admin/admins');
+  return data;
+}
+
+/** Super admin only. The temporary password comes back once and is never stored. */
+export async function createAdmin(input: {
+  email: string;
+  name: string;
+  role: 'SUPER_ADMIN' | 'ADMIN';
+}): Promise<AdminCreated> {
+  const { data } = await adminClient.post<AdminCreated>('/admin/admins', input);
+  return data;
+}
+
+/** Super admin only. */
+export async function deleteAdmin(id: number): Promise<void> {
+  await adminClient.delete(`/admin/admins/${id}`);
 }
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────

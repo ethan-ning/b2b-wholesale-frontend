@@ -22,6 +22,8 @@ import CustomerListPage from './pages/admin/CustomerListPage';
 import CustomerFormPage from './pages/admin/CustomerFormPage';
 import InventoryPage from './pages/admin/InventoryPage';
 import SellfoxPage from './pages/admin/SellfoxPage';
+import AdminUsersPage from './pages/admin/AdminUsersPage';
+import AdminAccountPage from './pages/admin/AdminAccountPage';
 
 export default function App() {
   return (
@@ -53,6 +55,8 @@ export default function App() {
             <Route path="customers/:id/edit" element={<CustomerFormPage />} />
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="sellfox" element={<SellfoxPage />} />
+            <Route path="admins" element={<AdminUsersPage />} />
+            <Route path="account" element={<AdminAccountPage />} />
           </Route>
         </Route>
 

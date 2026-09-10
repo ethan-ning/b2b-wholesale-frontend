@@ -210,6 +210,11 @@ export interface CustomerCreated {
   temporaryPassword: string;
 }
 
+export interface AdminCreated {
+  admin: AdminUser;
+  temporaryPassword: string;
+}
+
 export interface DashboardStats {
   totalProducts: number;
   activeProducts: number;
