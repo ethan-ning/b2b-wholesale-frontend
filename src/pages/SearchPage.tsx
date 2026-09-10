@@ -7,7 +7,6 @@ import {
   Pagination,
   Spin,
   Empty,
-  Divider,
   Button,
   Space,
   Tag,
@@ -87,29 +86,35 @@ export default function SearchPage() {
   const hasFilters = Boolean(query) || categoryId !== null || priceMin !== undefined || priceMax !== undefined;
 
   return (
-    <Layout style={{ minHeight: 'calc(100vh - 64px)', background: '#f0f2f5' }}>
+    <Layout style={{ minHeight: 'calc(100vh - 68px)', background: '#f6f7f9' }}>
+      {/* Sticky, so the filters stay reachable while a long result list scrolls past. */}
       <Sider
-        width={280}
+        width={296}
         style={{
-          background: '#fff',
-          padding: '16px 12px',
+          background: 'transparent',
+          padding: 20,
+          position: 'sticky',
+          top: 68,
+          height: 'calc(100vh - 68px)',
           overflowY: 'auto',
-          borderRight: '1px solid #f0f0f0',
         }}
       >
-        <Text strong style={{ fontSize: 13 }}>
-          Category
-        </Text>
-        <div style={{ marginTop: 8 }}>
-          <CategoryTree selectedId={categoryId} onChange={handleCategoryChange} />
+        <div className="filter-rail">
+          <div className="filter-rail-head">Category</div>
+          <div style={{ padding: '10px 8px 14px' }}>
+            <CategoryTree selectedId={categoryId} onChange={handleCategoryChange} />
+          </div>
         </div>
 
-        <Divider style={{ margin: '16px 0' }} />
-
-        <PriceRangeFilter priceMin={priceMin} priceMax={priceMax} onApply={handlePriceApply} />
+        <div className="filter-rail" style={{ marginTop: 16 }}>
+          <div className="filter-rail-head">Wholesale price</div>
+          <div style={{ padding: 14 }}>
+            <PriceRangeFilter priceMin={priceMin} priceMax={priceMax} onApply={handlePriceApply} />
+          </div>
+        </div>
       </Sider>
 
-      <Content style={{ padding: 20 }}>
+      <Content style={{ padding: '20px 24px 32px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <Title level={5} style={{ margin: 0 }}>
             {query ? `Results for "${query}"` : 'All products'}
@@ -133,17 +138,17 @@ export default function SearchPage() {
         {hasFilters && (
           <Space size={[8, 8]} wrap style={{ marginBottom: 12 }}>
             {query && (
-              <Tag closable onClose={clearSearchTerm} color="blue">
+              <Tag closable onClose={clearSearchTerm} color="gold">
                 Search: {query}
               </Tag>
             )}
             {categoryId !== null && (
-              <Tag closable onClose={() => handleCategoryChange(null, null)} color="blue">
+              <Tag closable onClose={() => handleCategoryChange(null, null)} color="gold">
                 Category: {categoryName ?? categoryId}
               </Tag>
             )}
             {(priceMin !== undefined || priceMax !== undefined) && (
-              <Tag closable onClose={() => handlePriceApply(undefined, undefined)} color="blue">
+              <Tag closable onClose={() => handlePriceApply(undefined, undefined)} color="gold">
                 Price: {priceMin !== undefined ? `$${priceMin}` : 'any'} –{' '}
                 {priceMax !== undefined ? `$${priceMax}` : 'any'}
               </Tag>

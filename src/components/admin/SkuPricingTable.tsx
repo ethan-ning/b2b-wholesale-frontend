@@ -1,4 +1,5 @@
-import { InputNumber, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { Space, Table, Tag, Tooltip, Typography } from 'antd';
+import MoneyInput from '../MoneyInput';
 import type { ColumnsType } from 'antd/es/table';
 import type { CustomerTier, TierPrice, Variant, WarehouseStock } from '../../api/types';
 
@@ -130,8 +131,8 @@ export default function SkuPricingTable({
         row.tier === null ? (
           <Text type="secondary">—</Text>
         ) : (
-          <InputNumber
-            size="small" prefix="$" min={0} precision={2} style={{ width: '100%' }} value={row.price}
+          <MoneyInput
+            size="small" precision={2} style={{ width: '100%' }} value={row.price ?? undefined}
             // Clearing the box means "not priced", not "priced at zero".
             onChange={(v) => onPrice(row, v ?? null)}
           />
@@ -144,8 +145,8 @@ export default function SkuPricingTable({
       align: 'right',
       onCell: mergeDown,
       render: (_: unknown, row) => (
-        <InputNumber
-          prefix="$" size="small" min={0} precision={2} style={{ width: '100%' }}
+        <MoneyInput
+          size="small" precision={2} style={{ width: '100%' }}
           value={mapPrices[row.variant.id] ?? undefined}
           onChange={(val) => onMapPrice(row.variant.id, val ?? null)}
         />

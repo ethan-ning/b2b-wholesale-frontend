@@ -18,6 +18,7 @@ import { formatMoney, formatMoneyRange } from '../utils/money';
 import SkuTable from '../components/SkuTable';
 import { useResource } from '../hooks/useResource';
 import { PageError, PageLoading } from '../components/PageState';
+import { BRAND } from '../brand';
 
 const { Title, Text } = Typography;
 
@@ -51,7 +52,7 @@ export default function ProductDetailPage() {
   );
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ padding: '20px 24px 40px', maxWidth: 1160, margin: '0 auto' }}>
       <Breadcrumb
         style={{ marginBottom: 12 }}
         items={[
@@ -84,7 +85,7 @@ export default function ProductDetailPage() {
                     objectFit: 'cover',
                     borderRadius: 4,
                     cursor: 'pointer',
-                    border: i === selectedImage ? '2px solid #1677ff' : '2px solid transparent',
+                    border: i === selectedImage ? `2px solid ${BRAND.amber}` : '2px solid #eef1f5',
                   }}
                 />
               ))}
@@ -118,9 +119,9 @@ export default function ProductDetailPage() {
                   Your price from
                 </Text>
                 <div>
-                  <Text strong style={{ fontSize: 22 }}>
+                  <span className="dealer-price" style={{ fontSize: 24 }}>
                     {formatMoney(lowestTierPrice)}
-                  </Text>
+                  </span>
                 </div>
               </div>
               {mapRange && (

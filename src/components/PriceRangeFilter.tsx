@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { InputNumber, Button, Space, Typography } from 'antd';
+import { Button, Space, Typography } from 'antd';
+import MoneyInput from './MoneyInput';
 
 const { Text } = Typography;
 
@@ -35,25 +36,20 @@ export default function PriceRangeFilter({ priceMin, priceMax, onApply }: Props)
 
   return (
     <Space direction="vertical" size={8} style={{ width: '100%' }}>
-      <Text type="secondary" style={{ fontSize: 12 }}>
-        Price range (wholesale)
-      </Text>
-      <Space>
-        <InputNumber
+      {/* MoneyInput, not a bare InputNumber: a price box must refuse a letter as it is
+          typed rather than swallow it and quietly correct itself on blur. */}
+      <Space size={8} align="center">
+        <MoneyInput
           placeholder="Min"
           value={min}
-          min={0}
-          prefix="$"
-          style={{ width: 90 }}
+          style={{ width: 108 }}
           onChange={(v) => setMin(v ?? undefined)}
         />
-        <Text>–</Text>
-        <InputNumber
+        <Text type="secondary">–</Text>
+        <MoneyInput
           placeholder="Max"
           value={max}
-          min={0}
-          prefix="$"
-          style={{ width: 90 }}
+          style={{ width: 108 }}
           onChange={(v) => setMax(v ?? undefined)}
         />
       </Space>

@@ -104,3 +104,125 @@ body {
   flex-direction: column;
   height: 100%;
 }
+
+/* ─── Dealer portal ──────────────────────────────────────────────────────── */
+
+/*
+ * The sign-in screen: brand on the left, form on the right.
+ *
+ * Below 900px the brand half is dropped rather than stacked. Stacked, it pushed the two
+ * fields a dealer came for below the fold on a phone, which is a poor trade for a logo
+ * they have already seen on the way in.
+ */
+.login-split {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  min-height: 100vh;
+}
+
+.login-brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  background: #0d0e0d url('/brand/hero.jpg') center/cover no-repeat;
+  overflow: hidden;
+}
+
+/* The hero is a photograph; without this the text on top of it is unreadable. */
+.login-brand-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(13, 14, 13, 0.94) 0%, rgba(13, 14, 13, 0.78) 55%, rgba(13, 14, 13, 0.9) 100%);
+}
+
+.login-brand-body {
+  position: relative;
+  text-align: center;
+}
+
+.login-mark {
+  width: 132px;
+  height: auto;
+  border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* Shown only when the brand panel is not, so the form half is never unbranded. */
+.login-mark-compact {
+  display: none;
+  width: 60px;
+  height: auto;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.login-form-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 32px;
+  background: #ffffff;
+}
+
+@media (max-width: 900px) {
+  .login-split { grid-template-columns: 1fr; }
+  .login-brand { display: none; }
+  .login-mark-compact { display: block; }
+}
+
+/*
+ * A row in the results list. Each carries its own SKU table, so the border and the hover
+ * lift are what keep one product visually separate from the next down a long page.
+ */
+.result-row {
+  border: 1px solid #e3e8ef;
+  border-radius: 10px;
+  transition: box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.result-row:hover {
+  border-color: #d7ac6b;
+  box-shadow: 0 4px 14px rgba(16, 24, 40, 0.08);
+}
+
+/* The SKU table inside a result row is reference, not the headline. */
+.result-row .ant-table-thead > tr > th {
+  background: #f8fafc;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #64748b;
+  padding: 6px 8px;
+}
+
+.result-row .ant-table-tbody > tr > td {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+/* The filter rail beside the results. */
+.filter-rail {
+  border: 1px solid #e3e8ef;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.filter-rail-head {
+  padding: 12px 14px;
+  border-bottom: 1px solid #eef1f5;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+/* The dealer's own price. The one number on the page that decides anything. */
+.dealer-price {
+  color: #0f172a;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}

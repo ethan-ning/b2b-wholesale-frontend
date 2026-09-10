@@ -1,52 +1,91 @@
 import { useNavigate, Link } from 'react-router-dom';
-import { Input, Typography, Space } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { Input, Typography, Space, Button } from 'antd';
+import { SearchOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../store/authStore';
+import { BRAND, HERO } from '../brand';
 
 const { Title, Text } = Typography;
+
+/** A few doors into the catalogue, for a dealer who arrived without a term in mind. */
+const SHORTCUTS = ['Hub caps', 'Exhaust stacks', 'Mud flaps', 'Light bars', 'Marker lights'];
 
 export default function HomePage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
 
-  function handleSearch(value: string) {
-    const term = value.trim();
-    navigate(term ? `/search?q=${encodeURIComponent(term)}` : '/search');
+  function search(term: string) {
+    const q = term.trim();
+    navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search');
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 'calc(100vh - 64px)',
-        padding: '0 24px',
-        background: '#f0f2f5',
-      }}
-    >
-      <Space direction="vertical" size={16} style={{ width: '100%', maxWidth: 600, textAlign: 'center' }}>
-        <Title level={2} style={{ margin: 0 }}>
-          Welcome, {user?.name}!
-        </Title>
-        <Text type="secondary">
-          Search our full product catalog. Prices shown are your {user?.tierName} tier wholesale rates.
-        </Text>
+    <div style={{ minHeight: 'calc(100vh - 68px - 58px)', background: '#f6f7f9' }}>
+      {/*
+       * The search box is the whole job of this page, so it sits on the brand image
+       * rather than on flat grey — a dealer lands here and should be typing within a
+       * second, not reading.
+       */}
+      <section
+        style={{
+          background: `linear-gradient(rgba(13,14,13,0.86), rgba(13,14,13,0.92)), url(${HERO}) center/cover no-repeat`,
+          padding: '64px 24px 72px',
+        }}
+      >
+        <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
+          <Text style={{ color: BRAND.amber, letterSpacing: '0.16em', fontSize: 12, fontWeight: 600 }}>
+            WHOLESALE CATALOGUE
+          </Text>
+          <Title level={2} style={{ color: '#fff', margin: '10px 0 6px' }}>
+            Welcome back, {user?.name}
+          </Title>
+          <Text style={{ color: BRAND.silverDim, fontSize: 14 }}>
+            Every price you see is your {user?.tierName} tier rate.
+          </Text>
 
-        <Input.Search
-          placeholder="Search by product name, SKU, or brand..."
-          onSearch={handleSearch}
-          size="large"
-          enterButton={<><SearchOutlined /> Search</>}
-          style={{ marginTop: 8 }}
-        />
+          <Input.Search
+            placeholder="Search by product name, SKU, or brand…"
+            onSearch={search}
+            size="large"
+            enterButton={
+              <span>
+                <SearchOutlined /> Search
+              </span>
+            }
+            style={{ marginTop: 28 }}
+            allowClear
+          />
 
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Tip: try "jacket", "exhaust", or a SKU like "PL001-BLK" — or{' '}
-          <Link to="/search">browse the full catalog</Link>
-        </Text>
-      </Space>
+          <Space size={[8, 8]} wrap style={{ marginTop: 20, justifyContent: 'center' }}>
+            {SHORTCUTS.map((term) => (
+              <Button
+                key={term}
+                size="small"
+                onClick={() => search(term)}
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  borderColor: 'rgba(203,213,225,0.28)',
+                  color: BRAND.silver,
+                }}
+              >
+                {term}
+              </Button>
+            ))}
+          </Space>
+        </div>
+      </section>
+
+      <div style={{ textAlign: 'center', padding: '28px 24px' }}>
+        <Link to="/search">
+          <Button type="primary" size="large">
+            Browse the full catalogue <ArrowRightOutlined />
+          </Button>
+        </Link>
+        <div style={{ marginTop: 10 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Filter by category and price once you are in.
+          </Text>
+        </div>
+      </div>
     </div>
   );
 }

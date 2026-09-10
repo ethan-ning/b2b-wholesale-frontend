@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Alert, Button, Card, Col, Descriptions, Divider, Form, Input, InputNumber,
+  Alert, Button, Card, Col, Descriptions, Divider, Form, Input,
   Row, Space, Typography, message,
 } from 'antd';
 import {
@@ -11,6 +11,7 @@ import * as api from '../../api/adminApi';
 import { apiErrorMessage } from '../../api/http';
 import { PageError, PageLoading } from '../../components/PageState';
 import PageHeader from '../../components/admin/PageHeader';
+import MoneyInput from '../../components/MoneyInput';
 import SkuPricingTable, { buildSkuRows } from '../../components/admin/SkuPricingTable';
 import CategoryPicker, { flattenCategories } from '../../components/admin/CategoryPicker';
 import type { FlatCategory } from '../../components/admin/CategoryPicker';
@@ -243,8 +244,8 @@ export default function ProductFormPage() {
                 style={{ marginBottom: 16 }}
                 tooltip="List price for one unit. Only reached when a SKU has no tier price at all."
               >
-                <InputNumber
-                  prefix="$" style={{ width: '100%' }} min={0} precision={2}
+                <MoneyInput
+                  style={{ width: '100%' }} precision={2}
                   value={draft.baseWholesalePrice}
                   onChange={(v) => patch({ baseWholesalePrice: v ?? 0 })}
                 />
