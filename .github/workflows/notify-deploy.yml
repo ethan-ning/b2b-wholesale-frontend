@@ -1,0 +1,39 @@
+# The portal is deployed inside the API's container image, so its build lives in the API
+# repository. This tells that repository there is something new to build.
+#
+# Checks first: a push that does not compile should not start a deploy that would fail
+# three minutes later in someone else's logs.
+name: Check and notify
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+
+  notify:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask the API repository to deploy this commit
+        env:
+          # A fine-grained PAT with Contents: read-and-write on the API repository, which
+          # is what repository_dispatch needs. GITHUB_TOKEN cannot reach another repo.
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+        run: |
+          gh api repos/ethan-ning/b2b-wholesale-backend/dispatches \
+            -f event_type=portal-updated \
+            -F client_payload[ref]="$GITHUB_SHA"
