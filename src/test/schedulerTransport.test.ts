@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
  */
 describe('the scheduler transport shim', () => {
   it('removes setImmediate before React can capture it', () => {
-    expect(typeof setImmediate).toBe('undefined');
+    expect(typeof (globalThis as { setImmediate?: unknown }).setImmediate).toBe('undefined');
   });
 
   it('leaves a MessageChannel for React to fall back to', () => {
