@@ -137,8 +137,12 @@ export default function ProductFormPage() {
   const [savingWhat, setSavingWhat] = useState<SectionKey | 'all' | null>(null);
 
   useEffect(() => {
+    // Guarded like the shared hooks are: leaving the page mid-load otherwise flushes an
+    // update into a component that no longer exists.
+    let current = true;
     Promise.all([api.fetchProduct(id!), api.fetchCategories(), api.fetchTiers()])
       .then(([detail, cats, tiers]) => {
+        if (!current) return;
         // The price book and the stock breakdown are siblings of the product, not fields on it.
         const p = detail.product;
         const catIds = p.categories.map((c) => c.id);
@@ -159,8 +163,9 @@ export default function ProductFormPage() {
         setDraft(initial);
         setSaved(initial);
       })
-      .catch(() => setError('Failed to load product.'))
-      .finally(() => setLoading(false));
+      .catch(() => { if (current) setError('Failed to load product.'); })
+      .finally(() => { if (current) setLoading(false); });
+    return () => { current = false; };
   }, [id]);
 
   if (loading) return <PageLoading />;

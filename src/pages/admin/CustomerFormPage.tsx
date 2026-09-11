@@ -21,12 +21,14 @@ export default function CustomerFormPage() {
   const [issuedPassword, setIssuedPassword] = useState<string | null>(null);
 
   useEffect(() => {
+    let current = true;
     const p: Promise<unknown>[] = [
-      api.fetchTiers().then(setTiers),
+      api.fetchTiers().then((t) => { if (current) setTiers(t); }),
     ];
     if (!creating) {
       p.push(
         api.fetchCustomer(id!).then((data) => {
+          if (!current) return;
           form.setFieldsValue({
             email: data.email,
             name: data.name,
@@ -39,8 +41,9 @@ export default function CustomerFormPage() {
       );
     }
     Promise.all(p)
-      .catch(() => setError('Failed to load.'))
-      .finally(() => setLoading(false));
+      .catch(() => { if (current) setError('Failed to load.'); })
+      .finally(() => { if (current) setLoading(false); });
+    return () => { current = false; };
   }, [id, creating, form]);
 
   async function onFinish(values: {

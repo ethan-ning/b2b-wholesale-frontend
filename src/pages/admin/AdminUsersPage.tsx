@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert, Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message,
 } from 'antd';
@@ -8,6 +8,7 @@ import { PageError, PageLoading } from '../../components/PageState';
 import { createAdmin, deleteAdmin, fetchAdmins } from '../../api/adminApi';
 import { apiErrorMessage } from '../../api/http';
 import { useAdminAuthStore } from '../../store/adminAuthStore';
+import { useResource } from '../../hooks/useResource';
 import type { AdminUser } from '../../api/types';
 
 const { Text, Paragraph } = Typography;
@@ -27,29 +28,20 @@ export default function AdminUsersPage() {
   const me = useAdminAuthStore((s) => s.admin);
   const canManage = me?.role === 'SUPER_ADMIN';
 
-  const [admins, setAdmins] = useState<AdminUser[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /*
+   * useResource rather than a hand-rolled load: it drops a response whose request has
+   * been superseded, and stops when the page unmounts. Without that, navigating away
+   * mid-load left React flushing a state update into a component that no longer existed
+   * — invisible in a browser, and an uncaught "window is not defined" once the test
+   * environment had been torn down underneath it.
+   */
+  const { data: admins, loading, error, reload } = useResource(() => fetchAdmins(), []);
 
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
   const [form] = Form.useForm<NewAdminValues>();
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setAdmins(await fetchAdmins());
-    } catch (e) {
-      setError(apiErrorMessage(e, 'Could not load the admin list.'));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { void load(); }, [load]);
 
   async function onCreate(values: NewAdminValues) {
     setSaving(true);
@@ -60,7 +52,7 @@ export default function AdminUsersPage() {
       form.resetFields();
       // Shown once, then gone — the server keeps only a hash.
       setCreated({ email: result.admin.email, password: result.temporaryPassword });
-      await load();
+      reload();
     } catch (e) {
       setFormError(apiErrorMessage(e, 'Could not create the admin.'));
     } finally {
@@ -72,7 +64,7 @@ export default function AdminUsersPage() {
     try {
       await deleteAdmin(target.id);
       message.success(`Removed ${target.email}.`);
-      await load();
+      reload();
     } catch (e) {
       message.error(apiErrorMessage(e, 'Could not remove that admin.'));
     }

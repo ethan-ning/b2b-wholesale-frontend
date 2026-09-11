@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useIsMounted } from '../../hooks/useIsMounted';
 import {
   Typography, Button, Input, Space, Popconfirm, message, Tree, Card, Tag, Tooltip,
 } from 'antd';
@@ -213,15 +214,18 @@ export default function CategoryPage() {
   const [newRootName, setNewRootName] = useState('');
   const [addingRoot, setAddingRoot] = useState(false);
 
+  const mounted = useIsMounted();
+
   const fetchCategories = useCallback(async () => {
     try {
-      setCategories(await api.fetchCategories());
+      const next = await api.fetchCategories();
+      if (mounted.current) setCategories(next);
     } catch {
-      setError('Failed to load categories.');
+      if (mounted.current) setError('Failed to load categories.');
     } finally {
-      setLoading(false);
+      if (mounted.current) setLoading(false);
     }
-  }, []);
+  }, [mounted]);
 
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
 

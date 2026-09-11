@@ -10,7 +10,7 @@ import { server } from './server';
 globalThis.location ??= new URL('http://localhost') as unknown as Location;
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
-afterEach(() => {
+afterEach(async () => {
   server.resetHandlers();
   resetAdminState();
   cleanup();
@@ -26,6 +26,12 @@ afterEach(() => {
   notification.destroy();
   document.querySelectorAll('.ant-message-notice, .ant-notification-notice').forEach((n) => n.remove());
   localStorage.clear();
+
+  // React's scheduler queues its work through setImmediate, and Vitest disposes the jsdom
+  // environment between files — so a callback left in the queue runs with no `window` and
+  // surfaces as an uncaught ReferenceError that fails the run without failing a test.
+  // One macrotask here lets the queue drain while the environment still exists.
+  await new Promise((resolve) => setTimeout(resolve, 0));
 });
 afterAll(() => server.close());
 

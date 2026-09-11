@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useIsMounted } from '../../hooks/useIsMounted';
 import {
   Typography, Card, Table, Tag, Button, Space, Checkbox, Input,
   Tooltip, message, Empty, Modal, Descriptions,
@@ -79,21 +80,24 @@ export default function SellfoxPage() {
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const mounted = useIsMounted();
+
   const load = useCallback(async () => {
     try {
       const [nextScope, nextHistory] = await Promise.all([
         api.fetchSellfoxScope(),
         api.fetchSyncRuns(25),
       ]);
+      if (!mounted.current) return;
       setScope(nextScope);
       setHistory(nextHistory);
       setError(null);
     } catch {
-      setError('Could not reach the sync service.');
+      if (mounted.current) setError('Could not reach the sync service.');
     } finally {
-      setLoading(false);
+      if (mounted.current) setLoading(false);
     }
-  }, []);
+  }, [mounted]);
 
   useEffect(() => { load(); }, [load]);
 

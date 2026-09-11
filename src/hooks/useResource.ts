@@ -19,6 +19,7 @@ export function useResource<T>(load: () => Promise<T>, deps: unknown[]) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let current = true;
@@ -31,7 +32,13 @@ export function useResource<T>(load: () => Promise<T>, deps: unknown[]) {
     return () => { current = false; };
     // `load` is intentionally not a dependency: callers define it inline, so depending on
     // its identity would refetch on every render. `deps` says when to ask again.
-  }, deps); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [...deps, reloadToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { data, loading, error };
+  return {
+    data,
+    loading,
+    error,
+    /** Ask again — after a create or a delete has changed what the answer would be. */
+    reload: () => setReloadToken((n) => n + 1),
+  };
 }
