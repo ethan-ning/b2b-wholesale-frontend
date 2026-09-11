@@ -12,10 +12,12 @@ import { apiErrorMessage } from '../../api/http';
 import { PageError, PageLoading } from '../../components/PageState';
 import PageHeader from '../../components/admin/PageHeader';
 import MoneyInput from '../../components/MoneyInput';
-import SkuPricingTable, { buildSkuRows } from '../../components/admin/SkuPricingTable';
-import CategoryPicker, { flattenCategories } from '../../components/admin/CategoryPicker';
-import type { FlatCategory } from '../../components/admin/CategoryPicker';
-import type { SkuRow } from '../../components/admin/SkuPricingTable';
+import SkuPricingTable from '../../components/admin/SkuPricingTable';
+import CategoryPicker from '../../components/admin/CategoryPicker';
+import { buildSkuRows } from '../../components/admin/skuRows';
+import { flattenCategories } from '../../components/admin/flatCategories';
+import type { FlatCategory } from '../../components/admin/flatCategories';
+import type { SkuRow } from '../../components/admin/skuRows';
 import type { CustomerTier, Product, Variant, WarehouseStock } from '../../api/types';
 
 const { Text } = Typography;

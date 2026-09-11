@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useIsMounted } from '../../hooks/useIsMounted';
+import { useState } from 'react';
+import { useResource } from '../../hooks/useResource';
 import {
   Typography, Button, Input, Space, Popconfirm, message, Tree, Card, Tag, Tooltip,
 } from 'antd';
@@ -201,9 +201,8 @@ function toTreeData(cats: CategoryNode[], state: EditState, handlers: Handlers):
 }
 
 export default function CategoryPage() {
-  const [categories, setCategories] = useState<CategoryNode[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, loading, error, reload } = useResource(() => api.fetchCategories(), []);
+  const categories = data ?? [];
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -214,20 +213,7 @@ export default function CategoryPage() {
   const [newRootName, setNewRootName] = useState('');
   const [addingRoot, setAddingRoot] = useState(false);
 
-  const mounted = useIsMounted();
 
-  const fetchCategories = useCallback(async () => {
-    try {
-      const next = await api.fetchCategories();
-      if (mounted.current) setCategories(next);
-    } catch {
-      if (mounted.current) setError('Failed to load categories.');
-    } finally {
-      if (mounted.current) setLoading(false);
-    }
-  }, [mounted]);
-
-  useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
   function startEdit(id: number, name: string) {
     setEditingId(id);
@@ -240,7 +226,7 @@ export default function CategoryPage() {
     message.success('Category renamed');
     setEditingId(null);
     setEditingName('');
-    fetchCategories();
+    reload();
   }
 
   function cancelEdit() { setEditingId(null); setEditingName(''); }
@@ -248,7 +234,7 @@ export default function CategoryPage() {
   async function handleDelete(id: number) {
     await api.deleteCategory(id);
     message.success('Category deleted');
-    fetchCategories();
+    reload();
   }
 
   function startAddChild(parentId: number) {
@@ -263,7 +249,7 @@ export default function CategoryPage() {
     await api.createCategory(draftChildName.trim(), parentId);
     message.success('Sub-category added');
     cancelAddChild();
-    fetchCategories();
+    reload();
   }
 
   async function handleAddRoot() {
@@ -272,7 +258,7 @@ export default function CategoryPage() {
     message.success('Department added');
     setNewRootName('');
     setAddingRoot(false);
-    fetchCategories();
+    reload();
   }
 
   if (loading) return <PageLoading />;

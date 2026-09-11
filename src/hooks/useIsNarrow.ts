@@ -17,16 +17,24 @@ export const NARROW = PHONE;
  * Whether the viewport matches the given breakpoint. Read during the first render rather
  * than from an effect, so a phone never paints the desktop layout and then jumps.
  */
+const matches = (query: string) =>
+  typeof window !== 'undefined' && window.matchMedia?.(query).matches === true;
+
 export function useIsNarrow(query: string = PHONE): boolean {
-  const [narrow, setNarrow] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia?.(query).matches === true,
-  );
+  const [narrow, setNarrow] = useState(() => matches(query));
+
+  // Re-read during render when the breakpoint itself changes, rather than from the effect
+  // where it would paint the old answer once first.
+  const [askedFor, setAskedFor] = useState(query);
+  if (askedFor !== query) {
+    setAskedFor(query);
+    setNarrow(matches(query));
+  }
 
   useEffect(() => {
     const mql = window.matchMedia?.(query);
     if (!mql) return;
     const onChange = (e: MediaQueryListEvent) => setNarrow(e.matches);
-    setNarrow(mql.matches);
     mql.addEventListener('change', onChange);
     return () => mql.removeEventListener('change', onChange);
   }, [query]);

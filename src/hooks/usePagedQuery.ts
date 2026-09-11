@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { apiErrorMessage } from '../api/http';
 import type { PagedResult } from '../api/types';
 
@@ -28,10 +28,20 @@ export function usePagedQuery<F, T>(
     setPage(0);
   }
 
-  useEffect(() => {
-    let current = true;
+  // Same reasoning as the page reset above: done here it is one render, and the list never
+  // shows the previous filter's results as though they answered the new one.
+  const request = `${key}|${page}|${reloadToken}`;
+  const [requested, setRequested] = useState(request);
+  if (request !== requested) {
+    setRequested(request);
     setLoading(true);
     setError(null);
+  }
+
+  const reload = useCallback(() => setReloadToken((n) => n + 1), []);
+
+  useEffect(() => {
+    let current = true;
     fetcher(JSON.parse(key) as F, page)
       .then((result) => { if (current) { setData(result); } })
       .catch((e: unknown) => { if (current) setError(apiErrorMessage(e, 'Could not load these results.')); })
@@ -47,7 +57,7 @@ export function usePagedQuery<F, T>(
     error,
     page,
     setPage,
-    /** Refetch the current page — after a delete or a status toggle. */
-    reload: () => setReloadToken((n) => n + 1),
+    /** Refetch the current page — after a delete or a status toggle. Stable. */
+    reload,
   };
 }

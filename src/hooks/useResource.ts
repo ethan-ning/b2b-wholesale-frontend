@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { apiErrorMessage } from '../api/http';
 
 /**
@@ -14,10 +14,23 @@ export function useResource<T>(load: () => Promise<T>, deps: unknown[]) {
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
-  useEffect(() => {
-    let current = true;
+  /*
+   * The reset happens during render rather than at the top of the effect. From the effect
+   * it is a second render immediately after the first, and for one frame the screen shows
+   * the previous record as though it were the new one.
+   */
+  const key = JSON.stringify([deps, reloadToken]);
+  const [loadedKey, setLoadedKey] = useState(key);
+  if (key !== loadedKey) {
+    setLoadedKey(key);
     setLoading(true);
     setError(null);
+  }
+
+  const reload = useCallback(() => setReloadToken((n) => n + 1), []);
+
+  useEffect(() => {
+    let current = true;
     load()
       .then((result) => { if (current) setData(result); })
       .catch((e: unknown) => { if (current) setError(apiErrorMessage(e, 'Could not load this page.')); })
@@ -31,7 +44,10 @@ export function useResource<T>(load: () => Promise<T>, deps: unknown[]) {
     data,
     loading,
     error,
-    /** Ask again — after a create or a delete has changed what the answer would be. */
-    reload: () => setReloadToken((n) => n + 1),
+    /**
+     * Ask again — after a create or a delete has changed what the answer would be.
+     * Stable, because callers put it in an effect's dependencies.
+     */
+    reload,
   };
 }

@@ -1,9 +1,16 @@
 import { Space, Table, Tag, Tooltip, Typography } from 'antd';
 import MoneyInput from '../MoneyInput';
 import type { ColumnsType } from 'antd/es/table';
-import type { CustomerTier, TierPrice, Variant, WarehouseStock } from '../../api/types';
+import type { WarehouseStock } from '../../api/types';
+import type { SkuRow } from './skuRows';
 
 const { Text } = Typography;
+
+function syncedLabel(iso: string | undefined): string {
+  if (!iso) return 'Never synced';
+  const at = new Date(iso);
+  return at.getUTCFullYear() <= 1970 ? 'Never synced' : `Synced ${at.toLocaleString()}`;
+}
 
 /**
  * One row per SKU per tier — the price grid and the SKU list are one table.
@@ -13,45 +20,6 @@ const { Text } = Typography;
  * same question asked twice. `tier` is null for a withdrawn SKU, which gets a single row
  * and no price boxes — the supplier has stopped selling it, so there is nothing to price.
  */
-export type SkuRow = {
-  key: string;
-  variant: Variant;
-  tier: CustomerTier | null;
-  minQty: number;
-  /**
-   * Null for a row nobody has filled in. A blank leaves the SKU unpriced; a zero would
-   * price it at nothing and let it go on sale for free.
-   */
-  price: number | null;
-};
-
-export function buildSkuRows(
-  variants: Variant[],
-  tiers: CustomerTier[],
-  existing: TierPrice[],
-): SkuRow[] {
-  const priced = new Map(existing.map((r) => [`${r.sku}:${r.tierId}:${r.minQty}`, r]));
-  return variants.flatMap((variant): SkuRow[] => {
-    if (variant.status === 'DISCONTINUED') {
-      return [{ key: `${variant.sku}:none`, variant, tier: null, minQty: 1, price: null }];
-    }
-    return tiers.map((tier) => ({
-      key: `${variant.sku}:${tier.id}`,
-      variant,
-      tier,
-      minQty: 1,
-      price: priced.get(`${variant.sku}:${tier.id}:1`)?.price ?? null,
-    }));
-  });
-}
-
-/** Epoch means the stock sync has never reached this SKU, not that it synced in 1970. */
-function syncedLabel(iso: string | undefined): string {
-  if (!iso) return 'Never synced';
-  const at = new Date(iso);
-  return at.getUTCFullYear() <= 1970 ? 'Never synced' : `Synced ${at.toLocaleString()}`;
-}
-
 interface Props {
   rows: SkuRow[];
   /** Titles the differentiator column — "Size", "Pack Qty". */

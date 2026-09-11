@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useIsMounted } from '../../hooks/useIsMounted';
+import { useEffect, useState } from 'react';
+import { useResource } from '../../hooks/useResource';
 import {
   Typography, Card, Table, Tag, Button, Space, Checkbox, Input,
   Tooltip, message, Empty, Modal, Descriptions,
@@ -13,7 +13,7 @@ import PageHeader from '../../components/admin/PageHeader';
 import { PageError, PageLoading } from '../../components/PageState';
 import { apiErrorMessage } from '../../api/http';
 import type {
-  SellfoxCategory, SellfoxHistory, SellfoxScope, SellfoxSyncRun, SellfoxWarehouse, SyncMode, TriggerableSyncMode,
+  SellfoxCategory, SellfoxSyncRun, SellfoxWarehouse, SyncMode, TriggerableSyncMode,
 } from '../../api/types';
 
 const { Text, Paragraph } = Typography;
@@ -65,10 +65,16 @@ function formatDuration(run: SellfoxSyncRun): string {
 }
 
 export default function SellfoxPage() {
-  const [scope, setScope] = useState<SellfoxScope | null>(null);
-  const [history, setHistory] = useState<SellfoxHistory | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Both in one request, because the page is meaningless with only half of it.
+  const { data, loading, error, reload } = useResource(
+    async () => {
+      const [scope, history] = await Promise.all([api.fetchSellfoxScope(), api.fetchSyncRuns(25)]);
+      return { scope, history };
+    },
+    [],
+  );
+  const scope = data?.scope ?? null;
+  const history = data?.history ?? null;
 
   // The scope is a settled decision, so it reads as one until asked otherwise. Editing
   // holds a draft rather than writing per click: a half-changed scope with a run firing
@@ -80,35 +86,16 @@ export default function SellfoxPage() {
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const mounted = useIsMounted();
 
-  const load = useCallback(async () => {
-    try {
-      const [nextScope, nextHistory] = await Promise.all([
-        api.fetchSellfoxScope(),
-        api.fetchSyncRuns(25),
-      ]);
-      if (!mounted.current) return;
-      setScope(nextScope);
-      setHistory(nextHistory);
-      setError(null);
-    } catch {
-      if (mounted.current) setError('Could not reach the sync service.');
-    } finally {
-      if (mounted.current) setLoading(false);
-    }
-  }, [mounted]);
-
-  useEffect(() => { load(); }, [load]);
 
   // While a run is in flight its outcome only arrives by asking again. Polling stops the
   // moment nothing is running, so an idle screen is not making requests.
   const running = history?.running ?? false;
   useEffect(() => {
     if (!running) return;
-    const timer = setInterval(load, 5000);
+    const timer = setInterval(reload, 5000);
     return () => clearInterval(timer);
-  }, [running, load]);
+  }, [running, reload]);
 
   const selectedCategories = (scope?.categories ?? []).filter((c) => c.selected);
   const selectedWarehouses = (scope?.warehouses ?? []).filter((w) => w.selected);
@@ -153,7 +140,7 @@ export default function SellfoxPage() {
           await api.setScope([...draftCategories], [...draftWarehouses]);
           message.success('Scope saved — full sync started');
           setEditing(false);
-          load();
+          reload();
         } catch (e: unknown) {
           message.error(apiErrorMessage(e, 'Could not save the scope'));
         } finally {
@@ -167,7 +154,7 @@ export default function SellfoxPage() {
     try {
       await api.triggerSync(mode);
       message.success(`${MODE_LABEL[mode]} started`);
-      load();
+      reload();
     } catch (e: unknown) {
       message.error(apiErrorMessage(e, 'Could not start the sync'));
     }
