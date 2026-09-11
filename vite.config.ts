@@ -13,6 +13,13 @@ export default defineConfig({
         target: process.env.VITE_BACKEND_URL ?? 'http://localhost:8080',
         changeOrigin: true,
       },
+      // Uploaded images when no bucket is configured. Without this the path falls through
+      // to the SPA fallback, which answers 200 with index.html — so every product photo
+      // is a broken image, and a status-code check says everything is fine.
+      '/local-images': {
+        target: process.env.VITE_BACKEND_URL ?? 'http://localhost:8080',
+        changeOrigin: true,
+      },
     },
   },
   // Tests share this config rather than carrying a second build pipeline that has to be
