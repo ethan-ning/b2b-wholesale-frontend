@@ -5,6 +5,7 @@ import { LockOutlined } from '@ant-design/icons';
 import { authFailureMessage } from '../../api/http';
 import { changeOwnPassword } from '../../api/adminApi';
 import { useAdminAuthStore } from '../../store/adminAuthStore';
+import { ADMIN_ACCENT } from '../../brand';
 
 const { Title, Text } = Typography;
 
@@ -48,13 +49,13 @@ export default function AdminChangePasswordPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#f5f6f8',
+        background: '#f0f2f5',
         padding: 24,
       }}
     >
-      <Card style={{ width: 400 }}>
+      <Card style={{ width: 380, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
         <Space direction="vertical" size={4} style={{ width: '100%', textAlign: 'center', marginBottom: 20 }}>
-          <LockOutlined style={{ fontSize: 28, color: '#722ed1' }} />
+          <LockOutlined style={{ fontSize: 28, color: ADMIN_ACCENT }} />
           <Title level={4} style={{ margin: 0 }}>Choose a password</Title>
           <Text type="secondary">
             {admin?.email} was set up with a temporary password. Pick your own to continue.
@@ -103,7 +104,14 @@ export default function AdminChangePasswordPage() {
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 0 }}>
-            <Button type="primary" htmlType="submit" size="large" block loading={loading}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              size="large"
+              block
+              loading={loading}
+              style={{ background: ADMIN_ACCENT, borderColor: ADMIN_ACCENT }}
+            >
               Set password and continue
             </Button>
           </Form.Item>

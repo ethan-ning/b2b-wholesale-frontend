@@ -22,3 +22,9 @@ export const BRAND = {
 export const LOGO_HORIZONTAL = '/brand/logo-horizontal.png';
 export const LOGO_MARK = '/brand/logo-mark.png';
 export const HERO = '/brand/hero.jpg';
+
+/**
+ * The admin portal's accent. Only the sign-in and change-password screens need it — they
+ * sit outside AdminLayout, so they inherit none of its styling.
+ */
+export const ADMIN_ACCENT = '#722ed1';

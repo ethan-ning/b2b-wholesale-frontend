@@ -5,6 +5,7 @@ import { LockOutlined } from '@ant-design/icons';
 import { login } from '../../api/adminApi';
 import { authFailureMessage } from '../../api/http';
 import { useAdminAuthStore } from '../../store/adminAuthStore';
+import { ADMIN_ACCENT } from '../../brand';
 
 const { Title, Text } = Typography;
 
@@ -47,7 +48,7 @@ export default function AdminLoginPage() {
       <Card style={{ width: 380, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
         <Space direction="vertical" size={24} style={{ width: '100%', textAlign: 'center' }}>
           <Space direction="vertical" size={4}>
-            <LockOutlined style={{ fontSize: 40, color: '#722ed1' }} />
+            <LockOutlined style={{ fontSize: 40, color: ADMIN_ACCENT }} />
             <Title level={3} style={{ margin: 0 }}>
               Admin Portal
             </Title>
@@ -73,7 +74,7 @@ export default function AdminLoginPage() {
             </Form.Item>
             <Form.Item style={{ marginBottom: 0 }}>
               <Button type="primary" htmlType="submit" size="large" block loading={loading}
-                style={{ background: '#722ed1', borderColor: '#722ed1' }}>
+                style={{ background: ADMIN_ACCENT, borderColor: ADMIN_ACCENT }}>
                 Sign in
               </Button>
             </Form.Item>
