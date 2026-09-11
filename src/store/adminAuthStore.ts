@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { readSession } from './storedSession';
 import type { AdminUser } from '../api/types';
 
 interface AdminAuthState {
@@ -8,12 +9,11 @@ interface AdminAuthState {
   adminLogout: () => void;
 }
 
-const storedToken = localStorage.getItem('admin_token');
-const storedAdmin = localStorage.getItem('admin_user');
+const stored = readSession<AdminUser>('admin_token', 'admin_user');
 
 export const useAdminAuthStore = create<AdminAuthState>((set) => ({
-  token: storedToken,
-  admin: storedAdmin ? (JSON.parse(storedAdmin) as AdminUser) : null,
+  token: stored.token,
+  admin: stored.user,
 
   adminLogin: (token, admin) => {
     localStorage.setItem('admin_token', token);

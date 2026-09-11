@@ -32,10 +32,12 @@ export const adminHandlers = [
       : HttpResponse.json({ message: 'Invalid email or password' }, { status: 401 });
   }),
 
+  // Returns a session, not just the account: whoever finishes a forced change arrived
+  // holding a token that reaches only this endpoint.
   http.post('/api/admin/auth/change-password', async ({ request }) => {
     const { currentPassword } = (await request.json()) as { currentPassword: string };
     return currentPassword === ADMIN_PASSWORD
-      ? HttpResponse.json(SUPER_ADMIN)
+      ? HttpResponse.json({ token: 'settled-token', admin: { ...SUPER_ADMIN, mustChangePassword: false } })
       : HttpResponse.json({ message: 'Current password is incorrect' }, { status: 401 });
   }),
 
@@ -49,6 +51,16 @@ export const adminHandlers = [
     const created: AdminUser = { id: 99, email: body.email, name: body.name, role: body.role };
     roster = [...roster, created];
     return HttpResponse.json({ admin: created, temporaryPassword: 'TempPass1234' }, { status: 201 });
+  }),
+
+  http.post('/api/admin/admins/:id/reset-password', ({ params }) => {
+    const target = roster.find((a) => String(a.id) === params.id);
+    if (!target) return new HttpResponse(null, { status: 404 });
+    roster = roster.map((a) => (a.id === target.id ? { ...a, mustChangePassword: true } : a));
+    return HttpResponse.json({
+      admin: { ...target, mustChangePassword: true },
+      temporaryPassword: 'ResetPass9876',
+    });
   }),
 
   http.delete('/api/admin/admins/:id', ({ params }) => {

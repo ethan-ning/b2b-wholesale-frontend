@@ -25,7 +25,8 @@ export default function AdminLoginPage() {
     try {
       const data = await login(values.email, values.password);
       adminLogin(data.token, data.admin);
-      navigate('/admin');
+      // The token they hold reaches only the change-password endpoint until they finish.
+      navigate(data.admin.mustChangePassword ? '/admin/change-password' : '/admin');
     } catch (e: unknown) {
       setError(authFailureMessage(e, 'Invalid email or password.'));
     } finally {

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { readSession } from './storedSession';
 
 interface AuthUser {
   id: number;
@@ -17,12 +18,11 @@ interface AuthState {
   logout: () => void;
 }
 
-const storedToken = localStorage.getItem('auth_token');
-const storedUser = localStorage.getItem('auth_user');
+const stored = readSession<AuthUser>('auth_token', 'auth_user');
 
 export const useAuthStore = create<AuthState>((set) => ({
-  token: storedToken,
-  user: storedUser ? (JSON.parse(storedUser) as AuthUser) : null,
+  token: stored.token,
+  user: stored.user,
 
   login: (token, user) => {
     localStorage.setItem('auth_token', token);

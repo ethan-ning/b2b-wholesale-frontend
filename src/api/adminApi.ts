@@ -15,12 +15,15 @@ export async function login(email: string, password: string): Promise<AdminLogin
   return data;
 }
 
-/** Signed-in admin changing their own password. Returns the account, not a new token. */
+/**
+ * Changing your own password. Returns a full session, because whoever is finishing a
+ * forced change arrived holding a token that reaches only this endpoint.
+ */
 export async function changeOwnPassword(
   currentPassword: string,
   newPassword: string,
-): Promise<AdminUser> {
-  const { data } = await adminClient.post<AdminUser>('/admin/auth/change-password', {
+): Promise<AdminLoginResponse> {
+  const { data } = await adminClient.post<AdminLoginResponse>('/admin/auth/change-password', {
     currentPassword,
     newPassword,
   });
@@ -40,6 +43,12 @@ export async function createAdmin(input: {
   role: 'SUPER_ADMIN' | 'ADMIN';
 }): Promise<AdminCreated> {
   const { data } = await adminClient.post<AdminCreated>('/admin/admins', input);
+  return data;
+}
+
+/** Super admin only. Issues a new generated password and forces a change on next sign-in. */
+export async function resetAdminPassword(id: number): Promise<AdminCreated> {
+  const { data } = await adminClient.post<AdminCreated>(`/admin/admins/${id}/reset-password`);
   return data;
 }
 

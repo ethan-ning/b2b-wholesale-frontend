@@ -20,6 +20,7 @@ interface FormValues {
  */
 export default function AdminAccountPage() {
   const admin = useAdminAuthStore((s) => s.admin);
+  const adminLogin = useAdminAuthStore((s) => s.adminLogin);
   const [form] = Form.useForm<FormValues>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +29,10 @@ export default function AdminAccountPage() {
     setSaving(true);
     setError(null);
     try {
-      await changeOwnPassword(values.currentPassword, values.newPassword);
+      const data = await changeOwnPassword(values.currentPassword, values.newPassword);
+      // Adopt the session it hands back rather than keeping the one issued to the old
+      // password.
+      adminLogin(data.token, data.admin);
       form.resetFields();
       message.success('Password changed.');
     } catch (e) {

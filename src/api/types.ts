@@ -101,6 +101,8 @@ export interface AdminUser {
   email: string;
   name: string;
   role: 'SUPER_ADMIN' | 'ADMIN';
+  /** True while the password is one somebody else generated. */
+  mustChangePassword?: boolean;
 }
 
 export interface AdminLoginResponse {

@@ -24,6 +24,7 @@ import InventoryPage from './pages/admin/InventoryPage';
 import SellfoxPage from './pages/admin/SellfoxPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminAccountPage from './pages/admin/AdminAccountPage';
+import AdminChangePasswordPage from './pages/admin/AdminChangePasswordPage';
 
 export default function App() {
   return (
@@ -45,6 +46,7 @@ export default function App() {
         {/* Admin routes */}
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin" element={<AdminProtectedRoute />}>
+          <Route path="change-password" element={<AdminChangePasswordPage />} />
           <Route element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="products" element={<ProductListPage />} />

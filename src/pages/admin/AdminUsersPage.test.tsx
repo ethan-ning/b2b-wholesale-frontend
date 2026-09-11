@@ -6,7 +6,11 @@ import AdminUsersPage from './AdminUsersPage';
 import { server } from '../../test/server';
 import { renderPage, signInAdmin, signOutAdmin } from '../../test/render';
 
-const row = (email: string) => screen.getByText(email).closest('tr') as HTMLElement;
+/** Scoped to the table: the create and reset modals name the same address. */
+const row = (email: string) => {
+  const table = document.querySelector('.ant-table') as HTMLElement;
+  return within(table).getByText(email).closest('tr') as HTMLElement;
+};
 
 beforeEach(signOutAdmin);
 
@@ -110,6 +114,50 @@ describe('AdminUsersPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: /^remove$/i }));
 
     await waitFor(() => expect(screen.queryByText('staff@example.com')).not.toBeInTheDocument());
+  });
+
+  it('resets another admin and shows the new password once', async () => {
+    signInAdmin();
+    renderPage(<AdminUsersPage />);
+    await waitFor(() => expect(screen.getByText('staff@example.com')).toBeInTheDocument());
+
+    await userEvent.click(within(row('staff@example.com')).getByRole('button', { name: /reset password/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /^reset$/i }));
+
+    expect(await screen.findByText('ResetPass9876')).toBeInTheDocument();
+    expect(screen.getByText('Password reset')).toBeInTheDocument();
+    expect(screen.getByText(/cannot be shown again/i)).toBeInTheDocument();
+  });
+
+  it('marks who is still on a password somebody else chose', async () => {
+    signInAdmin();
+    renderPage(<AdminUsersPage />);
+    await waitFor(() => expect(screen.getByText('staff@example.com')).toBeInTheDocument());
+
+    await userEvent.click(within(row('staff@example.com')).getByRole('button', { name: /reset password/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /^reset$/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /done/i }));
+
+    await waitFor(() =>
+      expect(within(row('staff@example.com')).getByText(/temporary password/i)).toBeInTheDocument());
+  });
+
+  /** Your own is changed, not reset — a reset hands you a password nobody can tell you. */
+  it('offers no reset on your own row', async () => {
+    signInAdmin();
+    renderPage(<AdminUsersPage />);
+
+    await waitFor(() => expect(screen.getByText('owner@example.com')).toBeInTheDocument());
+    expect(within(row('owner@example.com')).queryByRole('button', { name: /reset password/i }))
+      .not.toBeInTheDocument();
+  });
+
+  it('offers no reset when you are not a super admin', async () => {
+    signInAdmin({ superAdmin: false });
+    renderPage(<AdminUsersPage />);
+
+    await waitFor(() => expect(screen.getByText('owner@example.com')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /reset password/i })).not.toBeInTheDocument();
   });
 
   it('says so when the roster cannot be loaded', async () => {

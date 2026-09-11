@@ -2,10 +2,10 @@ import { useState } from 'react';
 import {
   Alert, Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message,
 } from 'antd';
-import { DeleteOutlined, PlusOutlined, UserAddOutlined } from '@ant-design/icons';
+import { DeleteOutlined, KeyOutlined, PlusOutlined, UserAddOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/admin/PageHeader';
 import { PageError, PageLoading } from '../../components/PageState';
-import { createAdmin, deleteAdmin, fetchAdmins } from '../../api/adminApi';
+import { createAdmin, deleteAdmin, fetchAdmins, resetAdminPassword } from '../../api/adminApi';
 import { apiErrorMessage } from '../../api/http';
 import { useAdminAuthStore } from '../../store/adminAuthStore';
 import { useResource } from '../../hooks/useResource';
@@ -40,7 +40,7 @@ export default function AdminUsersPage() {
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
+  const [issued, setIssued] = useState<{ email: string; password: string; verb: 'created' | 'reset' } | null>(null);
   const [form] = Form.useForm<NewAdminValues>();
 
   async function onCreate(values: NewAdminValues) {
@@ -51,12 +51,23 @@ export default function AdminUsersPage() {
       setAdding(false);
       form.resetFields();
       // Shown once, then gone — the server keeps only a hash.
-      setCreated({ email: result.admin.email, password: result.temporaryPassword });
+      setIssued({ email: result.admin.email, password: result.temporaryPassword, verb: 'created' });
       reload();
     } catch (e) {
       setFormError(apiErrorMessage(e, 'Could not create the admin.'));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onReset(target: AdminUser) {
+    try {
+      const result = await resetAdminPassword(target.id);
+      // Same modal as a creation: the server keeps only a hash, so this is the one showing.
+      setIssued({ email: result.admin.email, password: result.temporaryPassword, verb: 'reset' });
+      reload();
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Could not reset that password.'));
     }
   }
 
@@ -81,6 +92,9 @@ export default function AdminUsersPage() {
         <Space size={8}>
           <Text strong>{name}</Text>
           {row.id === me?.id && <Tag>You</Tag>}
+          {row.mustChangePassword && (
+            <Tag color="orange">Temporary password</Tag>
+          )}
         </Space>
       ),
     },
@@ -99,20 +113,34 @@ export default function AdminUsersPage() {
       ? [{
           title: '',
           key: 'actions',
-          width: 100,
+          width: 210,
           render: (_: unknown, row: AdminUser) =>
+            // Your own account is changed, not reset — the reset would hand you a password
+            // someone then has to tell you.
             row.id === me?.id ? null : (
-              <Popconfirm
-                title={`Remove ${row.email}?`}
-                description="They lose access immediately. This cannot be undone."
-                okText="Remove"
-                okButtonProps={{ danger: true }}
-                onConfirm={() => onDelete(row)}
-              >
-                <Button size="small" danger type="text" icon={<DeleteOutlined />}>
-                  Remove
-                </Button>
-              </Popconfirm>
+              <Space size={4}>
+                <Popconfirm
+                  title={`Reset the password for ${row.email}?`}
+                  description="Their current one stops working, and they must choose a new one to sign in."
+                  okText="Reset"
+                  onConfirm={() => onReset(row)}
+                >
+                  <Button size="small" type="text" icon={<KeyOutlined />}>
+                    Reset password
+                  </Button>
+                </Popconfirm>
+                <Popconfirm
+                  title={`Remove ${row.email}?`}
+                  description="They lose access immediately. This cannot be undone."
+                  okText="Remove"
+                  okButtonProps={{ danger: true }}
+                  onConfirm={() => onDelete(row)}
+                >
+                  <Button size="small" danger type="text" icon={<DeleteOutlined />}>
+                    Remove
+                  </Button>
+                </Popconfirm>
+              </Space>
             ),
         }]
       : []),
@@ -186,20 +214,23 @@ export default function AdminUsersPage() {
       </Modal>
 
       <Modal
-        open={created !== null}
-        title="Admin created"
-        onCancel={() => setCreated(null)}
-        onOk={() => setCreated(null)}
+        open={issued !== null}
+        title={issued?.verb === 'reset' ? 'Password reset' : 'Admin created'}
+        onCancel={() => setIssued(null)}
+        onOk={() => setIssued(null)}
         okText="Done"
         cancelButtonProps={{ style: { display: 'none' } }}
       >
         <Paragraph>
-          Give <Text strong>{created?.email}</Text> this password. It is not stored and cannot be
-          shown again — if it is lost, remove the account and create it anew.
+          Give <Text strong>{issued?.email}</Text> this password. It is not stored and cannot be
+          shown again — if it is lost, reset the account for a new one.
         </Paragraph>
-        <Paragraph copyable={{ text: created?.password }}>
-          <Text code style={{ fontSize: 16 }}>{created?.password}</Text>
+        <Paragraph copyable={{ text: issued?.password }}>
+          <Text code style={{ fontSize: 16 }}>{issued?.password}</Text>
         </Paragraph>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          They will be asked to choose their own the first time they sign in with it.
+        </Text>
       </Modal>
     </>
   );
