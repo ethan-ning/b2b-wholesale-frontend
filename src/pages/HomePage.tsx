@@ -1,14 +1,11 @@
 import { useNavigate, Link } from 'react-router-dom';
-import { Input, Typography, Space, Button } from 'antd';
+import { Input, Typography, Button } from 'antd';
 import { SearchOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../store/authStore';
 import { PHONE, useIsNarrow } from '../hooks/useIsNarrow';
 import { BRAND, HERO } from '../brand';
 
 const { Title, Text } = Typography;
-
-/** A few doors into the catalogue, for a dealer who arrived without a term in mind. */
-const SHORTCUTS = ['Hub caps', 'Exhaust stacks', 'Mud flaps', 'Light bars', 'Marker lights'];
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -57,22 +54,12 @@ export default function HomePage() {
             allowClear
           />
 
-          <Space size={[8, 8]} wrap style={{ marginTop: 20, justifyContent: 'center' }}>
-            {SHORTCUTS.map((term) => (
-              <Button
-                key={term}
-                size="small"
-                onClick={() => search(term)}
-                style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  borderColor: 'rgba(203,213,225,0.28)',
-                  color: BRAND.silver,
-                }}
-              >
-                {term}
-              </Button>
-            ))}
-          </Space>
+          {/*
+           * No suggested terms here. They were plurals — "Hub caps", "Mud flaps" — and
+           * search matches a literal substring of the name, so every one of them returned
+           * nothing. A shortcut that reliably produces an empty page is worse than no
+           * shortcut: it reads as an empty catalogue rather than a term that missed.
+           */}
         </div>
       </section>
 
