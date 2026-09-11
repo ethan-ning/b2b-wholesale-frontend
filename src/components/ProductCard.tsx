@@ -4,6 +4,7 @@ import { EnvironmentOutlined } from '@ant-design/icons';
 import type { Product } from '../api/types';
 import { formatMoneyRange } from '../utils/money';
 import SkuTable from './SkuTable';
+import { PHONE, useIsNarrow } from '../hooks/useIsNarrow';
 
 const { Text } = Typography;
 
@@ -21,6 +22,7 @@ interface Props {
  * a consumer storefront, so it is worth the vertical space.
  */
 export default function ProductCard({ product }: Props) {
+  const phone = useIsNarrow(PHONE);
   const primaryImage = [...product.images].sort((a, b) => a.sortOrder - b.sortOrder)[0];
   const hasStock = product.variants.some((v) => v.inventory.availableStock > 0);
   const totalAvailable = product.variants.reduce((sum, v) => sum + v.inventory.availableStock, 0);
@@ -34,11 +36,11 @@ export default function ProductCard({ product }: Props) {
       styles={{ body: { padding: 14 } }}
       style={{ marginBottom: 12 }}
     >
-      <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: phone ? 10 : 14, alignItems: 'flex-start' }}>
         <div
           style={{
-            width: 76,
-            height: 76,
+            width: phone ? 52 : 76,
+            height: phone ? 52 : 76,
             flexShrink: 0,
             borderRadius: 6,
             background: '#f2f4f7',
@@ -97,16 +99,28 @@ export default function ProductCard({ product }: Props) {
           </Space>
         </div>
 
-        {/* The dealer's own price, not list price. */}
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div className="dealer-price" style={{ fontSize: 17 }}>
-            {priceRange}
+        {/*
+         * The dealer's own price, not list price. On a phone it moves under the name:
+         * as a third column it left the name about forty pixels of width.
+         */}
+        {!phone && (
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div className="dealer-price" style={{ fontSize: 17 }}>
+              {priceRange}
+            </div>
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              your price
+            </Text>
           </div>
-          <Text type="secondary" style={{ fontSize: 11 }}>
-            your price
-          </Text>
-        </div>
+        )}
       </div>
+
+      {phone && (
+        <div style={{ marginTop: 8 }}>
+          <span className="dealer-price" style={{ fontSize: 16 }}>{priceRange}</span>
+          <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>your price</Text>
+        </div>
+      )}
 
       <SkuTable variants={product.variants} variantAxis={product.variantAxis} compact />
     </Card>

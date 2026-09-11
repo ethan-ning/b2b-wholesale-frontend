@@ -66,11 +66,34 @@ export default function ProductDetailPage() {
       <Row gutter={32}>
         {/* Image gallery */}
         <Col xs={24} md={10}>
-          <Image
-            src={sortedImages[selectedImage]?.url ?? 'https://placehold.co/400x300?text=No+Image'}
-            alt={sortedImages[selectedImage]?.altText ?? product.name}
-            style={{ width: '100%', borderRadius: 8, objectFit: 'cover' }}
-          />
+          {/*
+           * A local placeholder rather than a remote one. The previous fallback fetched a
+           * "No Image" graphic from placehold.co, so every product without photos — most
+           * of the catalogue — made a request to a third party that the page then depended
+           * on. It is also kept short: full height, an empty box was the largest thing on
+           * a phone screen.
+           */}
+          {sortedImages.length > 0 ? (
+            <Image
+              src={sortedImages[selectedImage].url}
+              alt={sortedImages[selectedImage].altText ?? product.name}
+              style={{ width: '100%', borderRadius: 8, objectFit: 'cover' }}
+            />
+          ) : (
+            <div
+              style={{
+                height: 140,
+                borderRadius: 8,
+                background: '#f2f4f7',
+                border: '1px solid #eef1f5',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text type="secondary" style={{ fontSize: 13 }}>No image</Text>
+            </div>
+          )}
           {sortedImages.length > 1 && (
             <Space style={{ marginTop: 8 }} wrap>
               {sortedImages.map((img, i) => (

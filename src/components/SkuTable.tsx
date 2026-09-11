@@ -3,6 +3,7 @@ import type { ColumnsType } from 'antd/es/table';
 import type { Variant } from '../api/types';
 import { formatMoney } from '../utils/money';
 import { StockBadge } from './StockBadge';
+import { TOUCH, useIsNarrow } from '../hooks/useIsNarrow';
 
 interface Props {
   variants: Variant[];
@@ -12,11 +13,14 @@ interface Props {
 }
 
 export default function SkuTable({ variants, variantAxis, compact = false }: Props) {
+  const touch = useIsNarrow(TOUCH);
+
   const columns: ColumnsType<Variant> = [
     {
       title: 'SKU',
       dataIndex: 'sku',
       key: 'sku',
+      fixed: touch ? ('left' as const) : undefined,
       render: (sku: string) => <code style={{ fontSize: 12 }}>{sku}</code>,
     },
     {
@@ -101,6 +105,12 @@ export default function SkuTable({ variants, variantAxis, compact = false }: Pro
       rowKey="id"
       size="small"
       pagination={false}
+      /*
+       * Six columns do not fit a phone, and squeezing them wraps every price onto three
+       * lines. The table scrolls sideways instead, with the SKU pinned — scrolled away
+       * from its own code, a row of numbers belongs to nothing.
+       */
+      scroll={touch ? { x: 'max-content' } : undefined}
       style={{ marginTop: compact ? 8 : 0 }}
     />
   );

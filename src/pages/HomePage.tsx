@@ -2,6 +2,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Input, Typography, Space, Button } from 'antd';
 import { SearchOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../store/authStore';
+import { PHONE, useIsNarrow } from '../hooks/useIsNarrow';
 import { BRAND, HERO } from '../brand';
 
 const { Title, Text } = Typography;
@@ -12,6 +13,7 @@ const SHORTCUTS = ['Hub caps', 'Exhaust stacks', 'Mud flaps', 'Light bars', 'Mar
 export default function HomePage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const phone = useIsNarrow(PHONE);
 
   function search(term: string) {
     const q = term.trim();
@@ -28,14 +30,14 @@ export default function HomePage() {
       <section
         style={{
           background: `linear-gradient(rgba(13,14,13,0.86), rgba(13,14,13,0.92)), url(${HERO}) center/cover no-repeat`,
-          padding: '64px 24px 72px',
+          padding: phone ? '36px 16px 40px' : '64px 24px 72px',
         }}
       >
         <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
           <Text style={{ color: BRAND.amber, letterSpacing: '0.16em', fontSize: 12, fontWeight: 600 }}>
             WHOLESALE CATALOGUE
           </Text>
-          <Title level={2} style={{ color: '#fff', margin: '10px 0 6px' }}>
+          <Title level={phone ? 3 : 2} style={{ color: '#fff', margin: '10px 0 6px' }}>
             Welcome back, {user?.name}
           </Title>
           <Text style={{ color: BRAND.silverDim, fontSize: 14 }}>

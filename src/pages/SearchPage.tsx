@@ -6,18 +6,21 @@ import {
   Select,
   Pagination,
   Alert,
+  Drawer,
+  Badge,
   Spin,
   Empty,
   Button,
   Space,
   Tag,
 } from 'antd';
-import { CloseCircleOutlined } from '@ant-design/icons';
+import { CloseCircleOutlined, FilterOutlined } from '@ant-design/icons';
 import { PAGE_SIZE, searchProducts } from '../api/catalog';
 import { usePagedQuery } from '../hooks/usePagedQuery';
 import ProductCard from '../components/ProductCard';
 import CategoryTree from '../components/CategoryTree';
 import PriceRangeFilter from '../components/PriceRangeFilter';
+import { TOUCH, useIsNarrow } from '../hooks/useIsNarrow';
 
 const { Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -31,6 +34,9 @@ const SORT_OPTIONS = [
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  // Tablets included: a fixed 300px rail on a 768px screen is most of the results.
+  const touch = useIsNarrow(TOUCH);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const query = searchParams.get('q') ?? '';
   const [prevQuery, setPrevQuery] = useState(query);
   const [categoryId, setCategoryId] = useState<number | null>(null);
@@ -89,26 +95,49 @@ export default function SearchPage() {
   return (
     <Layout style={{ minHeight: 'calc(100vh - 68px)', background: '#f6f7f9' }}>
       {/* Sticky, so the filters stay reachable while a long result list scrolls past. */}
-      <Sider
-        width={296}
-        style={{
-          background: 'transparent',
-          padding: 20,
-          position: 'sticky',
-          top: 68,
-          height: 'calc(100vh - 68px)',
-          overflowY: 'auto',
-        }}
-      >
-        <div className="filter-rail" style={{ minHeight: '100%' }}>
-          <div className="filter-rail-head">Category</div>
-          <div style={{ padding: '10px 8px 14px' }}>
-            <CategoryTree selectedId={categoryId} onChange={handleCategoryChange} />
+      {!touch && (
+        <Sider
+          width={296}
+          style={{
+            background: 'transparent',
+            padding: 20,
+            position: 'sticky',
+            top: 68,
+            height: 'calc(100vh - 68px)',
+            overflowY: 'auto',
+          }}
+        >
+          <div className="filter-rail" style={{ minHeight: '100%' }}>
+            <div className="filter-rail-head">Category</div>
+            <div style={{ padding: '10px 8px 14px' }}>
+              <CategoryTree selectedId={categoryId} onChange={handleCategoryChange} />
+            </div>
           </div>
-        </div>
-      </Sider>
+        </Sider>
+      )}
 
-      <Content style={{ padding: '20px 24px 32px 0' }}>
+      {/*
+       * On a touch screen the same tree lives in a drawer. Choosing a category closes it,
+       * because the next thing anyone wants is to see what it did.
+       */}
+      <Drawer
+        title="Category"
+        placement="left"
+        width={300}
+        open={touch && filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        styles={{ body: { padding: '8px 4px' } }}
+      >
+        <CategoryTree
+          selectedId={categoryId}
+          onChange={(id, name) => {
+            handleCategoryChange(id, name);
+            setFiltersOpen(false);
+          }}
+        />
+      </Drawer>
+
+      <Content style={{ padding: touch ? '16px 16px 28px' : '20px 24px 32px 0' }}>
         <div
           style={{
             display: 'flex',
@@ -128,7 +157,14 @@ export default function SearchPage() {
             )}
           </Title>
 
-          <Space size={16} align="center" wrap>
+          <Space size={touch ? 10 : 16} align="center" wrap>
+            {touch && (
+              <Badge dot={categoryId !== null} offset={[-2, 2]}>
+                <Button size="small" icon={<FilterOutlined />} onClick={() => setFiltersOpen(true)}>
+                  Category
+                </Button>
+              </Badge>
+            )}
             <PriceRangeFilter priceMin={priceMin} priceMax={priceMax} onApply={handlePriceApply} />
             <Select
               value={sort}
