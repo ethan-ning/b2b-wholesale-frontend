@@ -1,7 +1,7 @@
 import { adminClient, authClient } from './http';
 import type {
   AdminCreated, AdminLoginResponse, AdminProductDetail, AdminUser, Category, CategoryNode, Customer, CustomerCreated,
-  CustomerTier, DashboardStats, PagedResult, Product, SkuStock,
+  CustomerTier, DashboardStats, ImageUsage, LibraryImage, PagedResult, Product, SkuStock,
   SellfoxHistory, SellfoxScope, SellfoxSyncRun, TriggerableSyncMode,
 } from './types';
 
@@ -105,7 +105,6 @@ export interface ProductUpdate {
   /** VISIBLE or HIDDEN. */
   visibility: string;
   attributes: Record<string, string>;
-  imageUrls: string[];
   categoryIds: number[];
   primaryCategoryId: number | null;
   /** variantId -> MAP. An absent entry means "leave it", not "clear it". */
@@ -275,4 +274,50 @@ export async function triggerSync(mode: TriggerableSyncMode = 'FULL'): Promise<S
     params: mode === 'FULL' ? undefined : { mode: mode.toLowerCase() },
   });
   return data;
+}
+
+// ─── Images ──────────────────────────────────────────────────────────────────
+
+export async function fetchImageLibrary(): Promise<ImageUsage[]> {
+  const { data } = await adminClient.get<ImageUsage[]>('/admin/images');
+  return data;
+}
+
+/**
+ * Sent as multipart, so the browser sets its own boundary — the JSON content type the
+ * client defaults to would make the upload unreadable at the other end.
+ */
+export async function uploadImage(file: File): Promise<LibraryImage> {
+  const body = new FormData();
+  body.append('file', file);
+  const { data } = await adminClient.post<LibraryImage>('/admin/images', body, {
+    headers: { 'Content-Type': undefined },
+  });
+  return data;
+}
+
+export async function deleteImage(id: number): Promise<void> {
+  await adminClient.delete(`/admin/images/${id}`);
+}
+
+export async function attachImage(productId: number, imageId: number): Promise<void> {
+  await adminClient.post(`/admin/products/${productId}/images/${imageId}`);
+}
+
+export async function detachImage(productId: number, imageId: number): Promise<void> {
+  await adminClient.delete(`/admin/products/${productId}/images/${imageId}`);
+}
+
+/** The whole order at once: a gallery is arranged, not nudged one place at a time. */
+export async function reorderImages(productId: number, imageIds: number[]): Promise<void> {
+  await adminClient.put(`/admin/products/${productId}/images/order`, imageIds);
+}
+
+/** Null clears it. A SKU may only point at an image its own product shows. */
+export async function setMainImage(
+  productId: number,
+  variantId: number,
+  imageId: number | null,
+): Promise<void> {
+  await adminClient.put(`/admin/products/${productId}/variants/${variantId}/main-image`, { imageId });
 }

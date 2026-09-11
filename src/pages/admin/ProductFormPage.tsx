@@ -13,6 +13,7 @@ import { PageError, PageLoading } from '../../components/PageState';
 import PageHeader from '../../components/admin/PageHeader';
 import MoneyInput from '../../components/MoneyInput';
 import SkuPricingTable from '../../components/admin/SkuPricingTable';
+import ProductGallery from '../../components/admin/ProductGallery';
 import CategoryPicker from '../../components/admin/CategoryPicker';
 import { buildSkuRows } from '../../components/admin/skuRows';
 import { flattenCategories } from '../../components/admin/flatCategories';
@@ -33,7 +34,6 @@ type Draft = {
   locationCode: string;
   visibility: string;
   attrRows: { key: string; value: string }[];
-  imageUrls: string[];
   categoryIds: number[];
   primaryCategoryId: number | null;
   /** Per-SKU MAP, keyed by variant id — the only portal-owned field on a variant. */
@@ -41,7 +41,7 @@ type Draft = {
   skuRows: SkuRow[];
 };
 
-type SectionKey = 'pricing' | 'categories' | 'media';
+type SectionKey = 'pricing' | 'categories' | 'attributes';
 
 /**
  * What each section owns, for comparing and for merging.
@@ -61,8 +61,8 @@ function fingerprint(d: Draft, section: SectionKey): string {
       ]);
     case 'categories':
       return JSON.stringify([d.categoryIds, d.primaryCategoryId]);
-    case 'media':
-      return JSON.stringify([d.attrRows, d.imageUrls]);
+    case 'attributes':
+      return JSON.stringify(d.attrRows);
   }
 }
 
@@ -79,8 +79,8 @@ function withSection(base: Draft, from: Draft, section: SectionKey): Draft {
       };
     case 'categories':
       return { ...base, categoryIds: from.categoryIds, primaryCategoryId: from.primaryCategoryId };
-    case 'media':
-      return { ...base, attrRows: from.attrRows, imageUrls: from.imageUrls };
+    case 'attributes':
+      return { ...base, attrRows: from.attrRows };
   }
 }
 
@@ -92,7 +92,6 @@ function toPayload(d: Draft, variants: Variant[]): api.ProductUpdate {
     attributes: Object.fromEntries(
       d.attrRows.filter((r) => r.key.trim()).map((r) => [r.key.trim(), r.value])
     ),
-    imageUrls: d.imageUrls,
     categoryIds: d.categoryIds,
     primaryCategoryId: d.primaryCategoryId,
     variantMapPrices: Object.fromEntries(
@@ -153,7 +152,6 @@ export default function ProductFormPage() {
           locationCode: p.locationCode ?? '',
           visibility: p.visibility,
           attrRows: Object.entries(p.attributes).map(([k, v]) => ({ key: k, value: v })),
-          imageUrls: [...p.images].sort((a, b) => a.sortOrder - b.sortOrder).map((img) => img.url),
           categoryIds: catIds,
           primaryCategoryId: p.categories.find((c) => c.isPrimary)?.id ?? catIds[0] ?? null,
           variantMaps: Object.fromEntries(p.variants.map((v) => [v.id!, v.mapPrice])),
@@ -177,7 +175,7 @@ export default function ProductFormPage() {
 
   const patch = (p: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...p } : d));
   const isDirty = (s: SectionKey) => fingerprint(draft, s) !== fingerprint(saved, s);
-  const anyDirty = (['pricing', 'categories', 'media'] as SectionKey[]).some(isDirty);
+  const anyDirty = (['pricing', 'categories', 'attributes'] as SectionKey[]).some(isDirty);
 
   async function save(what: SectionKey | 'all') {
     const next = what === 'all' ? draft! : withSection(saved!, draft!, what);
@@ -350,52 +348,18 @@ export default function ProductFormPage() {
           }
         />
 
-        <Card title="Images & Attributes" size="small" className="section-card section-card--media">
+        <Card title="Images" size="small" className="section-card section-card--media">
+          <ProductGallery
+            productId={product.id}
+            images={product.images}
+            variants={product.variants}
+            variantAxis={product.variantAxis}
+          />
+        </Card>
+
+        <Card title="Attributes" size="small" className="section-card section-card--attributes">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <Text strong style={{ fontSize: 13 }}>
-              Images <Text type="secondary" style={{ fontWeight: 400 }}>— first is the thumbnail</Text>
-            </Text>
-            <Button size="small" icon={<PlusOutlined />}
-              onClick={() => patch({ imageUrls: [...draft.imageUrls, ''] })}>
-              Add image
-            </Button>
-          </div>
-
-          {draft.imageUrls.length === 0 && <Text type="secondary">No images.</Text>}
-          {draft.imageUrls.map((url, i) => (
-            <Space key={i} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-              <Text type="secondary" style={{ width: 24, textAlign: 'right', fontSize: 12 }}>{i + 1}.</Text>
-              <Input
-                value={url}
-                placeholder="https://..."
-                style={{ width: 480 }}
-                onChange={(e) => {
-                  const next = [...draft.imageUrls];
-                  next[i] = e.target.value;
-                  patch({ imageUrls: next });
-                }}
-              />
-              <Button size="small" disabled={i === 0} onClick={() => {
-                const next = [...draft.imageUrls];
-                [next[i - 1], next[i]] = [next[i], next[i - 1]];
-                patch({ imageUrls: next });
-              }}>↑</Button>
-              <Button size="small" disabled={i === draft.imageUrls.length - 1} onClick={() => {
-                const next = [...draft.imageUrls];
-                [next[i], next[i + 1]] = [next[i + 1], next[i]];
-                patch({ imageUrls: next });
-              }}>↓</Button>
-              <Button size="small" danger icon={<DeleteOutlined />}
-                onClick={() => patch({ imageUrls: draft.imageUrls.filter((_, j) => j !== i) })} />
-            </Space>
-          ))}
-
-          <Divider style={{ margin: '16px 0' }} />
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <Text strong style={{ fontSize: 13 }}>
-              Attributes <Text type="secondary" style={{ fontWeight: 400 }}>— shown on the dealer page</Text>
-            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>Shown on the dealer product page.</Text>
             <Button size="small" icon={<PlusOutlined />}
               onClick={() => patch({ attrRows: [...draft.attrRows, { key: '', value: '' }] })}>
               Add attribute
@@ -431,9 +395,9 @@ export default function ProductFormPage() {
           ))}
 
           <SectionSave
-            dirty={isDirty('media')}
-            saving={savingWhat === 'media'}
-            onSave={() => save('media')}
+            dirty={isDirty('attributes')}
+            saving={savingWhat === 'attributes'}
+            onSave={() => save('attributes')}
           />
         </Card>
 

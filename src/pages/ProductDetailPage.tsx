@@ -12,13 +12,12 @@ import {
   Descriptions,
   Breadcrumb,
 } from 'antd';
-import { ArrowLeftOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, EnvironmentOutlined, ExpandOutlined, PictureOutlined } from '@ant-design/icons';
 import { fetchProduct } from '../api/catalog';
 import { formatMoney, formatMoneyRange } from '../utils/money';
 import SkuTable from '../components/SkuTable';
 import { useResource } from '../hooks/useResource';
 import { PageError, PageLoading } from '../components/PageState';
-import { BRAND } from '../brand';
 
 const { Title, Text } = Typography;
 
@@ -26,6 +25,7 @@ export default function ProductDetailPage() {
   const { spuCode } = useParams<{ spuCode: string }>();
   const { data: product, loading, error } = useResource(() => fetchProduct(spuCode!), [spuCode]);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [galleryFor, setGalleryFor] = useState(spuCode);
 
   // Back to the first photo when the product changes: index 3 of the last product's
@@ -73,46 +73,84 @@ export default function ProductDetailPage() {
            * on. It is also kept short: full height, an empty box was the largest thing on
            * a phone screen.
            */}
-          {sortedImages.length > 0 ? (
-            <Image
-              src={sortedImages[selectedImage].url}
-              alt={sortedImages[selectedImage].altText ?? product.name}
-              style={{ width: '100%', borderRadius: 8, objectFit: 'cover' }}
-            />
-          ) : (
-            <div
-              style={{
-                height: 140,
-                borderRadius: 8,
-                background: '#f2f4f7',
-                border: '1px solid #eef1f5',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
+          {sortedImages.length === 0 ? (
+            <div className="gallery-empty">
+              <PictureOutlined style={{ fontSize: 22, color: '#cbd5e1' }} />
               <Text type="secondary" style={{ fontSize: 13 }}>No image</Text>
             </div>
-          )}
-          {sortedImages.length > 1 && (
-            <Space style={{ marginTop: 8 }} wrap>
-              {sortedImages.map((img, i) => (
-                <img
-                  key={img.id}
-                  src={img.url}
-                  alt={img.altText ?? ''}
-                  onClick={() => setSelectedImage(i)}
-                  style={{
-                    width: 60,
-                    height: 60,
-                    objectFit: 'cover',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                    border: i === selectedImage ? `2px solid ${BRAND.amber}` : '2px solid #eef1f5',
+          ) : (
+            <>
+              {/*
+               * A preview group, so the lightbox arrows through the whole gallery — with up
+               * to nine images, opening them one at a time was nine trips back to the page.
+               * Only the selected one is rendered at size; the rest are hidden members of
+               * the group, so the arrows have somewhere to go.
+               */}
+              <div className="gallery-stage">
+                <Image.PreviewGroup
+                  // Controlled, so the button below can open it. `open`/`onOpenChange` are
+                  // the current names; `visible`/`onVisibleChange` still work but are
+                  // deprecated, and deprecated spellings are how a later upgrade breaks.
+                  preview={{
+                    current: selectedImage,
+                    onChange: setSelectedImage,
+                    open: previewOpen,
+                    onOpenChange: setPreviewOpen,
                   }}
-                />
-              ))}
-            </Space>
+                >
+                  {sortedImages.map((img, i) => (
+                    <Image
+                      key={img.id}
+                      src={img.url}
+                      alt={img.altText ?? product.name}
+                      // Contain, not cover: product photography arrives at every aspect
+                      // ratio, and cropping a light bar square cuts off what is being sold.
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                      wrapperStyle={{ display: i === selectedImage ? 'block' : 'none', width: '100%', height: '100%' }}
+                    />
+                  ))}
+                </Image.PreviewGroup>
+
+                {/*
+                 * Alongside antd's hover overlay rather than instead of it. That overlay
+                 * only appears on hover, which a phone or tablet never sends — and this
+                 * portal is used from both.
+                 */}
+                <button
+                  type="button"
+                  className="gallery-expand"
+                  onClick={() => setPreviewOpen(true)}
+                  aria-label="View full size"
+                >
+                  <ExpandOutlined /> View full size
+                </button>
+
+                {/* Says there is more to see, without needing a hover to find out. */}
+                {sortedImages.length > 1 && (
+                  <span className="gallery-count">{selectedImage + 1} / {sortedImages.length}</span>
+                )}
+              </div>
+
+              {/*
+               * Shown for a single image too. A rail of one is not much of a gallery, but a
+               * product that grows a second photo should not change shape underneath the
+               * dealer who already learned where to look.
+               */}
+              <div className="gallery-rail">
+                {sortedImages.map((img, i) => (
+                  <button
+                    key={img.id}
+                    type="button"
+                    aria-label={`Show image ${i + 1} of ${sortedImages.length}`}
+                    aria-current={i === selectedImage}
+                    className={`gallery-rail__item${i === selectedImage ? ' is-selected' : ''}`}
+                    onClick={() => setSelectedImage(i)}
+                  >
+                    <img src={img.url} alt={img.altText ?? ''} loading="lazy" />
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </Col>
 
@@ -187,7 +225,19 @@ export default function ProductDetailPage() {
         </Text>
       </Title>
 
-      <SkuTable variants={product.variants} variantAxis={product.variantAxis} compact={false} />
+      <SkuTable
+        variants={product.variants}
+        variantAxis={product.variantAxis}
+        compact={false}
+        // Always a cell here, placeholder included: on the page where a dealer compares
+        // SKUs side by side, a column that comes and goes is harder to read than a blank.
+        images="always"
+        // Clicking a SKU's thumbnail brings its photo up top, where the size is readable.
+        onPickImage={(v) => {
+          const index = sortedImages.findIndex((img) => img.url === v.mainImageUrl);
+          if (index >= 0) setSelectedImage(index);
+        }}
+      />
 
       <div style={{ marginTop: 20 }}>
         <Link to="/search">

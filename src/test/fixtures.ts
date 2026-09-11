@@ -1,6 +1,6 @@
 import type {
   AdminUser, Category, CategoryNode, Customer, CustomerTier, DashboardStats,
-  LoginResponse, Product, SkuStock, TierPrice, Variant,
+  ImageUsage, LoginResponse, Product, ProductImage, SkuStock, TierPrice, Variant,
 } from '../api/types';
 
 /**
@@ -44,6 +44,7 @@ const variant = (
   tierPrice: number,
   packQuantity: number,
   inventory: Partial<Variant['inventory']> = {},
+  mainImage: { id: number; url: string } | null = null,
 ): Variant => ({
   id,
   sku,
@@ -55,6 +56,8 @@ const variant = (
   tierPrice,
   unitPrice: Number((tierPrice / packQuantity).toFixed(2)),
   mapPrice: Number((tierPrice * 2).toFixed(2)),
+  mainImageId: mainImage?.id ?? null,
+  mainImageUrl: mainImage?.url ?? null,
   inventory: {
     availableStock: 40,
     incomingStock: 0,
@@ -65,7 +68,14 @@ const variant = (
   },
 });
 
-const product = (id: number, spuCode: string, name: string, variants: Variant[], brand: string | null = null): Product => ({
+const product = (
+  id: number,
+  spuCode: string,
+  name: string,
+  variants: Variant[],
+  brand: string | null = null,
+  images: ProductImage[] = [],
+): Product => ({
   visibility: 'VISIBLE',
   sellable: true,
   id,
@@ -79,22 +89,41 @@ const product = (id: number, spuCode: string, name: string, variants: Variant[],
   attributes: { Finish: 'Chrome' },
   status: 'ACTIVE',
   categories: [{ id: 100, name: 'Hub Caps', isPrimary: true }] as Product['categories'],
-  images: [],
+  images,
   variants,
 });
 
-export const HUBCAP = product(1, 'H1F85N4-H50', 'Chrome Hubcap – Dome, 4-Clip', [
-  variant(11, 'H1F85N4-H50-1', 9.24, 1, { availableStock: 0, outOfStock: true }),
-  variant(12, 'H1F85N4-H50-2', 12.76, 2, { availableStock: 10, lowStock: true, incomingStock: 300 }),
-  variant(13, 'H1F85N4-H50-6', 24.19, 6, { availableStock: 405 }),
-]);
+/** Two photographs, so a gallery has something to reorder and two SKUs can differ. */
+export const HUBCAP_IMAGES: ProductImage[] = [
+  { id: 501, url: 'https://cdn.test/hubcap-dome.png', altText: 'Dome hubcap', sortOrder: 0 },
+  { id: 502, url: 'https://cdn.test/hubcap-flat.png', altText: 'Flat hubcap', sortOrder: 1 },
+];
 
+export const HUBCAP = product(
+  1,
+  'H1F85N4-H50',
+  'Chrome Hubcap – Dome, 4-Clip',
+  [
+    // Two SKUs pointing at different photos, one at none — the three cases the gallery
+    // and the SKU thumbnail column each have to handle.
+    variant(11, 'H1F85N4-H50-1', 9.24, 1, { availableStock: 0, outOfStock: true },
+      { id: 501, url: 'https://cdn.test/hubcap-dome.png' }),
+    variant(12, 'H1F85N4-H50-2', 12.76, 2, { availableStock: 10, lowStock: true, incomingStock: 300 },
+      { id: 502, url: 'https://cdn.test/hubcap-flat.png' }),
+    variant(13, 'H1F85N4-H50-6', 24.19, 6, { availableStock: 405 }),
+  ],
+  null,
+  HUBCAP_IMAGES,
+);
+
+/** Exactly one photograph — the case where a gallery has nothing to page through. */
 export const LIGHT_BAR = product(
   2,
   'PL-9011SS',
   '33" Chrome Stainless Tall Rear Light Panel',
   [variant(21, 'PL-9011SS-1', 65.63, 1, { availableStock: 12 })],
   'StopTech',
+  [{ id: 510, url: 'https://cdn.test/light-panel.png', altText: 'Light panel', sortOrder: 0 }],
 );
 
 /** Nothing in stock anywhere — the row that must read as unavailable. */
@@ -178,4 +207,38 @@ export const TIER_PRICES: TierPrice[] = [
   { sku: 'H1F85N4-H50-2', tierId: 2, tierName: 'Silver', price: 14.0, minQty: 1 },
   { sku: 'H1F85N4-H50-6', tierId: 1, tierName: 'Gold', price: 24.19, minQty: 1 },
   { sku: 'H1F85N4-H50-6', tierId: 2, tierName: 'Silver', price: 26.0, minQty: 1 },
+];
+
+/**
+ * The image library. Two photographs the hubcap shows, and one nothing does — the only
+ * row the library screen will let anyone delete.
+ */
+export const IMAGE_LIBRARY: ImageUsage[] = [
+  {
+    image: {
+      id: 501, url: 'https://cdn.test/hubcap-dome.png', filename: 'hubcap-dome.png',
+      contentType: 'image/png', bytes: 184320, width: 1200, height: 1200,
+      altText: 'Dome hubcap', stored: true,
+    },
+    usedBy: [{ productId: 1, spuCode: 'H1F85N4-H50', name: 'Chrome Hubcap – Dome, 4-Clip' }],
+    deletable: false,
+  },
+  {
+    image: {
+      id: 502, url: 'https://cdn.test/hubcap-flat.png', filename: 'hubcap-flat.png',
+      contentType: 'image/png', bytes: 96000, width: 900, height: 900,
+      altText: 'Flat hubcap', stored: true,
+    },
+    usedBy: [{ productId: 1, spuCode: 'H1F85N4-H50', name: 'Chrome Hubcap – Dome, 4-Clip' }],
+    deletable: false,
+  },
+  {
+    image: {
+      id: 503, url: 'https://cdn.test/spare-bracket.jpg', filename: 'spare-bracket.jpg',
+      contentType: 'image/jpeg', bytes: 2200, width: 400, height: 300,
+      altText: null, stored: true,
+    },
+    usedBy: [],
+    deletable: true,
+  },
 ];

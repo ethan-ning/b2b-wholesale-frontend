@@ -18,6 +18,7 @@ import DashboardPage from './pages/admin/DashboardPage';
 import ProductListPage from './pages/admin/ProductListPage';
 import ProductFormPage from './pages/admin/ProductFormPage';
 import CategoryPage from './pages/admin/CategoryPage';
+import ImageListPage from './pages/admin/ImageListPage';
 import CustomerListPage from './pages/admin/CustomerListPage';
 import CustomerFormPage from './pages/admin/CustomerFormPage';
 import InventoryPage from './pages/admin/InventoryPage';
@@ -52,6 +53,7 @@ export default function App() {
             <Route path="products" element={<ProductListPage />} />
             <Route path="products/:id/edit" element={<ProductFormPage />} />
             <Route path="categories" element={<CategoryPage />} />
+            <Route path="images" element={<ImageListPage />} />
             <Route path="customers" element={<CustomerListPage />} />
             <Route path="customers/new" element={<CustomerFormPage />} />
             <Route path="customers/:id/edit" element={<CustomerFormPage />} />

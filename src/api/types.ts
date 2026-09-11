@@ -40,6 +40,13 @@ export interface Variant {
   unitPrice: number;
   /** Advertised price for one of this SKU, same basis as `tierPrice`. */
   mapPrice: number | null;
+  /** Which of the product's images stands for this SKU, or null if nobody has chosen one. */
+  mainImageId: number | null;
+  /**
+   * What to show for this SKU in a list. Falls back to the product's first image, so a
+   * search result is never a blank square — `mainImageId` is what says a choice was made.
+   */
+  mainImageUrl: string | null;
   inventory: Inventory;
 }
 
@@ -287,4 +294,32 @@ export interface SellfoxHistory {
   runs: SellfoxSyncRun[];
   /** Whether a run is in flight. */
   running: boolean;
+}
+
+// ─── The image library ───────────────────────────────────────────────────────
+
+export interface LibraryImage {
+  id: number;
+  url: string;
+  filename: string;
+  contentType: string | null;
+  bytes: number | null;
+  width: number | null;
+  height: number | null;
+  altText: string | null;
+  /** False for a link to somewhere we do not control; deleting one removes only the row. */
+  stored: boolean;
+}
+
+export interface ImageUsedBy {
+  productId: number;
+  spuCode: string;
+  name: string;
+}
+
+export interface ImageUsage {
+  image: LibraryImage;
+  usedBy: ImageUsedBy[];
+  /** Only an image nothing shows can be removed. Decided by the API, not counted here. */
+  deletable: boolean;
 }

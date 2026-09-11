@@ -20,6 +20,13 @@ const basePrice = () => {
 };
 const saveButtons = () => screen.getAllByRole('button', { name: /save this section/i });
 
+/**
+ * The price grid, scoped. Every SKU also appears in the gallery's main-image picker, so
+ * an unscoped query on a SKU code now matches two places on the page.
+ */
+const pricingSection = () =>
+  within(document.querySelector('.section-card--pricing') as HTMLElement);
+
 beforeEach(() => {
   signOutAdmin();
   signInAdmin();
@@ -39,9 +46,9 @@ describe('ProductFormPage', () => {
   it('lists every SKU with a price box per tier', async () => {
     open();
 
-    await waitFor(() => expect(screen.getByText('H1F85N4-H50-1')).toBeInTheDocument());
-    expect(screen.getByText('H1F85N4-H50-2')).toBeInTheDocument();
-    expect(screen.getByText('H1F85N4-H50-6')).toBeInTheDocument();
+    await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-1')).toBeInTheDocument());
+    expect(pricingSection().getByText('H1F85N4-H50-2')).toBeInTheDocument();
+    expect(pricingSection().getByText('H1F85N4-H50-6')).toBeInTheDocument();
     // Gold and Silver each get their own figure — that is what a tier is.
     expect(screen.getAllByText('Gold').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Silver').length).toBeGreaterThan(0);

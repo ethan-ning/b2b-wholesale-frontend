@@ -1,9 +1,9 @@
 import { HttpResponse, http } from 'msw';
 import {
   ADMIN_LOGIN, ALL_PRODUCTS, CATEGORY_TREE, CUSTOMERS, DASHBOARD,
-  HUBCAP, PLAIN_ADMIN, STOCK_ROWS, SUPER_ADMIN, TIERS, TIER_PRICES,
+  HUBCAP, IMAGE_LIBRARY, PLAIN_ADMIN, STOCK_ROWS, SUPER_ADMIN, TIERS, TIER_PRICES,
 } from './fixtures';
-import type { AdminUser } from '../api/types';
+import type { AdminUser, ImageUsage } from '../api/types';
 
 const ADMIN_PASSWORD = 'admin123';
 
@@ -16,8 +16,19 @@ const ADMIN_PASSWORD = 'admin123';
  */
 let roster: AdminUser[] = [SUPER_ADMIN, PLAIN_ADMIN];
 
+/**
+ * The library is mutable too, so a delete can be seen to leave the list rather than only
+ * to have been requested. The gallery records what it was told, for the same reason.
+ */
+let library: ImageUsage[] = IMAGE_LIBRARY;
+
+/** What the gallery endpoints were asked to do, so a test can assert on the calls. */
+export const galleryCalls: string[] = [];
+
 export function resetAdminState() {
   roster = [SUPER_ADMIN, PLAIN_ADMIN];
+  library = IMAGE_LIBRARY;
+  galleryCalls.length = 0;
 }
 
 const paged = <T,>(content: T[]) => ({
@@ -108,6 +119,57 @@ export const adminHandlers = [
     HttpResponse.json({ product: HUBCAP, tierPrices: TIER_PRICES, stockByWarehouse: [] })),
 
   http.get('/api/admin/categories', () => HttpResponse.json(CATEGORY_TREE)),
+
+  // ── Images ──────────────────────────────────────────────────────────────
+  http.get('/api/admin/images', () => HttpResponse.json(library)),
+
+  http.post('/api/admin/images', async ({ request }) => {
+    const form = await request.formData();
+    const file = form.get('file') as File;
+    const created = {
+      id: 900, url: `https://cdn.test/${file.name}`, filename: file.name,
+      contentType: file.type, bytes: file.size, width: 800, height: 600,
+      altText: null, stored: true,
+    };
+    library = [...library, { image: created, usedBy: [], deletable: true }];
+    return HttpResponse.json(created, { status: 201 });
+  }),
+
+  http.delete('/api/admin/images/:id', ({ params }) => {
+    const row = library.find((r) => String(r.image.id) === params.id);
+    if (!row) return new HttpResponse(null, { status: 404 });
+    // The same refusal the API gives, so the screen is tested against a real message.
+    if (row.usedBy.length > 0) {
+      return HttpResponse.json(
+        { message: `Still used by ${row.usedBy.length} product: ${row.usedBy[0].spuCode}` },
+        { status: 400 },
+      );
+    }
+    library = library.filter((r) => r.image.id !== row.image.id);
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.post('/api/admin/products/:productId/images/:imageId', ({ params }) => {
+    galleryCalls.push(`attach ${params.productId}/${params.imageId}`);
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.delete('/api/admin/products/:productId/images/:imageId', ({ params }) => {
+    galleryCalls.push(`detach ${params.productId}/${params.imageId}`);
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.put('/api/admin/products/:productId/images/order', async ({ params, request }) => {
+    const order = (await request.json()) as number[];
+    galleryCalls.push(`order ${params.productId}/${order.join(',')}`);
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.put('/api/admin/products/:productId/variants/:variantId/main-image', async ({ params, request }) => {
+    const { imageId } = (await request.json()) as { imageId: number | null };
+    galleryCalls.push(`main ${params.variantId}=${imageId ?? 'none'}`);
+    return new HttpResponse(null, { status: 204 });
+  }),
 
   http.get('/api/admin/inventory', ({ request }) => {
     const url = new URL(request.url);

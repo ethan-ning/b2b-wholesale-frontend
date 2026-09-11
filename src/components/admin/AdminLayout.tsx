@@ -13,6 +13,7 @@ import {
   CloudSyncOutlined,
   SafetyCertificateOutlined,
   UserOutlined,
+  PictureOutlined,
 } from '@ant-design/icons';
 import { useAdminAuthStore } from '../../store/adminAuthStore';
 
@@ -21,11 +22,12 @@ const { Text } = Typography;
 
 const DASHBOARD = { key: '/admin', icon: <DashboardOutlined />, label: 'Dashboard' };
 
-/** What the catalogue is made of. The three screens that answer "what do we sell". */
+/** What the catalogue is made of. The screens that answer "what do we sell". */
 const CATALOGUE = [
   { key: '/admin/products', icon: <ShoppingOutlined />, label: 'Products' },
   { key: '/admin/categories', icon: <ApartmentOutlined />, label: 'Categories' },
   { key: '/admin/inventory', icon: <InboxOutlined />, label: 'Inventory' },
+  { key: '/admin/images', icon: <PictureOutlined />, label: 'Images' },
 ];
 
 /** Who can sign in. Both are account management, so they sit together. */
