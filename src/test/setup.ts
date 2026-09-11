@@ -5,12 +5,12 @@ import { message, notification } from 'antd';
 import { resetAdminState } from './adminHandlers';
 import { server } from './server';
 
-// axios needs an absolute base in jsdom; the app's relative '/api' has no origin to
-// resolve against outside a browser.
+// axios needs an absolute base; the app's relative '/api' has no origin to resolve
+// against outside a browser.
 globalThis.location ??= new URL('http://localhost') as unknown as Location;
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
-afterEach(async () => {
+afterEach(() => {
   server.resetHandlers();
   resetAdminState();
   cleanup();
@@ -26,19 +26,13 @@ afterEach(async () => {
   notification.destroy();
   document.querySelectorAll('.ant-message-notice, .ant-notification-notice').forEach((n) => n.remove());
   localStorage.clear();
-
-  // React's scheduler queues its work through setImmediate, and Vitest disposes the jsdom
-  // environment between files — so a callback left in the queue runs with no `window` and
-  // surfaces as an uncaught ReferenceError that fails the run without failing a test.
-  // One macrotask here lets the queue drain while the environment still exists.
-  await new Promise((resolve) => setTimeout(resolve, 0));
 });
 afterAll(() => server.close());
 
 /**
- * jsdom implements neither of these, and antd asks for both on mount — Select and Tree
- * for responsive sizing, Table for its own layout. Without them every component test
- * fails on an unrelated TypeError before it reaches its assertion.
+ * Neither is implemented by the DOM stand-in, and antd asks for both on mount — Select
+ * and Tree for responsive sizing, Table for its own layout. Without them every component
+ * test fails on an unrelated TypeError before it reaches its assertion.
  */
 if (!window.matchMedia) {
   window.matchMedia = (query: string) =>

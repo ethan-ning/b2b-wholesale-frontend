@@ -18,7 +18,7 @@ export default defineConfig({
   // Tests share this config rather than carrying a second build pipeline that has to be
   // kept in step with it.
   test: {
-    environment: 'jsdom',
+    environment: 'happy-dom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,

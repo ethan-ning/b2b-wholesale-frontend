@@ -58,7 +58,12 @@ npm run coverage    # per-directory report → coverage/
 ```
 
 Vitest reads `vite.config.ts`, so there is no second build pipeline to keep in step with
-the app's.
+the app's. The DOM stand-in is happy-dom rather than jsdom: React 19's scheduler queues
+work through `setImmediate`, and jsdom's teardown disposed the environment with callbacks
+still queued — they then ran with no `window` and failed the run as an uncaught error
+while every test passed. It reproduced on five runs in eight. happy-dom does not do this;
+ten consecutive runs were clean, and the tests still fail when the code they cover is
+regressed.
 
 Tests sit beside what they test — `MoneyInput.tsx` next to `MoneyInput.test.tsx` — which
 is the usual arrangement in this ecosystem, and makes a missing test visible in the folder
