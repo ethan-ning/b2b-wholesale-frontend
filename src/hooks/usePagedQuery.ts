@@ -3,19 +3,13 @@ import { apiErrorMessage } from '../api/http';
 import type { PagedResult } from '../api/types';
 
 /**
- * Filtered, paginated list state — the shape every list screen here needs.
+ * Filtered, paginated list state. `filters` is compared by value, so callers can pass a
+ * fresh object each render.
  *
- * Two things it gets right that the hand-rolled versions did not:
- *
- * - Changing a filter resets to page 1 **during render**, not from an effect. From an
- *   effect, one request fires with the stale page before the reset triggers a second.
- * - A response is dropped if its filters or page are no longer current, so quickly
- *   changing filters cannot leave a slow earlier response on screen.
- * - A failure is reported. Without a catch the rejection went nowhere, the list kept
- *   whatever it had, and a dead API was indistinguishable from a search that matched
- *   nothing — the screen said "No data" either way.
- *
- * `filters` is compared by value, so callers can pass a fresh object each render.
+ * Three things worth keeping: the page resets during render rather than from an effect,
+ * which would fire a request with the stale page first; a superseded response is dropped;
+ * and a failure is reported, or a dead API looks exactly like a search that matched
+ * nothing.
  */
 export function usePagedQuery<F, T>(
   fetcher: (filters: F, page: number) => Promise<PagedResult<T>>,

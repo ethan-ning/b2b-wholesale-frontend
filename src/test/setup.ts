@@ -14,14 +14,9 @@ afterEach(() => {
   server.resetHandlers();
   resetAdminState();
   cleanup();
-  // antd renders toasts into a portal on document.body, which cleanup() does not own. A
-  // "Removed …" toast from one test was still on screen during the next, where it was
-  // the first thing matching role="alert".
-  //
-  // destroy() rather than removing the container: antd holds a reference to it, so
-  // tearing that out sends every later toast into a node nobody can see. destroy() only
-  // starts a fade, though, so the notices themselves are dropped here — a toast still
-  // animating out is a second role="alert" in whichever test runs next.
+  // antd renders toasts into a portal cleanup() does not own, and one left over is a
+  // stray role="alert" in the next test. destroy() rather than removing the container,
+  // which antd holds a reference to — and the notices by hand, since destroy() only fades.
   message.destroy();
   notification.destroy();
   document.querySelectorAll('.ant-message-notice, .ant-notification-notice').forEach((n) => n.remove());

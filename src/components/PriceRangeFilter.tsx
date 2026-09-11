@@ -11,13 +11,8 @@ interface Props {
 }
 
 /**
- * Two boxes and an Apply, on the results toolbar beside the sort control.
- *
- * It used to sit in the sidebar, where it took a block of height from the only thing
- * that actually needs the room — the category tree. It is also a narrowing control like
- * sort is, so the toolbar is where it belongs.
- *
- * Enter applies, because a dealer who has just typed a number will press it.
+ * Two boxes and an Apply, on the results toolbar beside sort — both narrow the same list,
+ * and the sidebar's height belongs to the category tree. Enter applies.
  */
 export default function PriceRangeFilter({ priceMin, priceMax, onApply }: Props) {
   // Draft values — the filter only applies on Apply, so the boxes are local state.

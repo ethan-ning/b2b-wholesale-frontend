@@ -26,17 +26,12 @@ interface Props {
 }
 
 /**
- * Which categories a product is filed under.
+ * Which categories a product is filed under. Ancestors show ticked and locked: a hub cap
+ * is also a wheel part, and unfiling the branch would deny that.
  *
- * A product filed under "Hub Caps" is a wheel part and a truck accessory, so its ancestors
- * show ticked and locked — unfiling a branch while something beneath it is still filed
- * would say the product is a hub cap but not a wheel part.
- *
- * Shown, not stored. [selectedIds] holds only what someone picked, and only that is sent:
- * the search expands a requested category to its descendants before matching, so a product
- * filed under the leaf already answers a query for the branch. Writing the ancestors too
- * would be a second copy of a fact the tree already holds, and would count the product as
- * filed *directly* under each of them in the category admin's tallies.
+ * Shown, not stored — [selectedIds] holds only what someone picked. Search expands a
+ * category to its descendants before matching, so storing the ancestors too would
+ * duplicate a fact the tree already holds and inflate the admin's per-node tallies.
  */
 export default function CategoryPicker({
   categories, selectedIds, primaryId, onToggle, onPrimary, footer,

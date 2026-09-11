@@ -5,15 +5,11 @@ import type { Product } from '../api/types';
 const PASSWORD = 'dealer123';
 
 /**
- * The API as the portal sees it.
+ * The API as the portal sees it. Intercepting at the network layer rather than mocking
+ * the api/ modules keeps the axios instances and their interceptors in the test.
  *
- * Intercepting at the network layer rather than mocking the api/ modules means the tests
- * exercise the axios instances, their interceptors and the real request shapes — the
- * 401-redirect interceptor and the CORS-era failure paths all live there, and a mocked
- * module would skip every one of them.
- *
- * Filtering is implemented rather than stubbed, so a test can assert that asking for a
- * category actually narrows the results instead of asserting on a request that was made.
+ * Filtering is implemented rather than stubbed, so a test can assert that choosing a
+ * category narrows the results instead of asserting that a request was made.
  */
 function search(url: URL): Product[] {
   const term = url.searchParams.get('search')?.toLowerCase();

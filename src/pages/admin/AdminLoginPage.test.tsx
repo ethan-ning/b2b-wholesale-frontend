@@ -36,10 +36,7 @@ describe('AdminLoginPage', () => {
     expect(useAdminAuthStore.getState().token).toBeNull();
   });
 
-  /**
-   * The bug that cost an afternoon: CORS refused the request before the password was ever
-   * checked, and the page reported it as a wrong password. The two must never read alike.
-   */
+  /** CORS refuses before the password is checked; that must not read as a wrong one. */
   it('calls a 403 a configuration problem, not a wrong password', async () => {
     server.use(http.post('/api/admin/auth/login', () => new HttpResponse(null, { status: 403 })));
     open();

@@ -14,25 +14,12 @@ const ALLOWED_KEYS = new Set([
 ]);
 
 /**
- * A field that only ever holds money.
+ * A field that only ever holds money. `e`, `+` and `-` are refused along with letters:
+ * legal in a number literal, meaningless in a price.
  *
- * A plain InputNumber accepts the keystrokes and sorts it out later: type "12abc" and it
- * sits there looking like a value until focus moves, then silently becomes something
- * else. For a price that is the wrong trade — the moment to refuse a letter is when it is
- * typed, not after the dealer has moved on and stopped looking.
- *
- * Two approaches did not work before this one, both worth naming:
- *
- * - InputNumber's own `parser` runs inside the pipeline that also drives what the box
- *   displays, so one that rewrites every keystroke fights the component and rejects the
- *   digits along with the letters.
- * - `onKeyDown` passed to InputNumber never reaches the input; antd does not forward it.
- *
- * So the guard sits on a wrapper and runs in the capture phase, which reaches the event
- * before the input does regardless of what antd forwards.
- *
- * `e`, `+` and `-` are blocked too: valid in a JavaScript number literal, meaningless in
- * a price.
+ * The guard sits on a wrapper in the capture phase because neither alternative works —
+ * InputNumber's `parser` runs inside the pipeline that drives the display and ends up
+ * rejecting the digits too, and antd does not forward `onKeyDown` to the input.
  */
 export default function MoneyInput({ currency = '$', style, ...props }: Props) {
   function onKeyDownCapture(event: KeyboardEvent<HTMLSpanElement>) {

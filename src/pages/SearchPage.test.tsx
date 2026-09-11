@@ -117,11 +117,7 @@ describe('SearchPage', () => {
     expect(within(row).getByText(/out of stock/i)).toBeInTheDocument();
   });
 
-  /**
-   * This test found the bug it now guards. The hook had no catch, so a failed request
-   * went nowhere: the list stayed empty and the page said "No products match your
-   * filters" — a dead API and a search that matched nothing were the same screen.
-   */
+  /** A dead API and a search that matched nothing must not be the same screen. */
   it('says the catalogue failed, rather than showing it as empty', async () => {
     server.use(http.get('/api/products', () => new HttpResponse(null, { status: 500 })));
     renderPage(<SearchPage />, { route: '/search', path: '/search' });

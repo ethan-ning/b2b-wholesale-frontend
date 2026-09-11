@@ -50,10 +50,7 @@ describe('LoginPage', () => {
     expect(useAuthStore.getState().token).toBeNull();
   });
 
-  /**
-   * The three failures that used to be indistinguishable. Each cost real time precisely
-   * because the page said "invalid password" and meant something else.
-   */
+  /** The three failures that must not read as a wrong password. */
   it('calls a 403 a configuration problem rather than a wrong password', async () => {
     server.use(http.post('/api/auth/login', () => new HttpResponse(null, { status: 403 })));
     renderPage(<LoginPage />, { route: '/login', path: '/login' });

@@ -61,12 +61,9 @@ interface FailureShape {
 /**
  * Why a sign-in or password change failed, in the user's terms.
  *
- * These screens used to answer every failure with "Invalid email or password." That is
- * true for exactly one of them. A stopped backend, a CORS rejection and a mistyped
- * password all looked identical, and each one cost real time to tell apart — the CORS
- * case sent us hunting a password that had been correct the whole time.
- *
- * So: only a 401 is allowed to blame the credentials. Everything else says what it was.
+ * Only a 401 is allowed to blame the credentials. A stopped backend and a CORS rejection
+ * once reported themselves as a wrong password, which sent us hunting one that had been
+ * correct all along.
  */
 export function authFailureMessage(error: unknown, wrongCredentials: string): string {
   const failure = error as FailureShape;
@@ -87,9 +84,8 @@ export function authFailureMessage(error: unknown, wrongCredentials: string): st
   if (status === 403) return 'The server rejected this request. This is a configuration problem, not a wrong password.';
   if (status === 404) return 'The sign-in service was not found. The server may be misconfigured.';
   if (status === 429) return 'Too many attempts. Please wait a moment and try again.';
-  // A gateway status means something in front of the API answered because the API did
-  // not. In dev that is the Vite proxy with the backend stopped, which is how a whole
-  // afternoon once went into a password that had been right all along.
+  // Something in front of the API answered because the API did not — in dev, the Vite
+  // proxy with the backend stopped.
   if (status === 502 || status === 503 || status === 504) {
     return 'The server is not responding. It may be starting up or stopped.';
   }

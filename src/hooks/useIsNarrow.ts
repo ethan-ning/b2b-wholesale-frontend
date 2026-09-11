@@ -14,13 +14,8 @@ export const TOUCH = '(max-width: 1023px)';
 export const NARROW = PHONE;
 
 /**
- * Whether the viewport is phone-sized.
- *
- * A media query rather than a width reading: the browser already tracks this, and asking
- * it means no resize listener recomputing layout on every pixel of a drag.
- *
- * Read once during the first render rather than from an effect, so a phone never paints
- * the desktop layout first and then jumps.
+ * Whether the viewport matches the given breakpoint. Read during the first render rather
+ * than from an effect, so a phone never paints the desktop layout and then jumps.
  */
 export function useIsNarrow(query: string = PHONE): boolean {
   const [narrow, setNarrow] = useState(

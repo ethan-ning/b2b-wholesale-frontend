@@ -13,13 +13,9 @@ interface Props {
 }
 
 /**
- * One product in the results list.
- *
- * A row with its SKUs laid out beneath it, not a shop tile. A dealer is deciding whether
- * to order, and that decision needs the per-SKU price and what is actually on the shelf —
- * a single "from $12.50" would send them into the detail page for every candidate before
- * they could rule any of them out. This is the difference between a trade catalogue and
- * a consumer storefront, so it is worth the vertical space.
+ * One product in the results list: a row with its SKUs beneath it, not a shop tile. A
+ * dealer deciding whether to order needs the per-SKU price and stock, and "from $12.50"
+ * would send them into the detail page for every candidate. Worth the vertical space.
  */
 export default function ProductCard({ product }: Props) {
   const phone = useIsNarrow(PHONE);

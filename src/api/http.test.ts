@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { apiErrorMessage, authFailureMessage } from './http';
 
-/**
- * Sign-in used to answer every failure with "Invalid email or password." That is true for
- * exactly one of them, and on the day it was fixed it had been wrong three times in a
- * row — a CORS rejection, a stopped backend, and a password that was correct all along.
- * Each cost real time, because the message pointed at the one thing that was fine.
- *
- * So the rule these lock in is narrow: only a 401 may blame the credentials.
- */
+/** The rule these lock in is narrow: only a 401 may blame the credentials. */
 const WRONG = 'Invalid email or password.';
 
 const withStatus = (status: number, message?: string) => ({
@@ -33,8 +26,7 @@ describe('authFailureMessage', () => {
   });
 
   it('says the server is not responding on a gateway status', () => {
-    // The dev proxy answers 502 when the backend is stopped, which is how an afternoon
-    // went into a password that was never wrong.
+    // The dev proxy answers 502 when the backend is stopped.
     for (const status of [502, 503, 504]) {
       expect(authFailureMessage(withStatus(status), WRONG)).toMatch(/not responding/i);
     }

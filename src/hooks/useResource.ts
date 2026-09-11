@@ -2,18 +2,11 @@ import { useEffect, useState } from 'react';
 import { apiErrorMessage } from '../api/http';
 
 /**
- * One thing, fetched once. The load-once sibling of [usePagedQuery], for screens that read
- * a record rather than a list.
+ * One record, fetched once — the load-once sibling of [usePagedQuery].
  *
- * Two things it does that the hand-rolled versions did not:
- *
- * - A response is dropped if the deps have moved on since it was requested, so navigating
- *   quickly between two products cannot leave the first one's data on the second's page.
- * - A failure always ends the loading state. Written by hand this is easy to miss, and a
- *   `.then()` with no `.catch()` leaves a spinner turning forever on a dead request.
- *
- * Screens that load several things into several pieces of state keep doing that
- * themselves — threading them through here would be an awkward fit for no gain.
+ * A superseded response is dropped, so navigating between two products cannot leave the
+ * first one's data on the second's page, and a failure always ends the loading state
+ * rather than leaving a spinner turning.
  */
 export function useResource<T>(load: () => Promise<T>, deps: unknown[]) {
   const [data, setData] = useState<T | null>(null);

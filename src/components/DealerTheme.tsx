@@ -3,12 +3,8 @@ import type { ReactNode } from 'react';
 import { BRAND } from '../brand';
 
 /**
- * The dealer portal's theme.
- *
- * Separate from the admin's on purpose: the two are different jobs. The back office is a
- * tool, and stays neutral so the data is the loudest thing on screen. This side is a
- * storefront a customer signs into, so it carries the brand — amber for anything you act
- * on, and the logo's own near-black wherever the mark appears.
+ * The dealer portal's theme. Separate from the admin's on purpose: a back office stays
+ * neutral so the data is loudest, while this side is a storefront and carries the brand.
  */
 export default function DealerTheme({ children }: { children: ReactNode }) {
   return (

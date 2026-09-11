@@ -1,12 +1,8 @@
 /**
- * Pretends the viewport is a given width.
+ * Pretends the viewport is a given width, by answering `matchMedia` against it — there is
+ * no layout to measure in a test environment.
  *
- * jsdom has no layout, so `matchMedia` is the only thing the app can ask — which is why
- * the breakpoint hook uses it rather than reading a width. This stands in for it, parsing
- * the `max-width` out of each query and answering against the width given.
- *
- * Call it before rendering: the hook reads the match once during its first render, so a
- * change afterwards would mean asserting on a layout the component never painted.
+ * Call it before rendering: the hook reads the match once, during its first render.
  */
 export function setViewportWidth(width: number) {
   window.matchMedia = ((query: string) => {

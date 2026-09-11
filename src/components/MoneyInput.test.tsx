@@ -5,14 +5,8 @@ import { describe, expect, it } from 'vitest';
 import MoneyInput from './MoneyInput';
 
 /**
- * A price box got three different implementations in one afternoon, two of which looked
- * right and were not: one rejected the digits along with the letters, the other let
- * everything through because antd never forwarded the handler. Both were found by hand,
- * in a browser. These are the tests that would have said so immediately.
- *
- * Driven through userEvent rather than fireEvent — it types character by character
- * through the real key sequence, which is the only way a keydown guard gets exercised at
- * all.
+ * Driven through userEvent rather than fireEvent: it types character by character through
+ * the real key sequence, which is the only way a keydown guard is exercised at all.
  */
 function Harness({ initial }: { initial?: number }) {
   const [value, setValue] = useState<number | undefined>(initial);
