@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { afterAll, afterEach, beforeAll } from 'vitest';
-import { cleanup } from '@testing-library/react';
+import { act, cleanup } from '@testing-library/react';
 import { message, notification } from 'antd';
 import { resetAdminState } from './adminHandlers';
 import { server } from './server';
@@ -10,7 +10,7 @@ import { server } from './server';
 globalThis.location ??= new URL('http://localhost') as unknown as Location;
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
-afterEach(() => {
+afterEach(async () => {
   server.resetHandlers();
   resetAdminState();
   cleanup();
@@ -21,6 +21,11 @@ afterEach(() => {
   notification.destroy();
   document.querySelectorAll('.ant-message-notice, .ant-notification-notice').forEach((n) => n.remove());
   localStorage.clear();
+
+  // Flush whatever React still has queued, while the environment it needs still exists.
+  // Left pending, the scheduler runs it after Vitest has disposed the globals and it dies
+  // on a missing `window` — an uncaught error that fails the run without failing a test.
+  await act(async () => {});
 });
 afterAll(() => server.close());
 

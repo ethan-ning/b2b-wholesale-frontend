@@ -20,7 +20,8 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     globals: true,
-    setupFiles: ['./src/test/setup.ts'],
+    // schedulerTransport first: it must run before anything imports react-dom.
+    setupFiles: ['./src/test/schedulerTransport.ts', './src/test/setup.ts'],
     css: false,
     coverage: {
       provider: 'v8',
