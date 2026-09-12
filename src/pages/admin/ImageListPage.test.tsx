@@ -84,12 +84,14 @@ describe('ImageListPage', () => {
     open();
     await screen.findByText('hubcap-dome.png');
 
+    // Awaited, because the search settles before it is sent rather than firing per key.
     await userEvent.type(screen.getByPlaceholderText(/filename, spu/i), 'bracket');
-    expect(screen.queryByText('hubcap-dome.png')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('hubcap-dome.png')).not.toBeInTheDocument());
+    expect(screen.getByText('spare-bracket.jpg')).toBeInTheDocument();
 
     await userEvent.clear(screen.getByPlaceholderText(/filename, spu/i));
     await userEvent.type(screen.getByPlaceholderText(/filename, spu/i), 'H1F85N4');
-    expect(screen.getByText('hubcap-dome.png')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('hubcap-dome.png')).toBeInTheDocument());
     expect(screen.queryByText('spare-bracket.jpg')).not.toBeInTheDocument();
   });
 
@@ -158,6 +160,41 @@ describe('ImageListPage', () => {
     await userEvent.type(screen.getByPlaceholderText(/filename, spu/i), 'hubcap');
 
     await waitFor(() => expect(asked).toContain('hubcap'));
+  });
+
+  /**
+   * One question, one query. Straight through, six characters meant six requests and five
+   * answers nobody waited for — each one an EXISTS scan over the whole library.
+   */
+  it('asks once when the typing stops, not once per keystroke', async () => {
+    const terms: string[] = [];
+    server.use(http.get('/api/admin/images', ({ request }) => {
+      terms.push(new URL(request.url).searchParams.get('search') ?? '');
+      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 24, unusedCount: 0 });
+    }));
+    open();
+    await waitFor(() => expect(terms.length).toBe(1));   // the first load
+
+    await userEvent.type(screen.getByPlaceholderText(/filename, spu/i), 'hubcap');
+    await waitFor(() => expect(terms).toContain('hubcap'));
+
+    // The whole word, and none of the five prefixes on the way to it.
+    expect(terms.filter(Boolean)).toEqual(['hubcap']);
+  });
+
+  /** A click is one deliberate act; making it wait on a timer would read as lag. */
+  it('applies the unused filter without waiting', async () => {
+    const asked: (string | null)[] = [];
+    server.use(http.get('/api/admin/images', ({ request }) => {
+      asked.push(new URL(request.url).searchParams.get('unusedOnly'));
+      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 24, unusedCount: 3 });
+    }));
+    open();
+    await waitFor(() => expect(asked.length).toBe(1));
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /unused only/i }));
+
+    await waitFor(() => expect(asked).toContain('true'));
   });
 
   it('sends the unused filter to the API too', async () => {

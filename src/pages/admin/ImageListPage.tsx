@@ -7,6 +7,7 @@ import * as api from '../../api/adminApi';
 import { apiErrorMessage } from '../../api/http';
 import { PageError } from '../../components/PageState';
 import PageHeader from '../../components/admin/PageHeader';
+import { useDebounced } from '../../hooks/useDebounced';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 import type { ImageLibraryPage, ImageUsage } from '../../api/types';
 
@@ -35,9 +36,13 @@ export default function ImageListPage() {
   const [unusedOnly, setUnusedOnly] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // The box updates as it is typed into; the API is asked once the typing stops. The
+  // checkbox is not debounced — one click is one question, and waiting on it feels broken.
+  const settledSearch = useDebounced(search);
+
   const { data, loading, error, page, setPage, reload } = usePagedQuery(
     (filters, p) => api.fetchImageLibrary({ ...filters, page: p }),
-    { search, unusedOnly },
+    { search: settledSearch, unusedOnly },
   );
   const library = data as ImageLibraryPage | null;
 
