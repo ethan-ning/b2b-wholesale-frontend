@@ -1,13 +1,16 @@
 import { adminClient, authClient } from './http';
 import type {
   AdminCreated, AdminLoginResponse, AdminProductDetail, AdminUser, Category, CategoryNode, Customer, CustomerCreated,
-  CustomerTier, DashboardStats, ImageUsage, LibraryImage, PagedResult, Product, SkuStock,
+  CustomerTier, DashboardStats, ImageLibraryPage, LibraryImage, PagedResult, Product, SkuStock,
   SellfoxHistory, SellfoxScope, SellfoxSyncRun, TriggerableSyncMode,
 } from './types';
 
 /** Every admin endpoint the app calls. See catalog.ts for the dealer side. */
 
 export const PAGE_SIZE = 10;
+
+/** Rows per page on the image library. Larger than the tables of text — these are tiles. */
+export const IMAGE_PAGE_SIZE = 24;
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export async function login(email: string, password: string): Promise<AdminLoginResponse> {
@@ -278,8 +281,22 @@ export async function triggerSync(mode: TriggerableSyncMode = 'FULL'): Promise<S
 
 // ─── Images ──────────────────────────────────────────────────────────────────
 
-export async function fetchImageLibrary(): Promise<ImageUsage[]> {
-  const { data } = await adminClient.get<ImageUsage[]>('/admin/images');
+export interface ImageQuery {
+  search?: string;
+  unusedOnly?: boolean;
+  page?: number;
+}
+
+/** One page. Searching and the unused filter are the API's job, so they reach every row. */
+export async function fetchImageLibrary(query: ImageQuery = {}): Promise<ImageLibraryPage> {
+  const { data } = await adminClient.get<ImageLibraryPage>('/admin/images', {
+    params: {
+      page: query.page ?? 0,
+      size: IMAGE_PAGE_SIZE,
+      search: query.search?.trim() || undefined,
+      unusedOnly: query.unusedOnly || undefined,
+    },
+  });
   return data;
 }
 

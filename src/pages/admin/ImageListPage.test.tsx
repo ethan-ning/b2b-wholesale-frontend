@@ -104,6 +104,90 @@ describe('ImageListPage', () => {
     expect(await screen.findByText('new-part.png')).toBeInTheDocument();
   });
 
+  /**
+   * A screenful, not the catalogue. The whole library is a few hundred kilobytes with a
+   * usage list on every row, so fetching it to show a page made the first paint wait on
+   * all of it.
+   */
+  it('asks for one page rather than the whole library', async () => {
+    const asked: URL[] = [];
+    server.use(http.get('/api/admin/images', ({ request }) => {
+      asked.push(new URL(request.url));
+      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 24, unusedCount: 0 });
+    }));
+    open();
+
+    await waitFor(() => expect(asked.length).toBeGreaterThan(0));
+    expect(asked[0].searchParams.get('size')).toBe('24');
+    expect(asked[0].searchParams.get('page')).toBe('0');
+  });
+
+  it('renders only the page it was given, and says how many there are in total', async () => {
+    server.use(http.get('/api/admin/images', ({ request }) => {
+      const page = Number(new URL(request.url).searchParams.get('page') ?? 0);
+      return HttpResponse.json({
+        content: [{
+          image: { id: 900 + page, url: 'https://cdn.test/p.png', filename: `page-${page}-file.png`,
+                   contentType: 'image/png', bytes: 1024, width: 10, height: 10, altText: null, stored: true },
+          usedBy: [], deletable: true,
+        }],
+        totalElements: 50, totalPages: 50, page, size: 24, unusedCount: 50,
+      });
+    }));
+    open();
+
+    expect(await screen.findByText('page-0-file.png')).toBeInTheDocument();
+    expect(screen.getByText('50 images')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTitle('Next Page'));
+
+    expect(await screen.findByText('page-1-file.png')).toBeInTheDocument();
+    expect(screen.queryByText('page-0-file.png')).not.toBeInTheDocument();
+  });
+
+  /** Filtering in the browser would only ever have searched the rows already fetched. */
+  it('sends the search to the API instead of filtering what is on screen', async () => {
+    const asked: string[] = [];
+    server.use(http.get('/api/admin/images', ({ request }) => {
+      asked.push(new URL(request.url).searchParams.get('search') ?? '');
+      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 24, unusedCount: 0 });
+    }));
+    open();
+    await waitFor(() => expect(asked.length).toBeGreaterThan(0));
+
+    await userEvent.type(screen.getByPlaceholderText(/filename, spu/i), 'hubcap');
+
+    await waitFor(() => expect(asked).toContain('hubcap'));
+  });
+
+  it('sends the unused filter to the API too', async () => {
+    const asked: (string | null)[] = [];
+    server.use(http.get('/api/admin/images', ({ request }) => {
+      asked.push(new URL(request.url).searchParams.get('unusedOnly'));
+      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 24, unusedCount: 7 });
+    }));
+    open();
+    await waitFor(() => expect(asked.length).toBeGreaterThan(0));
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /unused only/i }));
+
+    await waitFor(() => expect(asked).toContain('true'));
+    // The count is the library's, so it does not shrink to whatever this page holds.
+    expect(screen.getByRole('checkbox', { name: /unused only \(7\)/i })).toBeInTheDocument();
+  });
+
+  /**
+   * Laid out from the declared widths. Sized from content instead, every column shifted
+   * on each page change — one longer filename moved the whole table sideways.
+   */
+  it('keeps its columns in the same place from one page to the next', async () => {
+    open();
+    await screen.findByText('hubcap-dome.png');
+
+    const table = document.querySelector('.ant-table-tbody')?.closest('table') as HTMLElement;
+    expect(getComputedStyle(table).tableLayout).toBe('fixed');
+  });
+
   it('reports a load failure instead of showing an empty library', async () => {
     server.use(http.get('/api/admin/images', () => new HttpResponse(null, { status: 500 })));
     open();

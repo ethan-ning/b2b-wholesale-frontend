@@ -119,6 +119,26 @@ describe('ProductGallery', () => {
     expect(screen.queryByText('hubcap-dome.png')).not.toBeInTheDocument();
   });
 
+  /**
+   * The library runs to hundreds of pictures and the modal holds one page, so without a
+   * search most of it would be unreachable from here.
+   */
+  it('searches the library from the picker rather than only the page it holds', async () => {
+    const asked: string[] = [];
+    server.use(http.get('/api/admin/images', ({ request }) => {
+      asked.push(new URL(request.url).searchParams.get('search') ?? '');
+      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 24, unusedCount: 0 });
+    }));
+    open();
+
+    await userEvent.click(screen.getByRole('button', { name: /add from library/i }));
+    await waitFor(() => expect(asked.length).toBeGreaterThan(0));
+
+    await userEvent.type(screen.getByPlaceholderText(/filename, spu/i), 'bracket');
+
+    await waitFor(() => expect(asked).toContain('bracket'));
+  });
+
   it('adds a picked library image to the gallery', async () => {
     open();
 

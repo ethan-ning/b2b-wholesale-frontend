@@ -323,3 +323,13 @@ export interface ImageUsage {
   /** Only an image nothing shows can be removed. Decided by the API, not counted here. */
   deletable: boolean;
 }
+
+/**
+ * One page of the library. Paged by the API rather than filtered in the browser: the
+ * whole library is a few hundred kilobytes and every row carries its usage, so fetching
+ * the lot to show a screenful made the first paint wait on all of it.
+ */
+export interface ImageLibraryPage extends PagedResult<ImageUsage> {
+  /** Across the whole library, not this page — it says how much can be cleared out. */
+  unusedCount: number;
+}

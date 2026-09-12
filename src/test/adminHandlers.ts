@@ -121,7 +121,32 @@ export const adminHandlers = [
   http.get('/api/admin/categories', () => HttpResponse.json(CATEGORY_TREE)),
 
   // ── Images ──────────────────────────────────────────────────────────────
-  http.get('/api/admin/images', () => HttpResponse.json(library)),
+  // Filtered and paged here, the way the API does it. Doing either in the browser would
+  // mean a search that only reached the rows already on screen.
+  http.get('/api/admin/images', ({ request }) => {
+    const url = new URL(request.url);
+    const term = url.searchParams.get('search')?.trim().toLowerCase();
+    const unusedOnly = url.searchParams.get('unusedOnly') === 'true';
+    const page = Number(url.searchParams.get('page') ?? 0);
+    const size = Number(url.searchParams.get('size') ?? 24);
+
+    const matching = library.filter((row) => {
+      if (unusedOnly && row.usedBy.length > 0) return false;
+      if (!term) return true;
+      return row.image.filename.toLowerCase().includes(term)
+        || row.usedBy.some((u) => `${u.spuCode} ${u.name}`.toLowerCase().includes(term));
+    });
+
+    return HttpResponse.json({
+      content: matching.slice(page * size, page * size + size),
+      totalElements: matching.length,
+      totalPages: Math.max(1, Math.ceil(matching.length / size)),
+      page,
+      size,
+      // Across the library, not the page — it says how much can be cleared out.
+      unusedCount: library.filter((row) => row.usedBy.length === 0).length,
+    });
+  }),
 
   http.post('/api/admin/images', async ({ request }) => {
     const form = await request.formData();

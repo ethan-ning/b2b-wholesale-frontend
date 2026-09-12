@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Button, Empty, Modal, Popconfirm, Select, Space, Spin, Table, Tag, Typography, Upload, message } from 'antd';
-import { DeleteOutlined, PictureOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import { useEffect, useState } from 'react';
+import { Button, Empty, Input, Modal, Pagination, Popconfirm, Select, Space, Spin, Table, Tag, Typography, Upload, message } from 'antd';
+import { DeleteOutlined, PictureOutlined, PlusOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
 import * as api from '../../api/adminApi';
 import { apiErrorMessage } from '../../api/http';
-import type { ImageUsage, ProductImage, Variant } from '../../api/types';
+import type { ImageLibraryPage, ImageUsage, ProductImage, Variant } from '../../api/types';
 
 const { Text } = Typography;
 
@@ -31,7 +31,7 @@ export default function ProductGallery({ productId, images: initial, variants, v
     () => Object.fromEntries(variants.map((v) => [v.id, v.mainImageId]))
   );
   const [busy, setBusy] = useState(false);
-  const [library, setLibrary] = useState<ImageUsage[] | null>(null);
+  const [picking, setPicking] = useState(false);
 
   const full = images.length >= MAX_IMAGES;
 
@@ -117,17 +117,6 @@ export default function ProductGallery({ productId, images: initial, variants, v
     }
   }
 
-  /**
-   * Fetched before the modal opens rather than from inside it: the library is every image
-   * in the catalog, so most edits should never ask for it, and an empty modal that fills
-   * in a moment later reads as a broken one.
-   */
-  async function openLibrary() {
-    try {
-      await run(async () => { setLibrary(await api.fetchImageLibrary()); }, 'Could not load the image library.');
-    } catch { /* reported */ }
-  }
-
   const options = images.map((image, index) => ({
     value: image.id,
     label: `${index + 1}. ${image.altText ?? 'Image'}`,
@@ -144,7 +133,7 @@ export default function ProductGallery({ productId, images: initial, variants, v
           </Text>
         </Text>
         <Space>
-          <Button size="small" icon={<PlusOutlined />} disabled={full} onClick={openLibrary}>
+          <Button size="small" icon={<PlusOutlined />} disabled={full} onClick={() => setPicking(true)}>
             Add from library
           </Button>
           <Upload
@@ -251,47 +240,110 @@ export default function ProductGallery({ productId, images: initial, variants, v
       />
 
       <LibraryPicker
-        library={library}
+        open={picking}
         attached={images.map((i) => i.id)}
-        onPick={async (image) => { setLibrary(null); await attach(image); }}
-        onClose={() => setLibrary(null)}
+        onPick={async (image) => { setPicking(false); await attach(image); }}
+        onClose={() => setPicking(false)}
       />
     </Spin>
   );
 }
 
-/** The library, minus what this product already shows — re-adding is not a thing it can do. */
-function LibraryPicker({ library, attached, onPick, onClose }: {
-  /** Null while nobody has asked for it; the modal is open exactly when it is not. */
-  library: ImageUsage[] | null;
+/**
+ * The library, minus what this product already shows — re-adding is not a thing it can do.
+ *
+ * Searched and paged against the API rather than filtered here. The catalogue runs to
+ * hundreds of pictures, so a modal holding one page of them and no way to search would
+ * put most of the library out of reach.
+ */
+function LibraryPicker({ open, attached, onPick, onClose }: {
+  open: boolean;
   attached: number[];
   onPick: (image: ImageUsage['image']) => void;
   onClose: () => void;
 }) {
-  const available = (library ?? []).filter((row) => !attached.includes(row.image.id));
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const [result, setResult] = useState<ImageLibraryPage | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Reopening starts clean. Done during render rather than from an effect, the way the
+  // rest of this app resets on a changed input: from an effect it is a second render,
+  // and for one frame the modal shows the last search's results as though they were new.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) { setSearch(''); setPage(0); setResult(null); }
+  }
+
+  const request = open ? `${search}|${page}` : null;
+  const [requested, setRequested] = useState(request);
+  if (request !== requested) {
+    setRequested(request);
+    setLoading(open);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    let current = true;
+    api.fetchImageLibrary({ search, page })
+      .then((r) => { if (current) setResult(r); })
+      .catch((e: unknown) => {
+        if (current) message.error(apiErrorMessage(e, 'Could not load the image library.'));
+      })
+      .finally(() => { if (current) setLoading(false); });
+    return () => { current = false; };
+  }, [open, search, page]);
+
+  // Filtered after fetching, so a page can come back short. Saying so is better than
+  // leaving someone to wonder why a page of 24 shows 21.
+  const available = (result?.content ?? []).filter((row) => !attached.includes(row.image.id));
 
   return (
-    <Modal title="Add from library" open={library !== null} onCancel={onClose} footer={null} width={720}>
-      {available.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={library?.length
-            ? 'This product already shows every image in the library.'
-            : 'The library is empty.'}
-        />
-      ) : (
-        <div className="gallery-grid">
-          {available.map((row) => (
-            <figure key={row.image.id} className="gallery-tile gallery-tile--pick">
-              <img src={row.image.url} alt={row.image.altText ?? ''} loading="lazy" />
-              <figcaption>
-                <span className="gallery-tile__name" title={row.image.filename}>{row.image.filename}</span>
-                <Button size="small" type="primary" onClick={() => onPick(row.image)}>Add</Button>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      )}
+    <Modal title="Add from library" open={open} onCancel={onClose} footer={null} width={760}>
+      <Input
+        allowClear
+        prefix={<SearchOutlined />}
+        placeholder="Filename, SPU or product name"
+        style={{ marginBottom: 12 }}
+        value={search}
+        onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+      />
+      <Spin spinning={loading}>
+        {available.length === 0 && !loading ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={result?.totalElements
+              ? 'Nothing here this product does not already show.'
+              : 'No images match.'}
+          />
+        ) : (
+          <div className="gallery-grid">
+            {available.map((row) => (
+              <figure key={row.image.id} className="gallery-tile gallery-tile--pick">
+                <img src={row.image.url} alt={row.image.altText ?? ''} loading="lazy" />
+                <figcaption>
+                  <span className="gallery-tile__name" title={row.image.filename}>{row.image.filename}</span>
+                  <Button size="small" type="primary" onClick={() => onPick(row.image)}>Add</Button>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        )}
+        {(result?.totalElements ?? 0) > 0 && (
+          <Pagination
+            size="small"
+            align="end"
+            style={{ marginTop: 12 }}
+            current={page + 1}
+            pageSize={api.IMAGE_PAGE_SIZE}
+            total={result?.totalElements ?? 0}
+            showSizeChanger={false}
+            onChange={(p) => setPage(p - 1)}
+            showTotal={(t) => `${t} in the library`}
+          />
+        )}
+      </Spin>
     </Modal>
   );
 }
