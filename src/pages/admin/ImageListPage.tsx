@@ -8,6 +8,7 @@ import { apiErrorMessage } from '../../api/http';
 import { PageError } from '../../components/PageState';
 import PageHeader from '../../components/admin/PageHeader';
 import { listLocale } from '../../components/listLocale';
+import { DEFAULT_PAGE_SIZE, listPagination } from '../../components/listPagination';
 import { useDebounced } from '../../hooks/useDebounced';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 import type { ImageLibraryPage, ImageUsage } from '../../api/types';
@@ -35,6 +36,7 @@ function fileSize(bytes: number | null): string {
 export default function ImageListPage() {
   const [search, setSearch] = useState('');
   const [unusedOnly, setUnusedOnly] = useState(false);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [uploading, setUploading] = useState(false);
 
   // The box updates as it is typed into; the API is asked once the typing stops. The
@@ -43,7 +45,8 @@ export default function ImageListPage() {
 
   const { data, loading, error, page, setPage, reload } = usePagedQuery(
     (filters, p) => api.fetchImageLibrary({ ...filters, page: p }),
-    { search: settledSearch, unusedOnly },
+    // Size sits among the filters so changing it starts again at the first page.
+    { search: settledSearch, unusedOnly, size: pageSize },
   );
   const library = data as ImageLibraryPage | null;
 
@@ -196,14 +199,9 @@ export default function ImageListPage() {
         columns={columns}
         dataSource={library?.content ?? []}
         loading={loading}
-        pagination={{
-          current: page + 1,
-          pageSize: api.IMAGE_PAGE_SIZE,
-          total: library?.totalElements ?? 0,
-          showSizeChanger: false,
-          onChange: (p) => setPage(p - 1),
-          showTotal: (t) => `${t} images`,
-        }}
+        pagination={listPagination({
+          page, pageSize, total: library?.totalElements ?? 0, setPage, setPageSize, label: 'images',
+        })}
         locale={listLocale(loading, search || unusedOnly ? 'No images match.' : 'No images yet.')}
       />
     </div>

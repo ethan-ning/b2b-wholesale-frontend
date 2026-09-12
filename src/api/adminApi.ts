@@ -1,4 +1,5 @@
 import { adminClient, authClient } from './http';
+import { DEFAULT_PAGE_SIZE } from '../components/listPagination';
 import type {
   AdminCreated, AdminLoginResponse, AdminProductDetail, AdminUser, Category, CategoryNode, Customer, CustomerCreated,
   CustomerTier, DashboardStats, ImageLibraryPage, LibraryImage, PagedResult, Product, SkuStock,
@@ -8,9 +9,6 @@ import type {
 /** Every admin endpoint the app calls. See catalog.ts for the dealer side. */
 
 export const PAGE_SIZE = 10;
-
-/** Rows per page on the image library. Larger than the tables of text — these are tiles. */
-export const IMAGE_PAGE_SIZE = 24;
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export async function login(email: string, password: string): Promise<AdminLoginResponse> {
@@ -285,6 +283,7 @@ export interface ImageQuery {
   search?: string;
   unusedOnly?: boolean;
   page?: number;
+  size?: number;
 }
 
 /** One page. Searching and the unused filter are the API's job, so they reach every row. */
@@ -292,7 +291,7 @@ export async function fetchImageLibrary(query: ImageQuery = {}): Promise<ImageLi
   const { data } = await adminClient.get<ImageLibraryPage>('/admin/images', {
     params: {
       page: query.page ?? 0,
-      size: IMAGE_PAGE_SIZE,
+      size: query.size ?? DEFAULT_PAGE_SIZE,
       search: query.search?.trim() || undefined,
       unusedOnly: query.unusedOnly || undefined,
     },

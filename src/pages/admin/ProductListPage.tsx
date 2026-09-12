@@ -11,6 +11,7 @@ import { useDebounced } from '../../hooks/useDebounced';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 import PageHeader from '../../components/admin/PageHeader';
 import { listLocale } from '../../components/listLocale';
+import { DEFAULT_PAGE_SIZE, listPagination } from '../../components/listPagination';
 
 const VISIBILITY_OPTIONS = [
   { value: '', label: 'All products' },
@@ -33,8 +34,6 @@ const PRICING_OPTIONS = [
 ];
 
 /** The backend caps a page at 200 (domain Page.MAX_SIZE), so these stay well inside it. */
-const DEFAULT_PAGE_SIZE = 20;
-const PAGE_SIZE_OPTIONS = ['20', '50', '100'];
 
 /** The catalog's natural order, and what the API sorts by when asked for nothing. */
 const DEFAULT_SORT = { field: 'spuCode', direction: 'asc' } as const;
@@ -233,19 +232,9 @@ export default function ProductListPage() {
           if (!s?.order) setSort(DEFAULT_SORT);
           else setSort({ field: String(s.columnKey), direction: s.order === 'ascend' ? 'asc' : 'desc' });
         }}
-        pagination={{
-          current: page + 1,
-          total: data?.totalElements ?? 0,
-          pageSize,
-          showSizeChanger: true,
-          pageSizeOptions: PAGE_SIZE_OPTIONS,
-          onChange: (p, size) => {
-            // antd reports both together; only one of them actually changed.
-            if (size !== pageSize) setPageSize(size);
-            else setPage(p - 1);
-          },
-          showTotal: (t, [from, to]) => `${from}-${to} of ${t} products`,
-        }}
+        pagination={listPagination({
+          page, pageSize, total: data?.totalElements ?? 0, setPage, setPageSize, label: 'products',
+        })}
         size="small"
       />
       </Card>

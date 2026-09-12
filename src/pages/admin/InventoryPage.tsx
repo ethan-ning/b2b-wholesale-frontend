@@ -8,6 +8,7 @@ import { useDebounced } from '../../hooks/useDebounced';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 import { StockBadge } from '../../components/StockBadge';
 import { listLocale } from '../../components/listLocale';
+import { DEFAULT_PAGE_SIZE, listPagination } from '../../components/listPagination';
 import PageHeader from '../../components/admin/PageHeader';
 
 export default function InventoryPage() {
@@ -15,11 +16,12 @@ export default function InventoryPage() {
   // The box stays immediate; the API is asked once the typing stops. Every other
   // control here is a single click, so none of them wait.
   const settledSearch = useDebounced(search);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [lowStockOnly, setLowStockOnly] = useState(false);
 
   const { data, loading, error, page, setPage } = usePagedQuery(
     (f, p) => api.fetchInventory({ ...f, page: p }),
-    { search: settledSearch, lowStockOnly }
+    { search: settledSearch, lowStockOnly , size: pageSize }
   );
 
   const columns: ColumnsType<SkuStock> = [
@@ -112,13 +114,9 @@ export default function InventoryPage() {
         rowKey={(r) => String(r.variantId)}
         loading={loading}
         locale={listLocale(loading, 'No SKUs match these filters.')}
-        pagination={{
-          current: page + 1,
-          total: data?.totalElements ?? 0,
-          pageSize: 20,
-          onChange: (p) => setPage(p - 1),
-          showTotal: (t) => `${t} rows`,
-        }}
+        pagination={listPagination({
+          page, pageSize, total: data?.totalElements ?? 0, setPage, setPageSize, label: 'SKUs',
+        })}
         size="small"
         scroll={{ x: 'max-content' }}
       />

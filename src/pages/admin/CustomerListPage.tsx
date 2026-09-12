@@ -11,6 +11,7 @@ import { useDebounced } from '../../hooks/useDebounced';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 import PageHeader from '../../components/admin/PageHeader';
 import { listLocale } from '../../components/listLocale';
+import { DEFAULT_PAGE_SIZE, listPagination } from '../../components/listPagination';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
@@ -24,6 +25,7 @@ export default function CustomerListPage() {
   // The box stays immediate; the API is asked once the typing stops. Every other
   // control here is a single click, so none of them wait.
   const settledSearch = useDebounced(search);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [statusFilter, setStatusFilter] = useState('');
   // Held only until the admin dismisses it. The server keeps a hash, so this is the one
   // moment the password exists anywhere it can be read.
@@ -31,7 +33,7 @@ export default function CustomerListPage() {
 
   const { data, loading, error, page, setPage, reload } = usePagedQuery(
     (f, p) => api.fetchCustomers({ ...f, page: p }),
-    { search: settledSearch, status: statusFilter }
+    { search: settledSearch, status: statusFilter , size: pageSize }
   );
 
   async function toggleStatus(customer: Customer) {
@@ -188,13 +190,9 @@ export default function CustomerListPage() {
         rowKey="id"
         loading={loading}
         locale={listLocale(loading, 'No dealers match these filters.')}
-        pagination={{
-          current: page + 1,
-          total: data?.totalElements ?? 0,
-          pageSize: 10,
-          onChange: (p) => setPage(p - 1),
-          showTotal: (t) => `${t} customers`,
-        }}
+        pagination={listPagination({
+          page, pageSize, total: data?.totalElements ?? 0, setPage, setPageSize, label: 'dealers',
+        })}
         size="small"
       />
       </Card>

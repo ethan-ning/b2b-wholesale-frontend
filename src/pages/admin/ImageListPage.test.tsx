@@ -115,12 +115,12 @@ describe('ImageListPage', () => {
     const asked: URL[] = [];
     server.use(http.get('/api/admin/images', ({ request }) => {
       asked.push(new URL(request.url));
-      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 24, unusedCount: 0 });
+      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 20, unusedCount: 0 });
     }));
     open();
 
     await waitFor(() => expect(asked.length).toBeGreaterThan(0));
-    expect(asked[0].searchParams.get('size')).toBe('24');
+    expect(asked[0].searchParams.get('size')).toBe('20');
     expect(asked[0].searchParams.get('page')).toBe('0');
   });
 
@@ -133,13 +133,13 @@ describe('ImageListPage', () => {
                    contentType: 'image/png', bytes: 1024, width: 10, height: 10, altText: null, stored: true },
           usedBy: [], deletable: true,
         }],
-        totalElements: 50, totalPages: 50, page, size: 24, unusedCount: 50,
+        totalElements: 50, totalPages: 50, page, size: 20, unusedCount: 50,
       });
     }));
     open();
 
     expect(await screen.findByText('page-0-file.png')).toBeInTheDocument();
-    expect(screen.getByText('50 images')).toBeInTheDocument();
+    expect(screen.getByText(/of 50 images/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByTitle('Next Page'));
 
@@ -147,12 +147,42 @@ describe('ImageListPage', () => {
     expect(screen.queryByText('page-0-file.png')).not.toBeInTheDocument();
   });
 
+  /** The same control the other lists have, asking the API for the size it was given. */
+  it('lets the size be changed, and starts again from the first page when it is', async () => {
+    const asked: { page: string | null; size: string | null }[] = [];
+    server.use(http.get('/api/admin/images', ({ request }) => {
+      const u = new URL(request.url);
+      asked.push({ page: u.searchParams.get('page'), size: u.searchParams.get('size') });
+      return HttpResponse.json({ content: [], totalElements: 200, totalPages: 10, page: 0, size: 20, unusedCount: 0 });
+    }));
+    open();
+    await waitFor(() => expect(asked).toEqual([{ page: '0', size: '20' }]));
+
+    // Move off the first page, then ask for larger pages.
+    await userEvent.click(screen.getByTitle('Next Page'));
+    await waitFor(() => expect(asked.at(-1)).toEqual({ page: '1', size: '20' }));
+
+    // The combobox input, not a selector div — antd 6 renamed the parts around it.
+    await userEvent.click(document.querySelector('.ant-pagination-options input[role="combobox"]') as HTMLElement);
+    const option = await waitFor(() => {
+      const found = [...document.querySelectorAll('.ant-select-item-option')]
+        .find((el) => /\b50\b/.test(el.textContent ?? ''));
+      if (!found) throw new Error('no 50-per-page option: ' +
+        [...document.querySelectorAll('.ant-select-item-option')].map((e) => e.textContent).join('|'));
+      return found as HTMLElement;
+    });
+    await userEvent.click(option);
+
+    // Back to page one: rows 20-40 of a list now counted in fifties is nowhere anyone asked for.
+    await waitFor(() => expect(asked.at(-1)).toEqual({ page: '0', size: '50' }));
+  });
+
   /** Filtering in the browser would only ever have searched the rows already fetched. */
   it('sends the search to the API instead of filtering what is on screen', async () => {
     const asked: string[] = [];
     server.use(http.get('/api/admin/images', ({ request }) => {
       asked.push(new URL(request.url).searchParams.get('search') ?? '');
-      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 24, unusedCount: 0 });
+      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 20, unusedCount: 0 });
     }));
     open();
     await waitFor(() => expect(asked.length).toBeGreaterThan(0));
@@ -170,7 +200,7 @@ describe('ImageListPage', () => {
     const terms: string[] = [];
     server.use(http.get('/api/admin/images', ({ request }) => {
       terms.push(new URL(request.url).searchParams.get('search') ?? '');
-      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 24, unusedCount: 0 });
+      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 20, unusedCount: 0 });
     }));
     open();
     await waitFor(() => expect(terms.length).toBe(1));   // the first load
@@ -187,7 +217,7 @@ describe('ImageListPage', () => {
     const asked: (string | null)[] = [];
     server.use(http.get('/api/admin/images', ({ request }) => {
       asked.push(new URL(request.url).searchParams.get('unusedOnly'));
-      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 24, unusedCount: 3 });
+      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 20, unusedCount: 3 });
     }));
     open();
     await waitFor(() => expect(asked.length).toBe(1));
@@ -201,7 +231,7 @@ describe('ImageListPage', () => {
     const asked: (string | null)[] = [];
     server.use(http.get('/api/admin/images', ({ request }) => {
       asked.push(new URL(request.url).searchParams.get('unusedOnly'));
-      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 24, unusedCount: 7 });
+      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 20, unusedCount: 7 });
     }));
     open();
     await waitFor(() => expect(asked.length).toBeGreaterThan(0));

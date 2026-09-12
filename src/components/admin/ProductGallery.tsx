@@ -3,6 +3,7 @@ import { Button, Empty, Input, Modal, Pagination, Popconfirm, Select, Space, Spi
 import { DeleteOutlined, PictureOutlined, PlusOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
 import * as api from '../../api/adminApi';
 import { apiErrorMessage } from '../../api/http';
+import { DEFAULT_PAGE_SIZE } from '../listPagination';
 import type { ImageLibraryPage, ImageUsage, ProductImage, Variant } from '../../api/types';
 
 const { Text } = Typography;
@@ -336,7 +337,7 @@ function LibraryPicker({ open, attached, onPick, onClose }: {
             align="end"
             style={{ marginTop: 12 }}
             current={page + 1}
-            pageSize={api.IMAGE_PAGE_SIZE}
+            pageSize={DEFAULT_PAGE_SIZE}
             total={result?.totalElements ?? 0}
             showSizeChanger={false}
             onChange={(p) => setPage(p - 1)}
