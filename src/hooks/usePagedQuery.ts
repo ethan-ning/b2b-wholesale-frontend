@@ -20,7 +20,10 @@ export function usePagedQuery<F, T>(
   const [appliedKey, setAppliedKey] = useState(key);
   const [reloadToken, setReloadToken] = useState(0);
   const [data, setData] = useState<PagedResult<T> | null>(null);
-  const [loading, setLoading] = useState(false);
+  // True from the start: mounting always fetches, and the guard below cannot announce it
+  // because on the first render there is nothing yet to differ from. Left false, every
+  // list opened on an empty table with no sign anything was coming, then filled in.
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   if (key !== appliedKey) {

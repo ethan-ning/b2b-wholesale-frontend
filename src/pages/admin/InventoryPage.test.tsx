@@ -14,6 +14,28 @@ beforeEach(() => {
 });
 
 describe('InventoryPage', () => {
+  /**
+   * Arriving at the page used to show an empty table with no sign anything was coming:
+   * the hook started out not-loading, so the first fetch went unannounced and the screen
+   * read as "there is nothing here" until it filled in.
+   */
+  it('says it is loading on arrival, rather than showing an empty table', async () => {
+    server.use(http.get('/api/admin/inventory', async () => {
+      await new Promise((r) => setTimeout(r, 60));
+      return HttpResponse.json({ content: [], totalElements: 0, totalPages: 0, page: 0, size: 20 });
+    }));
+
+    renderPage(<InventoryPage />);
+
+    expect(document.querySelector('.ant-spin-spinning')).toBeInTheDocument();
+    expect(screen.queryByText(/No data/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no skus match/i)).not.toBeInTheDocument();
+
+    // And once it has an answer, it says so plainly.
+    expect(await screen.findByText(/no skus match/i)).toBeInTheDocument();
+    expect(document.querySelector('.ant-spin-spinning')).not.toBeInTheDocument();
+  });
+
   it('lists SKUs with what is on hand and what is coming', async () => {
     renderPage(<InventoryPage />);
 

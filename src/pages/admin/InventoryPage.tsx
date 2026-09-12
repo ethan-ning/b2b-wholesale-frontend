@@ -4,17 +4,22 @@ import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
 import type { SkuStock } from '../../api/types';
+import { useDebounced } from '../../hooks/useDebounced';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 import { StockBadge } from '../../components/StockBadge';
+import { listLocale } from '../../components/listLocale';
 import PageHeader from '../../components/admin/PageHeader';
 
 export default function InventoryPage() {
   const [search, setSearch] = useState('');
+  // The box stays immediate; the API is asked once the typing stops. Every other
+  // control here is a single click, so none of them wait.
+  const settledSearch = useDebounced(search);
   const [lowStockOnly, setLowStockOnly] = useState(false);
 
   const { data, loading, error, page, setPage } = usePagedQuery(
     (f, p) => api.fetchInventory({ ...f, page: p }),
-    { search, lowStockOnly }
+    { search: settledSearch, lowStockOnly }
   );
 
   const columns: ColumnsType<SkuStock> = [
@@ -106,6 +111,7 @@ export default function InventoryPage() {
         dataSource={data?.content ?? []}
         rowKey={(r) => String(r.variantId)}
         loading={loading}
+        locale={listLocale(loading, 'No SKUs match these filters.')}
         pagination={{
           current: page + 1,
           total: data?.totalElements ?? 0,

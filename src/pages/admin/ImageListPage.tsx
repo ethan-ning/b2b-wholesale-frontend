@@ -7,6 +7,7 @@ import * as api from '../../api/adminApi';
 import { apiErrorMessage } from '../../api/http';
 import { PageError } from '../../components/PageState';
 import PageHeader from '../../components/admin/PageHeader';
+import { listLocale } from '../../components/listLocale';
 import { useDebounced } from '../../hooks/useDebounced';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 import type { ImageLibraryPage, ImageUsage } from '../../api/types';
@@ -203,7 +204,7 @@ export default function ImageListPage() {
           onChange: (p) => setPage(p - 1),
           showTotal: (t) => `${t} images`,
         }}
-        locale={{ emptyText: search || unusedOnly ? 'No images match.' : 'No images yet.' }}
+        locale={listLocale(loading, search || unusedOnly ? 'No images match.' : 'No images yet.')}
       />
     </div>
   );

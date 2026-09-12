@@ -87,4 +87,24 @@ describe('usePagedQuery', () => {
     await new Promise((r) => setTimeout(r, 30));
     expect(result.current.data?.content).toEqual(['new']);
   });
+
+  /**
+   * The first fetch has to announce itself. The guard that sets loading compares the
+   * current request against the last one, and on the first render they are the same, so
+   * nothing was announced — every list opened on an empty table and then filled in.
+   */
+  it('is loading before its first result arrives', async () => {
+    const { result } = renderHook(() =>
+      usePagedQuery(async () => {
+        await new Promise((r) => setTimeout(r, 20));
+        return { content: ['a'], totalElements: 1, totalPages: 1, page: 0, size: 10 };
+      }, {}),
+    );
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toBeNull();
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.data?.content).toEqual(['a']);
+  });
 });

@@ -7,8 +7,10 @@ import { PlusOutlined, EditOutlined, SearchOutlined, KeyOutlined } from '@ant-de
 import type { ColumnsType } from 'antd/es/table';
 import * as api from '../../api/adminApi';
 import type { Customer } from '../../api/types';
+import { useDebounced } from '../../hooks/useDebounced';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 import PageHeader from '../../components/admin/PageHeader';
+import { listLocale } from '../../components/listLocale';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
@@ -19,6 +21,9 @@ const STATUS_OPTIONS = [
 export default function CustomerListPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  // The box stays immediate; the API is asked once the typing stops. Every other
+  // control here is a single click, so none of them wait.
+  const settledSearch = useDebounced(search);
   const [statusFilter, setStatusFilter] = useState('');
   // Held only until the admin dismisses it. The server keeps a hash, so this is the one
   // moment the password exists anywhere it can be read.
@@ -26,7 +31,7 @@ export default function CustomerListPage() {
 
   const { data, loading, error, page, setPage, reload } = usePagedQuery(
     (f, p) => api.fetchCustomers({ ...f, page: p }),
-    { search, status: statusFilter }
+    { search: settledSearch, status: statusFilter }
   );
 
   async function toggleStatus(customer: Customer) {
@@ -182,6 +187,7 @@ export default function CustomerListPage() {
         dataSource={data?.content ?? []}
         rowKey="id"
         loading={loading}
+        locale={listLocale(loading, 'No dealers match these filters.')}
         pagination={{
           current: page + 1,
           total: data?.totalElements ?? 0,

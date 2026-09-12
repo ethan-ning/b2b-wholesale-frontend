@@ -7,8 +7,10 @@ import * as api from '../../api/adminApi';
 import { apiErrorMessage } from '../../api/http';
 import type { Product } from '../../api/types';
 import { formatMoney } from '../../utils/money';
+import { useDebounced } from '../../hooks/useDebounced';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 import PageHeader from '../../components/admin/PageHeader';
+import { listLocale } from '../../components/listLocale';
 
 const VISIBILITY_OPTIONS = [
   { value: '', label: 'All products' },
@@ -47,6 +49,9 @@ const VISIBILITY_COLORS: Record<string, string> = {
 export default function ProductListPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  // The box stays immediate; the API is asked once the typing stops. Every other
+  // control here is a single click, so none of them wait.
+  const settledSearch = useDebounced(search);
   const [visibilityFilter, setVisibilityFilter] = useState('');
   const [pricingFilter, setPricingFilter] = useState('');
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -56,7 +61,7 @@ export default function ProductListPage() {
   // first page — page 3 of 10-per-page is out of range at 100 per page.
   const { data, loading, error, page, setPage, reload } = usePagedQuery(
     (f, p) => api.fetchProducts({ ...f, page: p }),
-    { search, visibility: visibilityFilter, size: pageSize, sort: sort.field, direction: sort.direction }
+    { search: settledSearch, visibility: visibilityFilter, size: pageSize, sort: sort.field, direction: sort.direction }
   );
 
   async function setActive(product: Product, active: boolean) {
@@ -220,6 +225,7 @@ export default function ProductListPage() {
         dataSource={rows}
         rowKey="id"
         loading={loading}
+        locale={listLocale(loading, 'No products match these filters.')}
         onChange={(_pagination, _filters, sorter) => {
           // Clearing a sort (antd's third click) returns to the catalog's natural order
           // rather than to whatever the database happens to yield.
