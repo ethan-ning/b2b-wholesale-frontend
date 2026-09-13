@@ -58,6 +58,45 @@ describe('ProductFormPage', () => {
    * Each section saves on its own, so a half-finished edit in one does not travel with a
    * deliberate save in another. Nothing is dirty on arrival.
    */
+  /**
+   * Every SKU has a price from the moment it is imported — its tier's standing rate — so
+   * the grid opens showing prices rather than a box per tier per SKU asking for figures
+   * that were already decided.
+   */
+  it('shows what each tier pays, without a price box for it', async () => {
+    open();
+    await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-2')).toBeInTheDocument());
+
+    // 9.24 list on a two-pack is 18.48; Silver takes 7% off.
+    expect(pricingSection().getByText('$17.19')).toBeInTheDocument();
+    expect(pricingSection().getAllByText('standard').length).toBeGreaterThan(0);
+
+    // One row is genuinely overridden, so that one does show its box.
+    const boxes = pricingSection().getAllByRole('spinbutton');
+    const priceBoxes = boxes.filter((b) => b.closest('td')?.textContent?.includes('standard $'));
+    expect(priceBoxes).toHaveLength(1);
+  });
+
+  it('opens a price box only when asked to change one', async () => {
+    open();
+    await waitFor(() => expect(pricingSection().getAllByText('standard').length).toBeGreaterThan(0));
+    const before = pricingSection().getAllByRole('spinbutton').length;
+
+    await userEvent.click(pricingSection().getAllByRole('button', { name: 'Change' })[0]);
+
+    expect(pricingSection().getAllByRole('spinbutton').length).toBe(before + 1);
+    // And it says what the figure it replaces was.
+    expect(pricingSection().getAllByText(/^standard \$/).length).toBeGreaterThan(0);
+  });
+
+  /** A typed price is a different thing from a tier's rate, and has to look like one. */
+  it('marks a price someone set apart from the tier rate', async () => {
+    open();
+    await waitFor(() => expect(pricingSection().getAllByText('custom').length).toBe(1));
+
+    expect(pricingSection().getAllByText('standard').length).toBeGreaterThan(1);
+  });
+
   it('offers no save until something has actually changed', async () => {
     open();
     await waitFor(() => expect(saveButtons().length).toBeGreaterThan(0));

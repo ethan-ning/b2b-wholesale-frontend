@@ -1,10 +1,13 @@
-import { Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { useState } from 'react';
+import { Button, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import MoneyInput from '../MoneyInput';
 import type { ColumnsType } from 'antd/es/table';
 import type { WarehouseStock } from '../../api/types';
 import type { SkuRow } from './skuRows';
 
 const { Text } = Typography;
+
+const money = (n: number) => `$${n.toFixed(2)}`;
 
 function syncedLabel(iso: string | undefined): string {
   if (!iso) return 'Never synced';
@@ -35,6 +38,9 @@ interface Props {
 export default function SkuPricingTable({
   rows, variantAxis, stock, mapPrices, onPrice, onMapPrice,
 }: Props) {
+  // Which rows have had their price box opened. A row that already carries an override
+  // counts as open without being in here, so reopening the page shows what was set.
+  const [open, setOpen] = useState<Set<string>>(new Set());
 
   const stockBySku = new Map<string, WarehouseStock[]>();
   stock.forEach((line) => {
@@ -93,18 +99,72 @@ export default function SkuPricingTable({
     {
       title: 'Dealer price',
       key: 'price',
-      width: 140,
+      width: 230,
       align: 'right',
-      render: (_: unknown, row) =>
-        row.tier === null ? (
-          <Text type="secondary">—</Text>
-        ) : (
-          <MoneyInput
-            size="small" precision={2} style={{ width: '100%' }} value={row.price ?? undefined}
-            // Clearing the box means "not priced", not "priced at zero".
-            onChange={(v) => onPrice(row, v ?? null)}
-          />
-        ),
+      render: (_: unknown, row) => {
+        if (row.tier === null) return <Text type="secondary">—</Text>;
+
+        const custom = row.price !== null;
+        const editing = custom || open.has(row.key);
+
+        /*
+         * A price is shown, not asked for. Every SKU has one the moment it is imported —
+         * its tier's standing rate — so the grid used to open with a box per tier per SKU
+         * inviting someone to fill in figures that were already decided. The box appears
+         * when somebody says they want to depart from the rate.
+         */
+        if (!editing) {
+          return (
+            <Space size={6}>
+              {row.breachesMap && (
+                <Tooltip title="At or above this SKU's MAP — the dealer would have no margin">
+                  <Tag color="warning" style={{ marginInlineEnd: 0 }}>over MAP</Tag>
+                </Tooltip>
+              )}
+              <Text>{money(row.standardPrice)}</Text>
+              <Tooltip title={`${row.tier.name} pays ${row.tier.discountPercent}% off list`}>
+                <Tag color="default" style={{ marginInlineEnd: 0 }}>standard</Tag>
+              </Tooltip>
+              <Button size="small" type="link" style={{ padding: 0 }}
+                onClick={() => setOpen(new Set(open).add(row.key))}>
+                Change
+              </Button>
+            </Space>
+          );
+        }
+
+        return (
+          <Space size={6} direction="vertical" style={{ width: '100%' }} align="end">
+            <MoneyInput
+              size="small" precision={2} style={{ width: '100%' }} value={row.price ?? undefined}
+              placeholder={String(row.standardPrice.toFixed(2))}
+              // Emptying the box gives the SKU back to its tier's rate rather than
+              // pricing it at nothing.
+              onChange={(v) => onPrice(row, v ?? null)}
+            />
+            <Space size={6}>
+              {row.breachesMap && (
+                <Tooltip title="At or above this SKU's MAP — the dealer would have no margin">
+                  <Tag color="warning" style={{ marginInlineEnd: 0 }}>over MAP</Tag>
+                </Tooltip>
+              )}
+              {custom
+                ? <Tag color="blue" style={{ marginInlineEnd: 0 }}>custom</Tag>
+                : <Text type="secondary" style={{ fontSize: 11 }}>empty keeps the standard rate</Text>}
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                standard {money(row.standardPrice)}
+              </Text>
+              <Button size="small" type="link" style={{ padding: 0, fontSize: 11 }}
+                onClick={() => {
+                  onPrice(row, null);
+                  const next = new Set(open); next.delete(row.key); setOpen(next);
+                }}>
+                Revert
+              </Button>
+            </Space>
+          </Space>
+        );
+      },
     },
     {
       title: 'MAP',

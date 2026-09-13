@@ -118,6 +118,16 @@ export const adminHandlers = [
   http.get('/api/admin/products/:id', () =>
     HttpResponse.json({ product: HUBCAP, tierPrices: TIER_PRICES, stockByWarehouse: [] })),
 
+  http.put('/api/admin/tiers/:id/discount', async ({ params, request }) => {
+    const { discountPercent } = (await request.json()) as { discountPercent: number };
+    if (discountPercent < 0 || discountPercent >= 100) {
+      return HttpResponse.json({ message: `A discount must be under 100%: ${discountPercent}` }, { status: 409 });
+    }
+    const tier = TIERS.find((t) => String(t.id) === params.id);
+    if (!tier) return new HttpResponse(null, { status: 404 });
+    return HttpResponse.json({ ...tier, discountPercent });
+  }),
+
   http.get('/api/admin/categories', () => HttpResponse.json(CATEGORY_TREE)),
 
   // ── Images ──────────────────────────────────────────────────────────────

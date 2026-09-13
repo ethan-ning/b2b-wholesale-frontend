@@ -121,6 +121,8 @@ export interface CustomerTier {
   id: number;
   name: string;
   sortOrder: number;
+  /** So much off list, on everything this tier buys. */
+  discountPercent: number;
 }
 
 export interface Customer {
@@ -136,12 +138,25 @@ export interface Customer {
   createdAt: string;
 }
 
+/**
+ * What one tier pays for one SKU.
+ *
+ * A row exists for every SKU against every tier, whether or not anyone set a price —
+ * since tiers carry a discount, every pairing has an answer. `customised` is what
+ * separates a figure someone typed from the tier's standing rate.
+ */
 export interface TierPrice {
   tierId: number;
   tierName: string;
   sku: string;
-  /** Price for one of this SKU. A pack SKU's price is the whole pack. */
+  /** What this tier actually pays. */
   price: number;
+  /** The tier's discount applied to list — what an override departs from. */
+  standardPrice: number;
+  discountPercent: number;
+  customised: boolean;
+  /** At or above the SKU's advertised floor, leaving the dealer no margin. */
+  breachesMap: boolean;
   /** Volume-break threshold. Always 1 in the MVP — see architecture doc §2.2.1. */
   minQty: number;
 }

@@ -150,8 +150,9 @@ export const DASHBOARD: DashboardStats = {
 };
 
 export const TIERS: CustomerTier[] = [
-  { id: 1, name: 'Gold', sortOrder: 1 },
-  { id: 2, name: 'Silver', sortOrder: 2 },
+  { id: 3, name: 'Default', sortOrder: 1, discountPercent: 0 },
+  { id: 2, name: 'Silver', sortOrder: 2, discountPercent: 7 },
+  { id: 1, name: 'Gold', sortOrder: 3, discountPercent: 18 },
 ];
 
 export const CUSTOMERS: Customer[] = [
@@ -200,14 +201,34 @@ export const STOCK_ROWS: SkuStock[] = [
   },
 ];
 
-export const TIER_PRICES: TierPrice[] = [
-  { sku: 'H1F85N4-H50-1', tierId: 1, tierName: 'Gold', price: 9.24, minQty: 1 },
-  { sku: 'H1F85N4-H50-1', tierId: 2, tierName: 'Silver', price: 10.5, minQty: 1 },
-  { sku: 'H1F85N4-H50-2', tierId: 1, tierName: 'Gold', price: 12.76, minQty: 1 },
-  { sku: 'H1F85N4-H50-2', tierId: 2, tierName: 'Silver', price: 14.0, minQty: 1 },
-  { sku: 'H1F85N4-H50-6', tierId: 1, tierName: 'Gold', price: 24.19, minQty: 1 },
-  { sku: 'H1F85N4-H50-6', tierId: 2, tierName: 'Silver', price: 26.0, minQty: 1 },
-];
+/**
+ * The price book as the API sends it: a row for every SKU against every tier, priced by
+ * the tier's standing discount unless somebody set a figure.
+ *
+ * One row is deliberately customised, so tests can tell a typed price from a standing
+ * rate — the distinction the whole screen turns on.
+ */
+const CUSTOMISED = new Map([['H1F85N4-H50-1:1', 7.0]]);
+
+export const TIER_PRICES: TierPrice[] = HUBCAP.variants.flatMap((v) =>
+  TIERS.map((tier): TierPrice => {
+    const list = Number((HUBCAP.baseWholesalePrice * v.packQuantity).toFixed(2));
+    const standardPrice = Number((list * (1 - tier.discountPercent / 100)).toFixed(2));
+    const override = CUSTOMISED.get(`${v.sku}:${tier.id}`);
+    const price = override ?? standardPrice;
+    return {
+      sku: v.sku,
+      tierId: tier.id,
+      tierName: tier.name,
+      price,
+      standardPrice,
+      discountPercent: tier.discountPercent,
+      customised: override !== undefined,
+      breachesMap: v.mapPrice !== null && price >= v.mapPrice,
+      minQty: 1,
+    };
+  }),
+);
 
 /**
  * The image library. Two photographs the hubcap shows, and one nothing does — the only

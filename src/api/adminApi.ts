@@ -210,6 +210,12 @@ export async function updateCustomer(id: string | number, values: UpdateCustomer
   return data;
 }
 
+/** Retunes a tier. Every SKU nobody has quoted separately moves with it. */
+export async function setTierDiscount(tierId: number, discountPercent: number): Promise<CustomerTier> {
+  const { data } = await adminClient.put<CustomerTier>(`/admin/tiers/${tierId}/discount`, { discountPercent });
+  return data;
+}
+
 export async function fetchTiers(): Promise<CustomerTier[]> {
   const { data } = await adminClient.get<CustomerTier[]>('/admin/tiers');
   return data;

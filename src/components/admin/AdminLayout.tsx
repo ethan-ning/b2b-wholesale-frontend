@@ -14,6 +14,7 @@ import {
   SafetyCertificateOutlined,
   UserOutlined,
   PictureOutlined,
+  PercentageOutlined,
 } from '@ant-design/icons';
 import { useAdminAuthStore } from '../../store/adminAuthStore';
 
@@ -33,6 +34,7 @@ const CATALOGUE = [
 /** Who can sign in. Both are account management, so they sit together. */
 const ACCOUNTS = [
   { key: '/admin/customers', icon: <TeamOutlined />, label: 'Dealers' },
+  { key: '/admin/tiers', icon: <PercentageOutlined />, label: 'Tier Pricing' },
   { key: '/admin/admins', icon: <SafetyCertificateOutlined />, label: 'Admins' },
 ];
 
