@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { Alert, Button, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import MoneyInput from '../MoneyInput';
+import { formatMoney } from '../../utils/money';
 import type { WarehouseStock } from '../../api/types';
 import { isCustom } from './skuRows';
 import type { SkuRow, TierRow } from './skuRows';
 
 const { Text } = Typography;
-
-const money = (n: number) => `$${n.toFixed(2)}`;
 
 function syncedLabel(iso: string | undefined): string {
   if (!iso) return 'Never synced';
@@ -232,7 +231,7 @@ function TierPrices({ row, onPrice, open, setOpen }: {
                   ? <Tag color="blue" style={{ marginInlineEnd: 0 }}>custom</Tag>
                   : <Tag color="default" style={{ marginInlineEnd: 0 }}>rate</Tag>}
                 <Text type="secondary" style={{ fontSize: 11 }}>
-                  rate gives {tier.standardPrice === null ? '—' : money(tier.standardPrice)}
+                  rate gives {tier.standardPrice === null ? '—' : formatMoney(tier.standardPrice)}
                 </Text>
                 <Button size="small" type="link" style={{ padding: 0 }}
                   onClick={() => {
@@ -245,7 +244,7 @@ function TierPrices({ row, onPrice, open, setOpen }: {
             ) : (
               <>
                 <Text style={{ width: 110, display: 'inline-block' }}>
-                  {tier.standardPrice === null ? '—' : money(tier.standardPrice)}
+                  {tier.standardPrice === null ? '—' : formatMoney(tier.standardPrice)}
                 </Text>
                 <Tag color="default" style={{ marginInlineEnd: 0 }}>rate</Tag>
                 <Button size="small" type="link" style={{ padding: 0 }}

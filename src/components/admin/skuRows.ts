@@ -28,11 +28,6 @@ export type SkuRow = {
   customCount: number;
 };
 
-/** What a tier row costs, a stated price first. Null when the SKU has no default price. */
-export function effectivePrice(row: TierRow): number | null {
-  return row.price ?? row.standardPrice;
-}
-
 /**
  * Whether this tier has actually been given a different price.
  *

@@ -37,11 +37,11 @@ type Draft = {
   /** Per-SKU MAP, keyed by variant id — the only portal-owned field on a variant. */
   variantMaps: Record<number, number | null>;
   /**
-   * Prices somebody set by hand, keyed "sku:tierId". Everything else takes its tier's
-   * rate, so this holds departures rather than the price book — which is why it is a map
-   * of what changed and not a list of rows.
+   * Prices typed on this page but not yet saved, keyed "sku:tierId" — a SKU's default
+   * price among them, since that is just the anchor tier's entry. Null means the box was
+   * emptied, which gives the price back rather than setting it to zero.
    */
-  tierOverrides: Record<string, number | null>;
+  priceEdits: Record<string, number | null>;
 };
 
 type SectionKey = 'pricing' | 'categories' | 'attributes';
@@ -60,7 +60,7 @@ function fingerprint(d: Draft, section: SectionKey): string {
     case 'pricing':
       return JSON.stringify([
         d.locationCode, d.visibility,
-        d.tierOverrides, d.variantMaps,
+        d.priceEdits, d.variantMaps,
       ]);
     case 'categories':
       return JSON.stringify([d.categoryIds, d.primaryCategoryId]);
@@ -76,7 +76,7 @@ function withSection(base: Draft, from: Draft, section: SectionKey): Draft {
         ...base,
         locationCode: from.locationCode,
         visibility: from.visibility,
-        tierOverrides: from.tierOverrides,
+        priceEdits: from.priceEdits,
         variantMaps: from.variantMaps,
       };
     case 'categories':
@@ -171,7 +171,7 @@ export default function ProductFormPage() {
           categoryIds: catIds,
           primaryCategoryId: p.categories.find((c) => c.isPrimary)?.id ?? catIds[0] ?? null,
           variantMaps: Object.fromEntries(p.variants.map((v) => [v.id!, v.mapPrice])),
-          tierOverrides: Object.fromEntries(
+          priceEdits: Object.fromEntries(
             detail.tierPrices
               .filter((r) => r.customised)
               .map((r) => [`${r.sku}:${r.tierId}`, r.price]),
@@ -203,7 +203,7 @@ export default function ProductFormPage() {
     const next = what === 'all' ? draft! : withSection(saved!, draft!, what);
     // Rebuilt from the draft being saved, not the one on screen, so a section's Save
     // sends that section's prices and not a half-finished edit further down the page.
-    const rowsToSave = buildSkuRows(product!.variants, tiers, tierPrices, next.tierOverrides);
+    const rowsToSave = buildSkuRows(product!.variants, tiers, tierPrices, next.priceEdits);
     setSavingWhat(what);
     try {
       const result = await api.updateProduct(
@@ -242,7 +242,7 @@ export default function ProductFormPage() {
   // Rebuilt from the figures in the form rather than the ones last saved, so a default
   // price moves its tiers as it is typed.
   const anchorTier = tiers.find((t) => t.anchor);
-  const skuRows = buildSkuRows(product.variants, tiers, tierPrices, draft.tierOverrides);
+  const skuRows = buildSkuRows(product.variants, tiers, tierPrices, draft.priceEdits);
 
   /*
    * Said before it is tried, not after. Shown whether or not Visible is selected: the
@@ -350,10 +350,10 @@ export default function ProductFormPage() {
             stock={stock}
             mapPrices={draft.variantMaps}
             onPrice={(sku, tierId, price) =>
-              patch({ tierOverrides: { ...draft.tierOverrides, [`${sku}:${tierId}`]: price } })}
+              patch({ priceEdits: { ...draft.priceEdits, [`${sku}:${tierId}`]: price } })}
             onDefaultPrice={(sku, price) => {
               if (!anchorTier) return;
-              patch({ tierOverrides: { ...draft.tierOverrides, [`${sku}:${anchorTier.id}`]: price } });
+              patch({ priceEdits: { ...draft.priceEdits, [`${sku}:${anchorTier.id}`]: price } });
             }}
             onMapPrice={(variantId, price) =>
               patch({ variantMaps: { ...draft.variantMaps, [variantId]: price } })}

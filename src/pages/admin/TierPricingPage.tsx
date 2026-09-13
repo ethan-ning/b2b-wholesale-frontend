@@ -7,6 +7,7 @@ import { PageError } from '../../components/PageState';
 import PageHeader from '../../components/admin/PageHeader';
 import { listLocale } from '../../components/listLocale';
 import { useResource } from '../../hooks/useResource';
+import { formatMoney } from '../../utils/money';
 import type { CustomerTier } from '../../api/types';
 
 const { Text } = Typography;
@@ -95,7 +96,7 @@ export default function TierPricingPage() {
       width: 160,
       align: 'right',
       // A rate is hard to feel; a price is not.
-      render: (_, tier) => <Text>${(100 * (1 - tier.discountPercent / 100)).toFixed(2)}</Text>,
+      render: (_, tier) => <Text>{formatMoney(100 * (1 - tier.discountPercent / 100))}</Text>,
     },
   ];
 

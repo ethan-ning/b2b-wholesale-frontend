@@ -10,9 +10,6 @@ import { useEffect, useState } from 'react';
 export const PHONE = '(max-width: 767px)';
 export const TOUCH = '(max-width: 1023px)';
 
-/** @deprecated Prefer PHONE — kept so an older import does not break. */
-export const NARROW = PHONE;
-
 /**
  * Whether the viewport matches the given breakpoint. Read during the first render rather
  * than from an effect, so a phone never paints the desktop layout and then jumps.
