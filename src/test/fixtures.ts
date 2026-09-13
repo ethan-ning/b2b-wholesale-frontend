@@ -126,6 +126,21 @@ export const LIGHT_BAR = product(
   [{ id: 510, url: 'https://cdn.test/light-panel.png', altText: 'Light panel', sortOrder: 0 }],
 );
 
+/**
+ * Every SKU withdrawn by the supplier. Not a pricing problem, and the screen has to say
+ * so: told it was a price, someone goes looking for a field that does not exist.
+ */
+export const ALL_DISCONTINUED: Product = {
+  ...product(4, 'BR500-BLK', 'Braided Brake Line Kit', [
+    { ...variant(41, 'BR500-BLK-01', 44, 1), status: 'DISCONTINUED' },
+  ]),
+  // Hidden, as a withdrawn product would be. The warning has to show anyway — finding
+  // out only after selecting Visible and being refused is the whole problem.
+  visibility: 'HIDDEN',
+  sellable: false,
+  unsellableReason: 'NOTHING_ON_SALE',
+};
+
 /** Nothing in stock anywhere — the row that must read as unavailable. */
 export const SOLD_OUT = product(3, 'MF-200', 'Rubber Mud Flap', [
   variant(31, 'MF-200-1', 4.5, 1, { availableStock: 0, outOfStock: true }),

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import ProductFormPage from './ProductFormPage';
 import { server } from '../../test/server';
 import { renderPage, signInAdmin, signOutAdmin } from '../../test/render';
-import { HUBCAP, TIER_PRICES } from '../../test/fixtures';
+import { ALL_DISCONTINUED, HUBCAP, TIER_PRICES } from '../../test/fixtures';
 
 const open = () =>
   renderPage(<ProductFormPage />, { route: '/admin/products/1/edit', path: '/admin/products/:id/edit' });
@@ -95,6 +95,44 @@ describe('ProductFormPage', () => {
     await waitFor(() => expect(pricingSection().getAllByText('custom').length).toBe(1));
 
     expect(pricingSection().getAllByText('standard').length).toBeGreaterThan(1);
+  });
+
+  /**
+   * The two reasons a product cannot be shown are unrelated. Reported as one sentence,
+   * the half that did not apply sent someone hunting for a per-SKU price field — which
+   * does not exist, because tiers price every SKU.
+   */
+  it('says a product is blocked because its SKUs are discontinued, not because of pricing', async () => {
+    server.use(http.get('/api/admin/products/:id', () =>
+      HttpResponse.json({ product: ALL_DISCONTINUED, tierPrices: [], stockByWarehouse: [] })));
+    open();
+
+    expect(await screen.findByText(/every sku of this product is discontinued/i)).toBeInTheDocument();
+    expect(screen.queryByText(/price/i, { selector: '.ant-alert-description' })).not.toBeInTheDocument();
+    // Said on a hidden product too: it cannot be shown either way, and learning that by
+    // pressing Visible and being refused is what sent someone looking for a price field.
+    expect(screen.getByRole('button', { name: /hidden/i })).toBeInTheDocument();
+  });
+
+  it('says a product is blocked for want of a base price, and only that', async () => {
+    server.use(http.get('/api/admin/products/:id', () =>
+      HttpResponse.json({
+        product: { ...HUBCAP, sellable: false, unsellableReason: 'NO_LIST_PRICE' },
+        tierPrices: TIER_PRICES,
+        stockByWarehouse: [],
+      })));
+    open();
+
+    expect(await screen.findByText(/no base wholesale price/i)).toBeInTheDocument();
+    expect(screen.queryByText(/discontinued/i)).not.toBeInTheDocument();
+  });
+
+  /** A product that can be sold should not be warned about anything. */
+  it('shows no warning on a product that is fine', async () => {
+    open();
+    await waitFor(() => expect(pricingSection().getAllByText('standard').length).toBeGreaterThan(0));
+
+    expect(document.querySelector('.ant-alert-warning')).not.toBeInTheDocument();
   });
 
   it('offers no save until something has actually changed', async () => {

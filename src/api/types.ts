@@ -64,6 +64,11 @@ export interface Product {
    * visible — it would be offered at its base price, which for an ERP import is zero.
    */
   sellable?: boolean;
+  /**
+   * Why not, when `sellable` is false. The two causes are unrelated and want different
+   * things done about them, so the page states which rather than guessing.
+   */
+  unsellableReason?: 'NOTHING_ON_SALE' | 'NO_LIST_PRICE' | null;
   id: number;
   spuCode: string;
   name: string;

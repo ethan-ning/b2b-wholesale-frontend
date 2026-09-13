@@ -214,8 +214,29 @@ export default function ProductFormPage() {
     });
   }
 
-  const unpriced = product.sellable === false;
   const visible = draft.visibility === 'VISIBLE';
+
+  /*
+   * Said before it is tried, not after. Shown whether or not Visible is selected: the
+   * product cannot be shown either way, and finding that out by pressing the button and
+   * being refused is how someone ends up looking for a setting that does not exist.
+   */
+  const blocked = product.sellable === false
+    ? product.unsellableReason === 'NOTHING_ON_SALE'
+      ? {
+          message: 'Every SKU of this product is discontinued',
+          description:
+            'The supplier has stopped listing them, so there is nothing for a dealer to buy '
+            + 'and this product cannot be shown. Nothing here will change that — it needs to '
+            + 'come back on the next sync.',
+        }
+      : {
+          message: 'This product has no base wholesale price',
+          description:
+            'Every tier takes its discount off that figure, so at nothing the product would '
+            + 'be offered free. Set a base wholesale price above and save.',
+        }
+    : null;
 
   return (
     <div style={{ maxWidth: 1240 }}>
@@ -303,13 +324,13 @@ export default function ProductFormPage() {
             </Col>
           </Row>
 
-          {unpriced && visible && (
+          {blocked && (
             <Alert
               type="warning"
               showIcon
               style={{ marginBottom: 16 }}
-              message="Price every SKU still on sale before saving this as visible"
-              description="Saved as it stands the API will refuse: an unpriced product would be offered at its base price. Fill in the grid below and save both together."
+              message={blocked.message}
+              description={blocked.description}
             />
           )}
 
