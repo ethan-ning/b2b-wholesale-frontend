@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Card, Typography, Tag, Space } from 'antd';
 import { EnvironmentOutlined } from '@ant-design/icons';
 import type { Product } from '../api/types';
-import { formatMoneyRange } from '../utils/money';
+import { formatMoneyRange, quotedPrices } from '../utils/money';
 import SkuTable from './SkuTable';
 import { PHONE, useIsNarrow } from '../hooks/useIsNarrow';
 
@@ -23,7 +23,7 @@ export default function ProductCard({ product }: Props) {
   const hasStock = product.variants.some((v) => v.inventory.availableStock > 0);
   const totalAvailable = product.variants.reduce((sum, v) => sum + v.inventory.availableStock, 0);
   // Price and MAP both live on the SKU, so an SPU shows a range across its variants.
-  const priceRange = formatMoneyRange(product.variants.map((v) => v.tierPrice));
+  const priceRange = formatMoneyRange(quotedPrices(product.variants));
 
   return (
     <Card

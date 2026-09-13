@@ -11,11 +11,11 @@ import * as api from '../../api/adminApi';
 import { apiErrorMessage } from '../../api/http';
 import { PageError, PageLoading } from '../../components/PageState';
 import PageHeader from '../../components/admin/PageHeader';
-import MoneyInput from '../../components/MoneyInput';
 import SkuPricingTable from '../../components/admin/SkuPricingTable';
 import ProductGallery from '../../components/admin/ProductGallery';
 import CategoryPicker from '../../components/admin/CategoryPicker';
-import { buildSkuRows } from '../../components/admin/skuRows';
+import { buildSkuRows, isCustom } from '../../components/admin/skuRows';
+import type { SkuRow } from '../../components/admin/skuRows';
 import { flattenCategories } from '../../components/admin/flatCategories';
 import type { FlatCategory } from '../../components/admin/flatCategories';
 import type { CustomerTier, Product, TierPrice, Variant, WarehouseStock } from '../../api/types';
@@ -29,7 +29,6 @@ const HIDDEN_BUTTON = { background: '#64748b', borderColor: '#64748b', color: '#
 /** Everything on this page that an admin can change. */
 type Draft = {
   /** Undefined while the box is empty mid-edit. A price is never legitimately absent. */
-  baseWholesalePrice: number | undefined;
   locationCode: string;
   visibility: string;
   attrRows: { key: string; value: string }[];
@@ -60,7 +59,7 @@ function fingerprint(d: Draft, section: SectionKey): string {
   switch (section) {
     case 'pricing':
       return JSON.stringify([
-        d.baseWholesalePrice, d.locationCode, d.visibility,
+        d.locationCode, d.visibility,
         d.tierOverrides, d.variantMaps,
       ]);
     case 'categories':
@@ -75,7 +74,6 @@ function withSection(base: Draft, from: Draft, section: SectionKey): Draft {
     case 'pricing':
       return {
         ...base,
-        baseWholesalePrice: from.baseWholesalePrice,
         locationCode: from.locationCode,
         visibility: from.visibility,
         tierOverrides: from.tierOverrides,
@@ -88,9 +86,15 @@ function withSection(base: Draft, from: Draft, section: SectionKey): Draft {
   }
 }
 
-function toPayload(d: Draft, variants: Variant[]): api.ProductUpdate {
+/**
+ * What gets saved.
+ *
+ * Every SKU's default price, plus only those tier prices that actually differ from what
+ * the discount gives. A figure equal to the rate is the rate, so storing it would freeze
+ * the SKU at today's number and quietly stop it following a later change to the tier.
+ */
+function toPayload(d: Draft, variants: Variant[], rows: SkuRow[], anchorTierId: number | null): api.ProductUpdate {
   return {
-    baseWholesalePrice: d.baseWholesalePrice ?? 0,
     locationCode: d.locationCode || null,
     visibility: d.visibility,
     attributes: Object.fromEntries(
@@ -101,14 +105,16 @@ function toPayload(d: Draft, variants: Variant[]): api.ProductUpdate {
     variantMapPrices: Object.fromEntries(
       variants.map((v) => [v.id!, d.variantMaps[v.id!] ?? null])
     ),
-    // Only departures from a tier's rate. A key left at null is a price given back to its
-    // tier, and is sent as nothing at all rather than as a zero.
-    tierPrices: Object.entries(d.tierOverrides)
-      .filter((entry): entry is [string, number] => entry[1] !== null)
-      .map(([key, price]) => {
-        const [sku, tierId] = key.split(':');
-        return { sku, tierId: Number(tierId), price, minQty: 1 };
-      }),
+    tierPrices: rows.flatMap((row) => {
+      const priced: { sku: string; tierId: number; price: number; minQty: number }[] = [];
+      if (anchorTierId !== null && row.defaultPrice !== null) {
+        priced.push({ sku: row.variant.sku, tierId: anchorTierId, price: row.defaultPrice, minQty: 1 });
+      }
+      row.tiers.filter(isCustom).forEach((tier) => {
+        priced.push({ sku: row.variant.sku, tierId: tier.tier.id, price: tier.price!, minQty: 1 });
+      });
+      return priced;
+    }),
   };
 }
 
@@ -159,7 +165,6 @@ export default function ProductFormPage() {
         const p = detail.product;
         const catIds = p.categories.map((c) => c.id);
         const initial: Draft = {
-          baseWholesalePrice: p.baseWholesalePrice,
           locationCode: p.locationCode ?? '',
           visibility: p.visibility,
           attrRows: Object.entries(p.attributes).map(([k, v]) => ({ key: k, value: v })),
@@ -196,13 +201,14 @@ export default function ProductFormPage() {
 
   async function save(what: SectionKey | 'all') {
     const next = what === 'all' ? draft! : withSection(saved!, draft!, what);
-    if (next.baseWholesalePrice === undefined) {
-      message.error('Base wholesale price is required.');
-      return;
-    }
+    // Rebuilt from the draft being saved, not the one on screen, so a section's Save
+    // sends that section's prices and not a half-finished edit further down the page.
+    const rowsToSave = buildSkuRows(product!.variants, tiers, tierPrices, next.tierOverrides);
     setSavingWhat(what);
     try {
-      const result = await api.updateProduct(id!, toPayload(next, product!.variants));
+      const result = await api.updateProduct(
+        id!, toPayload(next, product!.variants, rowsToSave, anchorTier?.id ?? null),
+      );
       setProduct(result.product);
       setSaved(next);
       message.success(what === 'all' ? 'Product saved' : 'Section saved');
@@ -233,19 +239,10 @@ export default function ProductFormPage() {
 
   const visible = draft.visibility === 'VISIBLE';
 
-  /*
-   * Rebuilt from the base price in the form rather than the one last saved, so every tier
-   * follows it as it is typed. Nothing is priced until there is a base price to price from,
-   * which is what stops a tier being given a figure with nothing to depart from.
-   */
-  const pricingReady = draft.baseWholesalePrice !== undefined && draft.baseWholesalePrice > 0;
-  const skuRows = buildSkuRows(
-    product.variants,
-    tiers,
-    tierPrices,
-    pricingReady ? draft.baseWholesalePrice : undefined,
-    draft.tierOverrides,
-  );
+  // Rebuilt from the figures in the form rather than the ones last saved, so a default
+  // price moves its tiers as it is typed.
+  const anchorTier = tiers.find((t) => t.anchor);
+  const skuRows = buildSkuRows(product.variants, tiers, tierPrices, draft.tierOverrides);
 
   /*
    * Said before it is tried, not after. Shown whether or not Visible is selected: the
@@ -299,25 +296,7 @@ export default function ProductFormPage() {
 
         <Card title="Pricing, Stock & Visibility" size="small" className="section-card section-card--pricing">
           <Row gutter={16} align="bottom">
-            <Col span={7}>
-              <Form.Item
-                label="Base Wholesale Price"
-                required
-                style={{ marginBottom: 16 }}
-                tooltip="List price for one unit. Only reached when a SKU has no tier price at all."
-              >
-                <MoneyInput
-                  style={{ width: '100%' }} precision={2}
-                  value={draft.baseWholesalePrice}
-                  // Empty stays empty. Substituting zero here meant that clearing the box
-                  // to retype a price left "0.00" in it, and the new digits landed on the
-                  // end of that — 12 became 0.0012. Zero is also the one value a price
-                  // must never quietly become.
-                  onChange={(v) => patch({ baseWholesalePrice: v ?? undefined })}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={7}>
+            <Col span={10}>
               <Form.Item
                 label="Location Code"
                 style={{ marginBottom: 16 }}
@@ -370,9 +349,12 @@ export default function ProductFormPage() {
             variantAxis={product.variantAxis}
             stock={stock}
             mapPrices={draft.variantMaps}
-            pricingReady={pricingReady}
             onPrice={(sku, tierId, price) =>
               patch({ tierOverrides: { ...draft.tierOverrides, [`${sku}:${tierId}`]: price } })}
+            onDefaultPrice={(sku, price) => {
+              if (!anchorTier) return;
+              patch({ tierOverrides: { ...draft.tierOverrides, [`${sku}:${anchorTier.id}`]: price } });
+            }}
             onMapPrice={(variantId, price) =>
               patch({ variantMaps: { ...draft.variantMaps, [variantId]: price } })}
           />

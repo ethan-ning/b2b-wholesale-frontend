@@ -10,13 +10,10 @@ import { ALL_DISCONTINUED, HUBCAP, TIER_PRICES } from '../../test/fixtures';
 const open = () =>
   renderPage(<ProductFormPage />, { route: '/admin/products/1/edit', path: '/admin/products/:id/edit' });
 
-/**
- * By its label, not its value: the same figure is also the Gold tier price for the first
- * SKU, and a query on "9.24" matches both.
- */
-const basePrice = () => {
-  const item = screen.getByText('Base Wholesale Price').closest('.ant-form-item') as HTMLElement;
-  return within(item).getByRole('spinbutton') as HTMLInputElement;
+/** A SKU's default price box, by the row it sits in. Everything else follows it. */
+const defaultPrice = (sku: string = 'H1F85N4-H50-1') => {
+  const row = pricingSection().getByText(sku).closest('tr') as HTMLElement;
+  return within(row).getAllByRole('spinbutton')[0] as HTMLInputElement;
 };
 const saveButtons = () => screen.getAllByRole('button', { name: /save this section/i });
 
@@ -68,8 +65,8 @@ describe('ProductFormPage', () => {
 
     expect(pricingSection().queryByText('Gold')).not.toBeInTheDocument();
     expect(pricingSection().queryByText('Silver')).not.toBeInTheDocument();
-    // And no price boxes: the only spinbuttons are the base price and the MAP per SKU.
-    expect(pricingSection().getAllByRole('spinbutton')).toHaveLength(4);
+    // Each SKU row carries its default price and its MAP, and nothing else.
+    expect(pricingSection().getAllByRole('spinbutton')).toHaveLength(6);
   });
 
   it('opens the tiers underneath a SKU, showing what each pays', async () => {
@@ -94,22 +91,20 @@ describe('ProductFormPage', () => {
     await userEvent.click(pricingSection().getAllByRole('button', { name: /set a custom price/i })[0]);
 
     expect(pricingSection().getAllByRole('spinbutton').length).toBe(before + 1);
-    expect(pricingSection().getAllByText('custom').length).toBe(1);
   });
 
   /**
    * The whole point of changing the base price is to see what it does. Waiting for a save
    * and a reload to find out is the thing this replaces.
    */
-  it('moves every tier price as the base price is typed', async () => {
+  it('moves a SKU\'s tier prices as its default price is typed', async () => {
     open();
     await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-1')).toBeInTheDocument());
-    // The second SKU, because the first has a hand-set Gold price and so shows a box.
     await userEvent.click(pricingSection().getAllByRole('button', { name: /expand row/i })[1]);
-    // 9.24 list whatever the pack holds; Gold takes 18% off, giving 7.58.
+    // A default price of 9.24; Gold takes 18% off, giving 7.58.
     expect(await pricingSection().findByText('$7.58')).toBeInTheDocument();
 
-    const price = basePrice();
+    const price = defaultPrice('H1F85N4-H50-2');
     await userEvent.clear(price);
     await userEvent.type(price, '100');
 
@@ -118,17 +113,42 @@ describe('ProductFormPage', () => {
     expect(pricingSection().getByText('$93.00')).toBeInTheDocument();
   });
 
-  /** A tier's price comes off the base price, so there is nothing to depart from without one. */
-  it('will not price a tier before a base price exists', async () => {
+  /** Every other tier comes off the default price, so there is nothing to depart from. */
+  it('will not price a tier before that SKU has a default price', async () => {
     open();
-    await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-1')).toBeInTheDocument());
+    await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-2')).toBeInTheDocument());
 
-    await userEvent.clear(basePrice());
-    await userEvent.click(pricingSection().getAllByRole('button', { name: /expand row/i })[0]);
+    await userEvent.clear(defaultPrice('H1F85N4-H50-2'));
+    await userEvent.click(pricingSection().getAllByRole('button', { name: /expand row/i })[1]);
 
-    expect(await pricingSection().findByText(/set a base wholesale price first/i)).toBeInTheDocument();
+    expect(await pricingSection().findByText(/set this sku's default price first/i)).toBeInTheDocument();
     expect(pricingSection().queryByRole('button', { name: /set a custom price/i })).not.toBeInTheDocument();
-    expect(pricingSection().getAllByText(/set a base price/i).length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Opening the box to look is not a change. It used to seed the input with the rate's own
+   * figure and mark the row custom, which said a price had been departed from when the
+   * number was identical.
+   */
+  it('does not call a price custom until it actually differs from the rate', async () => {
+    open();
+    await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-2')).toBeInTheDocument());
+    await userEvent.click(pricingSection().getAllByRole('button', { name: /expand row/i })[1]);
+    await pricingSection().findByText('Gold');
+
+    const before = pricingSection().getAllByRole('spinbutton').length;
+    await userEvent.click(pricingSection().getAllByRole('button', { name: /set a custom price/i })[0]);
+
+    // A box opened, and the row still says it is on the rate.
+    await waitFor(() =>
+      expect(pricingSection().getAllByRole('spinbutton').length).toBe(before + 1));
+    expect(pricingSection().queryByText('custom')).not.toBeInTheDocument();
+
+    // The box that opened is the one inside the expanded tier panel.
+    const panel = document.querySelector('.ant-table-expanded-row') as HTMLElement;
+    await userEvent.type(within(panel).getByRole('spinbutton'), '5');
+
+    await waitFor(() => expect(pricingSection().getByText('custom')).toBeInTheDocument());
   });
 
   /**
@@ -179,10 +199,10 @@ describe('ProductFormPage', () => {
 
   it('marks only the section that was edited as dirty', async () => {
     open();
-    await waitFor(() => expect(basePrice()).toBeInTheDocument());
+    await waitFor(() => expect(defaultPrice()).toBeInTheDocument());
 
     // Held, not re-queried: clearing it removes the value the query matches on.
-    const price = basePrice();
+    const price = defaultPrice();
     await userEvent.clear(price);
     await userEvent.type(price, '11');
 
@@ -193,9 +213,9 @@ describe('ProductFormPage', () => {
 
   it('will not let a letter into a price box', async () => {
     open();
-    await waitFor(() => expect(basePrice()).toBeInTheDocument());
+    await waitFor(() => expect(defaultPrice()).toBeInTheDocument());
 
-    const price = basePrice();
+    const price = defaultPrice();
     await userEvent.clear(price);
     await userEvent.type(price, '1a2b');
 
@@ -209,24 +229,29 @@ describe('ProductFormPage', () => {
       return HttpResponse.json({ product: HUBCAP, tierPrices: TIER_PRICES, stockByWarehouse: [] });
     }));
     open();
-    await waitFor(() => expect(basePrice()).toBeInTheDocument());
+    await waitFor(() => expect(defaultPrice()).toBeInTheDocument());
 
-    const price = basePrice();
+    const price = defaultPrice();
     await userEvent.clear(price);
     await userEvent.type(price, '11');
     await userEvent.click(saveButtons().find((b) => !b.hasAttribute('disabled'))!);
 
     await waitFor(() => expect(sent).not.toBeNull());
-    expect(sent).toMatchObject({ baseWholesalePrice: 11 });
+    // The SKU's default price, against the anchor tier.
+    expect(sent).toMatchObject({
+      tierPrices: expect.arrayContaining([
+        expect.objectContaining({ sku: 'H1F85N4-H50-1', tierId: 3, price: 11 }),
+      ]),
+    });
   });
 
   it('keeps the edit and says what went wrong when the save fails', async () => {
     server.use(http.put('/api/admin/products/:id', () =>
       HttpResponse.json({ message: 'Every SKU on sale needs a price' }, { status: 409 })));
     open();
-    await waitFor(() => expect(basePrice()).toBeInTheDocument());
+    await waitFor(() => expect(defaultPrice()).toBeInTheDocument());
 
-    const price = basePrice();
+    const price = defaultPrice();
     await userEvent.clear(price);
     await userEvent.type(price, '11');
     await userEvent.click(saveButtons().find((b) => !b.hasAttribute('disabled'))!);
@@ -237,7 +262,7 @@ describe('ProductFormPage', () => {
       expect(document.querySelector('.ant-message')?.textContent).toMatch(/needs a price/i));
     // The typed value survives, so it can be corrected rather than retyped. Compared as a
     // number: leaving the box formats it to two decimals, which is display, not data.
-    expect(Number(basePrice().value)).toBe(11);
+    expect(Number(defaultPrice().value)).toBe(11);
   });
 
   /**
@@ -247,24 +272,36 @@ describe('ProductFormPage', () => {
    */
   it('leaves the price box empty when it is cleared, rather than filling it with zero', async () => {
     open();
-    await waitFor(() => expect(basePrice()).toBeInTheDocument());
+    await waitFor(() => expect(defaultPrice()).toBeInTheDocument());
 
-    await userEvent.clear(basePrice());
-    expect(basePrice().value).toBe('');
+    await userEvent.clear(defaultPrice());
+    expect(defaultPrice().value).toBe('');
 
-    await userEvent.type(basePrice(), '12');
-    expect(basePrice().value).toBe('12');
+    await userEvent.type(defaultPrice(), '12');
+    expect(defaultPrice().value).toBe('12');
   });
 
-  it('refuses to save a product with no price at all', async () => {
+  /**
+   * Clearing a default price is a request to unprice the SKU, and the API is what decides
+   * whether that is allowed — it knows whether the product is on sale. What matters here
+   * is that the SKU is left out of the save rather than sent as a zero.
+   */
+  it('sends no price for a SKU whose default price was cleared', async () => {
+    let sent: { tierPrices: { sku: string; tierId: number }[] } | null = null;
+    server.use(http.put('/api/admin/products/:id', async ({ request }) => {
+      sent = (await request.json()) as { tierPrices: { sku: string; tierId: number }[] };
+      return HttpResponse.json({ product: HUBCAP, tierPrices: TIER_PRICES, stockByWarehouse: [] });
+    }));
     open();
-    await waitFor(() => expect(basePrice()).toBeInTheDocument());
+    await waitFor(() => expect(defaultPrice()).toBeInTheDocument());
 
-    await userEvent.clear(basePrice());
+    await userEvent.clear(defaultPrice());
     await userEvent.click(saveButtons().find((b) => !b.hasAttribute('disabled'))!);
 
-    await waitFor(() =>
-      expect(document.querySelector('.ant-message')?.textContent).toMatch(/price is required/i));
+    await waitFor(() => expect(sent).not.toBeNull());
+    const priced = sent!.tierPrices.filter((r) => r.sku === 'H1F85N4-H50-1');
+    // Its hand-set Gold price survives; the cleared default is simply absent.
+    expect(priced.some((r) => r.tierId === 3)).toBe(false);
   });
 
   it('says so when the product cannot be loaded', async () => {

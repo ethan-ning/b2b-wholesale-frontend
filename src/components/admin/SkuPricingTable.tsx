@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Alert, Button, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import MoneyInput from '../MoneyInput';
 import type { WarehouseStock } from '../../api/types';
+import { isCustom } from './skuRows';
 import type { SkuRow, TierRow } from './skuRows';
 
 const { Text } = Typography;
@@ -29,18 +31,18 @@ interface Props {
   stock: WarehouseStock[];
   /** Per-variant MAP, keyed by variant id. The one portal-owned field on a SKU. */
   mapPrices: Record<number, number | null>;
-  /**
-   * False while the form has no base price. Every tier's figure comes off it, so there is
-   * nothing yet for an override to depart from.
-   */
-  pricingReady: boolean;
   onPrice: (sku: string, tierId: number, price: number | null) => void;
+  /** The anchor: every other tier for this SKU is worked out from it. */
+  onDefaultPrice: (sku: string, price: number | null) => void;
   onMapPrice: (variantId: number, price: number | null) => void;
 }
 
 export default function SkuPricingTable({
-  rows, variantAxis, stock, mapPrices, pricingReady, onPrice, onMapPrice,
+  rows, variantAxis, stock, mapPrices, onPrice, onDefaultPrice, onMapPrice,
 }: Props) {
+  // Which price boxes have been opened. Held here rather than in the expanded row, which
+  // antd builds afresh on every render and would lose it the moment anything else moved.
+  const [open, setOpen] = useState<Set<string>>(new Set());
 
   const stockBySku = new Map<string, WarehouseStock[]>();
   stock.forEach((line) => {
@@ -69,21 +71,22 @@ export default function SkuPricingTable({
       render: (_: unknown, row) => row.variant.variantValue ?? row.variant.packQuantity,
     },
     {
-      title: 'Lists at',
-      key: 'listPrice',
-      width: 150,
+      title: 'Default price',
+      key: 'defaultPrice',
+      width: 190,
       align: 'right',
       render: (_: unknown, row) => {
         if (row.tiers.length === 0) return <Text type="secondary">—</Text>;
-        if (!pricingReady) return <Text type="secondary" style={{ fontSize: 12 }}>Set a base price</Text>;
         return (
           <Space size={6}>
-            <Text>{money(row.listPrice)}</Text>
-            {/* Only worth saying where a tier has actually been given its own figure. */}
+            <MoneyInput
+              size="small" precision={2} style={{ width: 100 }}
+              value={row.defaultPrice ?? undefined}
+              onChange={(v) => onDefaultPrice(row.variant.sku, v ?? null)}
+            />
+            {/* Only where a tier has actually been given a different figure. */}
             {row.customCount > 0 && (
-              <Tag color="blue" style={{ marginInlineEnd: 0 }}>
-                {row.customCount} custom
-              </Tag>
+              <Tag color="blue" style={{ marginInlineEnd: 0 }}>{row.customCount} custom</Tag>
             )}
           </Space>
         );
@@ -161,7 +164,7 @@ export default function SkuPricingTable({
         // A withdrawn SKU has nothing to price, so it gets no arrow to open.
         rowExpandable: (row) => row.tiers.length > 0,
         expandedRowRender: (row) => (
-          <TierPrices row={row} pricingReady={pricingReady} onPrice={onPrice} />
+          <TierPrices row={row} onPrice={onPrice} open={open} setOpen={setOpen} />
         ),
       }}
     />
@@ -174,18 +177,21 @@ export default function SkuPricingTable({
  * Every figure here follows the base price above as it is typed, so the effect of
  * changing it is visible before anything is saved.
  */
-function TierPrices({ row, pricingReady, onPrice }: {
+function TierPrices({ row, onPrice, open, setOpen }: {
   row: SkuRow;
-  pricingReady: boolean;
   onPrice: (sku: string, tierId: number, price: number | null) => void;
+  /** Tier rows whose box has been opened. One already priced differently counts as open. */
+  open: Set<string>;
+  setOpen: (next: Set<string>) => void;
 }) {
-  if (!pricingReady) {
+
+  if (row.defaultPrice === null) {
     return (
       <Alert
         type="info"
         showIcon
-        message="Set a base wholesale price first"
-        description="Every tier's price comes off that figure, so until there is one there is nothing for a custom price to depart from."
+        message="Set this SKU's default price first"
+        description="Every other tier is worked out from it, so until there is one this SKU has no price at any tier."
       />
     );
   }
@@ -209,33 +215,41 @@ function TierPrices({ row, pricingReady, onPrice }: {
       key: 'price',
       width: 320,
       render: (_: unknown, tier) => {
-        const custom = tier.price !== null;
+        const custom = isCustom(tier);
+        const editing = custom || open.has(tier.key);
         return (
           <Space size={8}>
-            {custom ? (
+            {editing ? (
               <>
                 <MoneyInput
                   size="small" precision={2} style={{ width: 110 }} value={tier.price ?? undefined}
-                  placeholder={tier.standardPrice.toFixed(2)}
+                  placeholder={(tier.standardPrice ?? 0).toFixed(2)}
                   // Emptying the box gives the SKU back to its tier's rate rather than
                   // pricing it at nothing.
                   onChange={(v) => onPrice(row.variant.sku, tier.tier.id, v ?? null)}
                 />
-                <Tag color="blue" style={{ marginInlineEnd: 0 }}>custom</Tag>
+                {custom
+                  ? <Tag color="blue" style={{ marginInlineEnd: 0 }}>custom</Tag>
+                  : <Tag color="default" style={{ marginInlineEnd: 0 }}>rate</Tag>}
                 <Text type="secondary" style={{ fontSize: 11 }}>
-                  rate gives {money(tier.standardPrice)}
+                  rate gives {tier.standardPrice === null ? '—' : money(tier.standardPrice)}
                 </Text>
                 <Button size="small" type="link" style={{ padding: 0 }}
-                  onClick={() => onPrice(row.variant.sku, tier.tier.id, null)}>
+                  onClick={() => {
+                    onPrice(row.variant.sku, tier.tier.id, null);
+                    const next = new Set(open); next.delete(tier.key); setOpen(next);
+                  }}>
                   Revert
                 </Button>
               </>
             ) : (
               <>
-                <Text style={{ width: 110, display: 'inline-block' }}>{money(tier.standardPrice)}</Text>
+                <Text style={{ width: 110, display: 'inline-block' }}>
+                  {tier.standardPrice === null ? '—' : money(tier.standardPrice)}
+                </Text>
                 <Tag color="default" style={{ marginInlineEnd: 0 }}>rate</Tag>
                 <Button size="small" type="link" style={{ padding: 0 }}
-                  onClick={() => onPrice(row.variant.sku, tier.tier.id, tier.standardPrice)}>
+                  onClick={() => setOpen(new Set(open).add(tier.key))}>
                   Set a custom price
                 </Button>
               </>

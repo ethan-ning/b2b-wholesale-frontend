@@ -20,7 +20,7 @@ function search(url: URL): Product[] {
   return ALL_PRODUCTS.filter((p) => {
     if (term && !`${p.name} ${p.spuCode} ${p.brand ?? ''}`.toLowerCase().includes(term)) return false;
     if (category && !p.categories.some((c) => String(c.id) === category)) return false;
-    const low = Math.min(...p.variants.map((v) => v.tierPrice));
+    const low = Math.min(...p.variants.map((v) => v.tierPrice ?? Infinity));
     if (priceMin && low < Number(priceMin)) return false;
     if (priceMax && low > Number(priceMax)) return false;
     return true;

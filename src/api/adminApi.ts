@@ -101,7 +101,6 @@ export async function fetchProduct(id: string | number): Promise<AdminProductDet
  * (architecture doc §3.7.7).
  */
 export interface ProductUpdate {
-  baseWholesalePrice: number;
   locationCode: string | null;
   /** VISIBLE or HIDDEN. */
   visibility: string;

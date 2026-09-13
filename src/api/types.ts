@@ -34,10 +34,10 @@ export interface Variant {
   upc: string | null;
   weight: number | null;
   status: string;
-  /** What the dealer pays for one of this SKU — a garment, or a whole 6-pack. */
-  tierPrice: number;
+  /** What the dealer pays for one of this SKU. Null when nobody has priced it. */
+  tierPrice: number | null;
   /** `tierPrice / packQuantity`, for comparing a pack against a single. */
-  unitPrice: number;
+  unitPrice: number | null;
   /** Advertised price for one of this SKU, same basis as `tierPrice`. */
   mapPrice: number | null;
   /** Which of the product's images stands for this SKU, or null if nobody has chosen one. */
@@ -68,12 +68,16 @@ export interface Product {
    * Why not, when `sellable` is false. The two causes are unrelated and want different
    * things done about them, so the page states which rather than guessing.
    */
-  unsellableReason?: 'NOTHING_ON_SALE' | 'NO_LIST_PRICE' | null;
+  unsellableReason?: 'NOTHING_ON_SALE' | 'NO_DEFAULT_PRICE' | null;
   id: number;
   spuCode: string;
   name: string;
   brand: string | null;
   description: string | null;
+  /**
+   * The cheapest default price among the SKUs on sale. Derived, not set: nothing is
+   * priced from it, and it exists so a search can filter and sort on one figure.
+   */
   baseWholesalePrice: number;
   locationCode: string | null;
   /** What the SKUs vary along — "Size" or "Pack Qty". Titles the variant column. */
@@ -126,8 +130,10 @@ export interface CustomerTier {
   id: number;
   name: string;
   sortOrder: number;
-  /** So much off list, on everything this tier buys. */
+  /** So much off the anchor tier's price, on everything this tier buys. */
   discountPercent: number;
+  /** The tier the others are worked out from. Its discount applies to nothing. */
+  anchor: boolean;
 }
 
 export interface Customer {
@@ -154,10 +160,15 @@ export interface TierPrice {
   tierId: number;
   tierName: string;
   sku: string;
-  /** What this tier actually pays. */
-  price: number;
-  /** The tier's discount applied to list — what an override departs from. */
-  standardPrice: number;
+  /** The tier every other price is worked out from. Its price is stated, not derived. */
+  anchor: boolean;
+  /** What this tier pays. Null when the SKU has no default price. */
+  price: number | null;
+  /**
+   * The discount applied to the SKU's default price — what a stated price departs from.
+   * Null on the anchor tier, which has nothing to depart from.
+   */
+  standardPrice: number | null;
   discountPercent: number;
   customised: boolean;
   /** At or above the SKU's advertised floor, leaving the dealer no margin. */

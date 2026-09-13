@@ -14,7 +14,7 @@ import {
 } from 'antd';
 import { ArrowLeftOutlined, EnvironmentOutlined, ExpandOutlined, PictureOutlined } from '@ant-design/icons';
 import { fetchProduct } from '../api/catalog';
-import { formatMoney, formatMoneyRange } from '../utils/money';
+import { formatMoney, formatMoneyRange, quotedPrices } from '../utils/money';
 import SkuTable from '../components/SkuTable';
 import { useResource } from '../hooks/useResource';
 import { PageError, PageLoading } from '../components/PageState';
@@ -46,7 +46,7 @@ export default function ProductDetailPage() {
     : 'Unknown';
 
   // Headline figures are the dealer's own resolved prices, not the SPU list price.
-  const lowestTierPrice = Math.min(...product.variants.map((v) => v.tierPrice));
+  const lowestTierPrice = Math.min(...quotedPrices(product.variants));
   const mapRange = formatMoneyRange(
     product.variants.map((v) => v.mapPrice).filter((m): m is number => m !== null)
   );

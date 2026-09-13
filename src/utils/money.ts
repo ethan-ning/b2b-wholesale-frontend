@@ -12,3 +12,14 @@ export function formatMoneyRange(amounts: number[]): string | null {
   const high = Math.max(...amounts);
   return low === high ? formatMoney(low) : `${formatMoney(low)} – ${formatMoney(high)}`;
 }
+
+/**
+ * The prices a dealer can actually be quoted.
+ *
+ * A SKU nobody has priced comes back with a null price. The dealer API leaves those out
+ * of its responses, so this is belt and braces — but it is the difference between a
+ * missing price and a free one, which is not a difference to leave to chance.
+ */
+export function quotedPrices(variants: { tierPrice: number | null }[]): number[] {
+  return variants.map((v) => v.tierPrice).filter((p): p is number => p !== null);
+}

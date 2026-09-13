@@ -83,7 +83,7 @@ const product = (
   name,
   brand,
   description: `${name} — heavy-duty, chrome finish.`,
-  baseWholesalePrice: variants[0].tierPrice,
+  baseWholesalePrice: variants[0].tierPrice ?? 0,
   locationCode: 'C2-1',
   variantAxis: 'Pack Qty',
   attributes: { Finish: 'Chrome' },
@@ -165,9 +165,9 @@ export const DASHBOARD: DashboardStats = {
 };
 
 export const TIERS: CustomerTier[] = [
-  { id: 3, name: 'Default', sortOrder: 1, discountPercent: 0 },
-  { id: 2, name: 'Silver', sortOrder: 2, discountPercent: 7 },
-  { id: 1, name: 'Gold', sortOrder: 3, discountPercent: 18 },
+  { id: 3, name: 'Default', sortOrder: 1, discountPercent: 0, anchor: true },
+  { id: 2, name: 'Silver', sortOrder: 2, discountPercent: 7, anchor: false },
+  { id: 1, name: 'Gold', sortOrder: 3, discountPercent: 18, anchor: false },
 ];
 
 export const CUSTOMERS: Customer[] = [
@@ -235,10 +235,12 @@ export const TIER_PRICES: TierPrice[] = HUBCAP.variants.flatMap((v) =>
       sku: v.sku,
       tierId: tier.id,
       tierName: tier.name,
+      anchor: tier.anchor,
       price,
-      standardPrice,
+      // The anchor states its own price and has nothing to depart from.
+      standardPrice: tier.anchor ? null : standardPrice,
       discountPercent: tier.discountPercent,
-      customised: override !== undefined,
+      customised: override !== undefined && !tier.anchor,
       breachesMap: v.mapPrice !== null && price >= v.mapPrice,
       minQty: 1,
     };

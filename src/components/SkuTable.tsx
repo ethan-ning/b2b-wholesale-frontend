@@ -83,14 +83,17 @@ export default function SkuTable({
       key: 'tierPrice',
       width: 110,
       align: 'right',
-      render: (price: number, v: Variant) => (
-        <>
-          <div>{formatMoney(price)}</div>
-          {v.packQuantity > 1 && (
-            <div style={{ fontSize: 11, color: '#999' }}>{formatMoney(v.unitPrice)}/ea</div>
-          )}
-        </>
-      ),
+      render: (price: number | null, v: Variant) =>
+        price === null ? (
+          <span style={{ color: '#999' }}>—</span>
+        ) : (
+          <>
+            <div>{formatMoney(price)}</div>
+            {v.packQuantity > 1 && v.unitPrice !== null && (
+              <div style={{ fontSize: 11, color: '#999' }}>{formatMoney(v.unitPrice)}/ea</div>
+            )}
+          </>
+        ),
     },
     {
       title: 'MAP',
