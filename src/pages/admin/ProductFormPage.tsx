@@ -18,8 +18,7 @@ import CategoryPicker from '../../components/admin/CategoryPicker';
 import { buildSkuRows } from '../../components/admin/skuRows';
 import { flattenCategories } from '../../components/admin/flatCategories';
 import type { FlatCategory } from '../../components/admin/flatCategories';
-import type { SkuRow } from '../../components/admin/skuRows';
-import type { CustomerTier, Product, Variant, WarehouseStock } from '../../api/types';
+import type { CustomerTier, Product, TierPrice, Variant, WarehouseStock } from '../../api/types';
 
 const { Text } = Typography;
 
@@ -38,7 +37,12 @@ type Draft = {
   primaryCategoryId: number | null;
   /** Per-SKU MAP, keyed by variant id — the only portal-owned field on a variant. */
   variantMaps: Record<number, number | null>;
-  skuRows: SkuRow[];
+  /**
+   * Prices somebody set by hand, keyed "sku:tierId". Everything else takes its tier's
+   * rate, so this holds departures rather than the price book — which is why it is a map
+   * of what changed and not a list of rows.
+   */
+  tierOverrides: Record<string, number | null>;
 };
 
 type SectionKey = 'pricing' | 'categories' | 'attributes';
@@ -57,7 +61,7 @@ function fingerprint(d: Draft, section: SectionKey): string {
     case 'pricing':
       return JSON.stringify([
         d.baseWholesalePrice, d.locationCode, d.visibility,
-        d.skuRows.map((r) => [r.key, r.price]), d.variantMaps,
+        d.tierOverrides, d.variantMaps,
       ]);
     case 'categories':
       return JSON.stringify([d.categoryIds, d.primaryCategoryId]);
@@ -74,7 +78,7 @@ function withSection(base: Draft, from: Draft, section: SectionKey): Draft {
         baseWholesalePrice: from.baseWholesalePrice,
         locationCode: from.locationCode,
         visibility: from.visibility,
-        skuRows: from.skuRows,
+        tierOverrides: from.tierOverrides,
         variantMaps: from.variantMaps,
       };
     case 'categories':
@@ -97,11 +101,14 @@ function toPayload(d: Draft, variants: Variant[]): api.ProductUpdate {
     variantMapPrices: Object.fromEntries(
       variants.map((v) => [v.id!, d.variantMaps[v.id!] ?? null])
     ),
-    // Only the rows someone actually filled in — a blank is not a zero.
-    tierPrices: d.skuRows
-      .filter((r): r is SkuRow & { tier: CustomerTier; price: number } =>
-        r.tier !== null && r.price !== null)
-      .map((r) => ({ sku: r.variant.sku, tierId: r.tier.id, price: r.price, minQty: r.minQty })),
+    // Only departures from a tier's rate. A key left at null is a price given back to its
+    // tier, and is sent as nothing at all rather than as a zero.
+    tierPrices: Object.entries(d.tierOverrides)
+      .filter((entry): entry is [string, number] => entry[1] !== null)
+      .map(([key, price]) => {
+        const [sku, tierId] = key.split(':');
+        return { sku, tierId: Number(tierId), price, minQty: 1 };
+      }),
   };
 }
 
@@ -128,6 +135,10 @@ export default function ProductFormPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<FlatCategory[]>([]);
   const [stock, setStock] = useState<WarehouseStock[]>([]);
+  // Kept rather than consumed at load: the rows are rebuilt on every keystroke of the base
+  // price, so the tiers and the saved book have to still be here to rebuild them from.
+  const [tiers, setTiers] = useState<CustomerTier[]>([]);
+  const [tierPrices, setTierPrices] = useState<TierPrice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -155,9 +166,15 @@ export default function ProductFormPage() {
           categoryIds: catIds,
           primaryCategoryId: p.categories.find((c) => c.isPrimary)?.id ?? catIds[0] ?? null,
           variantMaps: Object.fromEntries(p.variants.map((v) => [v.id!, v.mapPrice])),
-          skuRows: buildSkuRows(p.variants, tiers, detail.tierPrices),
+          tierOverrides: Object.fromEntries(
+            detail.tierPrices
+              .filter((r) => r.customised)
+              .map((r) => [`${r.sku}:${r.tierId}`, r.price]),
+          ),
         };
         setProduct(p);
+        setTiers(tiers);
+        setTierPrices(detail.tierPrices);
         setStock(detail.stockByWarehouse ?? []);
         setCategories(flattenCategories(cats));
         setDraft(initial);
@@ -215,6 +232,20 @@ export default function ProductFormPage() {
   }
 
   const visible = draft.visibility === 'VISIBLE';
+
+  /*
+   * Rebuilt from the base price in the form rather than the one last saved, so every tier
+   * follows it as it is typed. Nothing is priced until there is a base price to price from,
+   * which is what stops a tier being given a figure with nothing to depart from.
+   */
+  const pricingReady = draft.baseWholesalePrice !== undefined && draft.baseWholesalePrice > 0;
+  const skuRows = buildSkuRows(
+    product.variants,
+    tiers,
+    tierPrices,
+    pricingReady ? draft.baseWholesalePrice : undefined,
+    draft.tierOverrides,
+  );
 
   /*
    * Said before it is tried, not after. Shown whether or not Visible is selected: the
@@ -335,12 +366,13 @@ export default function ProductFormPage() {
           )}
 
           <SkuPricingTable
-            rows={draft.skuRows}
+            rows={skuRows}
             variantAxis={product.variantAxis}
             stock={stock}
             mapPrices={draft.variantMaps}
-            onPrice={(row, price) =>
-              patch({ skuRows: draft.skuRows.map((r) => (r.key === row.key ? { ...r, price } : r)) })}
+            pricingReady={pricingReady}
+            onPrice={(sku, tierId, price) =>
+              patch({ tierOverrides: { ...draft.tierOverrides, [`${sku}:${tierId}`]: price } })}
             onMapPrice={(variantId, price) =>
               patch({ variantMaps: { ...draft.variantMaps, [variantId]: price } })}
           />

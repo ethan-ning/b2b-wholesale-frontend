@@ -1,9 +1,8 @@
-import { useState } from 'react';
-import { Button, Space, Table, Tag, Tooltip, Typography } from 'antd';
-import MoneyInput from '../MoneyInput';
+import { Alert, Button, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import MoneyInput from '../MoneyInput';
 import type { WarehouseStock } from '../../api/types';
-import type { SkuRow } from './skuRows';
+import type { SkuRow, TierRow } from './skuRows';
 
 const { Text } = Typography;
 
@@ -16,12 +15,13 @@ function syncedLabel(iso: string | undefined): string {
 }
 
 /**
- * One row per SKU per tier — the price grid and the SKU list are one table.
+ * One row per SKU: what it lists at, what it advertises at, and what is on the shelf.
  *
- * They used to be two, and reading them meant holding a SKU code in your head while
- * looking from one to the other: what a SKU costs and whether it is still on sale are the
- * same question asked twice. `tier` is null for a withdrawn SKU, which gets a single row
- * and no price boxes — the supplier has stopped selling it, so there is nothing to price.
+ * Tier prices are not here. They used to be — three rows per SKU with everything else
+ * merged down across them — which made a four-SKU product a twelve-row grid where the
+ * prices were the least of what was being asked about. They are decided by the tier's
+ * rate now, so the usual answer is "whatever the rate gives" and showing it twelve times
+ * says nothing. It opens underneath a SKU, for the one that needs a different answer.
  */
 interface Props {
   rows: SkuRow[];
@@ -31,37 +31,28 @@ interface Props {
   stock: WarehouseStock[];
   /** Per-variant MAP, keyed by variant id. The one portal-owned field on a SKU. */
   mapPrices: Record<number, number | null>;
-  onPrice: (row: SkuRow, price: number | null) => void;
+  /**
+   * False while the form has no base price. Every tier's figure comes off it, so there is
+   * nothing yet for an override to depart from.
+   */
+  pricingReady: boolean;
+  onPrice: (sku: string, tierId: number, price: number | null) => void;
   onMapPrice: (variantId: number, price: number | null) => void;
 }
 
 export default function SkuPricingTable({
-  rows, variantAxis, stock, mapPrices, onPrice, onMapPrice,
+  rows, variantAxis, stock, mapPrices, pricingReady, onPrice, onMapPrice,
 }: Props) {
-  // Which rows have had their price box opened. A row that already carries an override
-  // counts as open without being in here, so reopening the page shows what was set.
-  const [open, setOpen] = useState<Set<string>>(new Set());
 
   const stockBySku = new Map<string, WarehouseStock[]>();
   stock.forEach((line) => {
     stockBySku.set(line.sku, [...(stockBySku.get(line.sku) ?? []), line]);
   });
 
-  // Everything true of the SKU rather than of one tier merges down over its tier rows.
-  // Precomputed by index and kept pure — onCell can fire more than once per row.
-  const spans = rows.map((row, i) =>
-    i > 0 && rows[i - 1].variant.sku === row.variant.sku
-      ? 0
-      : rows.filter((r) => r.variant.sku === row.variant.sku).length
-  );
-  const mergeDown = (_row: SkuRow, index?: number) => ({ rowSpan: spans[index ?? 0] ?? 1 });
-
-  const skuColumns: ColumnsType<SkuRow> = [
+  const columns: ColumnsType<SkuRow> = [
     {
       title: 'SKU',
       key: 'sku',
-      width: 210,
-      onCell: mergeDown,
       render: (_: unknown, row) => (
         <div>
           <code style={{ fontSize: 12 }}>{row.variant.sku}</code>
@@ -77,91 +68,25 @@ export default function SkuPricingTable({
       key: 'variantValue',
       width: 90,
       align: 'right',
-      onCell: mergeDown,
       render: (_: unknown, row) => row.variant.variantValue ?? row.variant.packQuantity,
     },
     {
-      title: 'Tier',
-      key: 'tier',
-      width: 130,
-      render: (_: unknown, row) =>
-        row.tier ? (
-          <Space size={6}>
-            <span>{row.tier.name}</span>
-            {/* Every row is minQty 1 today, so the tag is inert. Kept so enabling volume
-                breaks is an insert of rows, not a UI change (architecture doc §2.2.1). */}
-            {row.minQty > 1 && <Tag color="blue" style={{ fontSize: 11, marginInlineEnd: 0 }}>{row.minQty}+</Tag>}
-          </Space>
-        ) : (
-          <Text type="secondary" style={{ fontSize: 12 }}>Not for sale</Text>
-        ),
-    },
-    {
-      title: 'Dealer price',
-      key: 'price',
-      width: 230,
+      title: 'Lists at',
+      key: 'listPrice',
+      width: 150,
       align: 'right',
       render: (_: unknown, row) => {
-        if (row.tier === null) return <Text type="secondary">—</Text>;
-
-        const custom = row.price !== null;
-        const editing = custom || open.has(row.key);
-
-        /*
-         * A price is shown, not asked for. Every SKU has one the moment it is imported —
-         * its tier's standing rate — so the grid used to open with a box per tier per SKU
-         * inviting someone to fill in figures that were already decided. The box appears
-         * when somebody says they want to depart from the rate.
-         */
-        if (!editing) {
-          return (
-            <Space size={6}>
-              {row.breachesMap && (
-                <Tooltip title="At or above this SKU's MAP — the dealer would have no margin">
-                  <Tag color="warning" style={{ marginInlineEnd: 0 }}>over MAP</Tag>
-                </Tooltip>
-              )}
-              <Text>{money(row.standardPrice)}</Text>
-              <Tooltip title={`${row.tier.name} pays ${row.tier.discountPercent}% off list`}>
-                <Tag color="default" style={{ marginInlineEnd: 0 }}>standard</Tag>
-              </Tooltip>
-              <Button size="small" type="link" style={{ padding: 0 }}
-                onClick={() => setOpen(new Set(open).add(row.key))}>
-                Change
-              </Button>
-            </Space>
-          );
-        }
-
+        if (row.tiers.length === 0) return <Text type="secondary">—</Text>;
+        if (!pricingReady) return <Text type="secondary" style={{ fontSize: 12 }}>Set a base price</Text>;
         return (
-          <Space size={6} direction="vertical" style={{ width: '100%' }} align="end">
-            <MoneyInput
-              size="small" precision={2} style={{ width: '100%' }} value={row.price ?? undefined}
-              placeholder={String(row.standardPrice.toFixed(2))}
-              // Emptying the box gives the SKU back to its tier's rate rather than
-              // pricing it at nothing.
-              onChange={(v) => onPrice(row, v ?? null)}
-            />
-            <Space size={6}>
-              {row.breachesMap && (
-                <Tooltip title="At or above this SKU's MAP — the dealer would have no margin">
-                  <Tag color="warning" style={{ marginInlineEnd: 0 }}>over MAP</Tag>
-                </Tooltip>
-              )}
-              {custom
-                ? <Tag color="blue" style={{ marginInlineEnd: 0 }}>custom</Tag>
-                : <Text type="secondary" style={{ fontSize: 11 }}>empty keeps the standard rate</Text>}
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                standard {money(row.standardPrice)}
-              </Text>
-              <Button size="small" type="link" style={{ padding: 0, fontSize: 11 }}
-                onClick={() => {
-                  onPrice(row, null);
-                  const next = new Set(open); next.delete(row.key); setOpen(next);
-                }}>
-                Revert
-              </Button>
-            </Space>
+          <Space size={6}>
+            <Text>{money(row.listPrice)}</Text>
+            {/* Only worth saying where a tier has actually been given its own figure. */}
+            {row.customCount > 0 && (
+              <Tag color="blue" style={{ marginInlineEnd: 0 }}>
+                {row.customCount} custom
+              </Tag>
+            )}
           </Space>
         );
       },
@@ -171,7 +96,6 @@ export default function SkuPricingTable({
       key: 'mapPrice',
       width: 120,
       align: 'right',
-      onCell: mergeDown,
       render: (_: unknown, row) => (
         <MoneyInput
           size="small" precision={2} style={{ width: '100%' }}
@@ -184,7 +108,6 @@ export default function SkuPricingTable({
       title: 'Stock',
       key: 'stock',
       width: 250,
-      onCell: mergeDown,
       render: (_: unknown, row) => {
         const lines = stockBySku.get(row.variant.sku) ?? [];
         const { availableStock, incomingStock, updatedAt } = row.variant.inventory;
@@ -219,32 +142,126 @@ export default function SkuPricingTable({
     },
     {
       title: 'Supply',
-      key: 'status',
+      key: 'supply',
       width: 110,
-      onCell: mergeDown,
+      align: 'right',
       render: (_: unknown, row) =>
-        row.variant.status === 'ACTIVE' ? (
-          <Tag color="success">On sale</Tag>
-        ) : (
-          <Tooltip title="Sellfox no longer sells this SKU. Dealers cannot see it; its pricing is kept in case it returns.">
-            <Tag color="default">Withdrawn</Tag>
-          </Tooltip>
-        ),
+        row.tiers.length === 0
+          ? <Tag color="default">Discontinued</Tag>
+          : <Tag color="green">On sale</Tag>,
     },
   ];
 
   return (
     <Table<SkuRow>
-      columns={skuColumns}
-      dataSource={rows}
       rowKey="key"
       size="small"
+      columns={columns}
+      dataSource={rows}
       pagination={false}
-      bordered
-      scroll={{ x: 'max-content' }}
-      /* Dimmed whole-row: the tag alone reads as a detail, but a withdrawn SKU changes
-         what the row means — none of it is on offer. */
-      rowClassName={(row) => (row.variant.status === 'DISCONTINUED' ? 'row-withdrawn' : '')}
+      expandable={{
+        // A withdrawn SKU has nothing to price, so it gets no arrow to open.
+        rowExpandable: (row) => row.tiers.length > 0,
+        expandedRowRender: (row) => (
+          <TierPrices row={row} pricingReady={pricingReady} onPrice={onPrice} />
+        ),
+      }}
+    />
+  );
+}
+
+/**
+ * What each tier pays for one SKU, and a way to depart from it.
+ *
+ * Every figure here follows the base price above as it is typed, so the effect of
+ * changing it is visible before anything is saved.
+ */
+function TierPrices({ row, pricingReady, onPrice }: {
+  row: SkuRow;
+  pricingReady: boolean;
+  onPrice: (sku: string, tierId: number, price: number | null) => void;
+}) {
+  if (!pricingReady) {
+    return (
+      <Alert
+        type="info"
+        showIcon
+        message="Set a base wholesale price first"
+        description="Every tier's price comes off that figure, so until there is one there is nothing for a custom price to depart from."
+      />
+    );
+  }
+
+  const columns: ColumnsType<TierRow> = [
+    {
+      title: 'Tier',
+      key: 'tier',
+      width: 160,
+      render: (_: unknown, tier) => (
+        <Space size={6}>
+          <Text strong>{tier.tier.name}</Text>
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {tier.tier.discountPercent > 0 ? `${tier.tier.discountPercent}% off` : 'pays list'}
+          </Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Pays',
+      key: 'price',
+      width: 320,
+      render: (_: unknown, tier) => {
+        const custom = tier.price !== null;
+        return (
+          <Space size={8}>
+            {custom ? (
+              <>
+                <MoneyInput
+                  size="small" precision={2} style={{ width: 110 }} value={tier.price ?? undefined}
+                  placeholder={tier.standardPrice.toFixed(2)}
+                  // Emptying the box gives the SKU back to its tier's rate rather than
+                  // pricing it at nothing.
+                  onChange={(v) => onPrice(row.variant.sku, tier.tier.id, v ?? null)}
+                />
+                <Tag color="blue" style={{ marginInlineEnd: 0 }}>custom</Tag>
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  rate gives {money(tier.standardPrice)}
+                </Text>
+                <Button size="small" type="link" style={{ padding: 0 }}
+                  onClick={() => onPrice(row.variant.sku, tier.tier.id, null)}>
+                  Revert
+                </Button>
+              </>
+            ) : (
+              <>
+                <Text style={{ width: 110, display: 'inline-block' }}>{money(tier.standardPrice)}</Text>
+                <Tag color="default" style={{ marginInlineEnd: 0 }}>rate</Tag>
+                <Button size="small" type="link" style={{ padding: 0 }}
+                  onClick={() => onPrice(row.variant.sku, tier.tier.id, tier.standardPrice)}>
+                  Set a custom price
+                </Button>
+              </>
+            )}
+            {tier.breachesMap && (
+              <Tooltip title="At or above this SKU's MAP — the dealer would have no margin">
+                <Tag color="warning" style={{ marginInlineEnd: 0 }}>over MAP</Tag>
+              </Tooltip>
+            )}
+          </Space>
+        );
+      },
+    },
+  ];
+
+  return (
+    <Table<TierRow>
+      rowKey="key"
+      size="small"
+      columns={columns}
+      dataSource={row.tiers}
+      pagination={false}
+      showHeader={false}
+      style={{ maxWidth: 560 }}
     />
   );
 }

@@ -43,15 +43,14 @@ describe('ProductFormPage', () => {
     expect(screen.queryByDisplayValue('Chrome Hubcap – Dome, 4-Clip')).not.toBeInTheDocument();
   });
 
-  it('lists every SKU with a price box per tier', async () => {
+  it('lists each SKU once, with what it lists at', async () => {
     open();
 
     await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-1')).toBeInTheDocument());
     expect(pricingSection().getByText('H1F85N4-H50-2')).toBeInTheDocument();
     expect(pricingSection().getByText('H1F85N4-H50-6')).toBeInTheDocument();
-    // Gold and Silver each get their own figure — that is what a tier is.
-    expect(screen.getAllByText('Gold').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Silver').length).toBeGreaterThan(0);
+    // One row per SKU, not one per SKU per tier.
+    expect(pricingSection().getAllByText(/^H1F85N4-H50-/)).toHaveLength(3);
   });
 
   /**
@@ -59,42 +58,77 @@ describe('ProductFormPage', () => {
    * deliberate save in another. Nothing is dirty on arrival.
    */
   /**
-   * Every SKU has a price from the moment it is imported — its tier's standing rate — so
-   * the grid opens showing prices rather than a box per tier per SKU asking for figures
-   * that were already decided.
+   * Tier prices are not in the grid. They used to be — three rows per SKU, with the rest
+   * merged down across them — and the usual answer on every one of them is "whatever the
+   * tier's rate gives", which is not worth twelve rows of saying.
    */
-  it('shows what each tier pays, without a price box for it', async () => {
+  it('does not show tier prices until they are asked for', async () => {
+    open();
+    await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-1')).toBeInTheDocument());
+
+    expect(pricingSection().queryByText('Gold')).not.toBeInTheDocument();
+    expect(pricingSection().queryByText('Silver')).not.toBeInTheDocument();
+    // And no price boxes: the only spinbuttons are the base price and the MAP per SKU.
+    expect(pricingSection().getAllByRole('spinbutton')).toHaveLength(4);
+  });
+
+  it('opens the tiers underneath a SKU, showing what each pays', async () => {
     open();
     await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-2')).toBeInTheDocument());
 
+    await userEvent.click(pricingSection().getAllByRole('button', { name: /expand row/i })[1]);
+
+    expect(await pricingSection().findByText('Gold')).toBeInTheDocument();
     // 9.24 list on a two-pack is 18.48; Silver takes 7% off.
     expect(pricingSection().getByText('$17.19')).toBeInTheDocument();
-    expect(pricingSection().getAllByText('standard').length).toBeGreaterThan(0);
-
-    // One row is genuinely overridden, so that one does show its box.
-    const boxes = pricingSection().getAllByRole('spinbutton');
-    const priceBoxes = boxes.filter((b) => b.closest('td')?.textContent?.includes('standard $'));
-    expect(priceBoxes).toHaveLength(1);
+    expect(pricingSection().getAllByText('rate').length).toBeGreaterThan(0);
   });
 
-  it('opens a price box only when asked to change one', async () => {
+  it('offers a box only once a custom price is asked for', async () => {
     open();
-    await waitFor(() => expect(pricingSection().getAllByText('standard').length).toBeGreaterThan(0));
+    await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-2')).toBeInTheDocument());
+    await userEvent.click(pricingSection().getAllByRole('button', { name: /expand row/i })[1]);
+    await pricingSection().findByText('Gold');
     const before = pricingSection().getAllByRole('spinbutton').length;
 
-    await userEvent.click(pricingSection().getAllByRole('button', { name: 'Change' })[0]);
+    await userEvent.click(pricingSection().getAllByRole('button', { name: /set a custom price/i })[0]);
 
     expect(pricingSection().getAllByRole('spinbutton').length).toBe(before + 1);
-    // And it says what the figure it replaces was.
-    expect(pricingSection().getAllByText(/^standard \$/).length).toBeGreaterThan(0);
+    expect(pricingSection().getAllByText('custom').length).toBe(1);
   });
 
-  /** A typed price is a different thing from a tier's rate, and has to look like one. */
-  it('marks a price someone set apart from the tier rate', async () => {
+  /**
+   * The whole point of changing the base price is to see what it does. Waiting for a save
+   * and a reload to find out is the thing this replaces.
+   */
+  it('moves every tier price as the base price is typed', async () => {
     open();
-    await waitFor(() => expect(pricingSection().getAllByText('custom').length).toBe(1));
+    await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-1')).toBeInTheDocument());
+    // The second SKU, because the first has a hand-set Gold price and so shows a box.
+    await userEvent.click(pricingSection().getAllByRole('button', { name: /expand row/i })[1]);
+    // A two-pack at 9.24 lists at 18.48; Gold takes 18% off, giving 15.15.
+    expect(await pricingSection().findByText('$15.15')).toBeInTheDocument();
 
-    expect(pricingSection().getAllByText('standard').length).toBeGreaterThan(1);
+    const price = basePrice();
+    await userEvent.clear(price);
+    await userEvent.type(price, '100');
+
+    // Nothing saved, nothing refetched — a two-pack at 100 lists at 200, Gold pays 164.
+    await waitFor(() => expect(pricingSection().getByText('$164.00')).toBeInTheDocument());
+    expect(pricingSection().getByText('$186.00')).toBeInTheDocument();
+  });
+
+  /** A tier's price comes off the base price, so there is nothing to depart from without one. */
+  it('will not price a tier before a base price exists', async () => {
+    open();
+    await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-1')).toBeInTheDocument());
+
+    await userEvent.clear(basePrice());
+    await userEvent.click(pricingSection().getAllByRole('button', { name: /expand row/i })[0]);
+
+    expect(await pricingSection().findByText(/set a base wholesale price first/i)).toBeInTheDocument();
+    expect(pricingSection().queryByRole('button', { name: /set a custom price/i })).not.toBeInTheDocument();
+    expect(pricingSection().getAllByText(/set a base price/i).length).toBeGreaterThan(0);
   });
 
   /**
@@ -130,7 +164,7 @@ describe('ProductFormPage', () => {
   /** A product that can be sold should not be warned about anything. */
   it('shows no warning on a product that is fine', async () => {
     open();
-    await waitFor(() => expect(pricingSection().getAllByText('standard').length).toBeGreaterThan(0));
+    await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-1')).toBeInTheDocument());
 
     expect(document.querySelector('.ant-alert-warning')).not.toBeInTheDocument();
   });
