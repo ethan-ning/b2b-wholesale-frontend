@@ -227,8 +227,8 @@ const CUSTOMISED = new Map([['H1F85N4-H50-1:1', 7.0]]);
 
 export const TIER_PRICES: TierPrice[] = HUBCAP.variants.flatMap((v) =>
   TIERS.map((tier): TierPrice => {
-    const list = Number((HUBCAP.baseWholesalePrice * v.packQuantity).toFixed(2));
-    const standardPrice = Number((list * (1 - tier.discountPercent / 100)).toFixed(2));
+    // The base price is what the SKU lists at, whatever the pack holds.
+    const standardPrice = Number((HUBCAP.baseWholesalePrice * (1 - tier.discountPercent / 100)).toFixed(2));
     const override = CUSTOMISED.get(`${v.sku}:${tier.id}`);
     const price = override ?? standardPrice;
     return {

@@ -1,5 +1,5 @@
 import type { CustomerTier, TierPrice, Variant } from '../../api/types';
-import { listPriceOf, standardPriceOf } from './tierPricing';
+import { standardPriceOf } from './tierPricing';
 
 export type TierRow = {
   key: string;
@@ -18,7 +18,7 @@ export type TierRow = {
 export type SkuRow = {
   key: string;
   variant: Variant;
-  /** Base price x pack quantity. What the SKU lists at before any tier's rate. */
+  /** What the SKU lists at before any tier's rate — the base price, whatever the pack. */
   listPrice: number;
   /** Empty for a withdrawn SKU: the supplier has stopped selling it, so there is no price. */
   tiers: TierRow[];
@@ -48,7 +48,7 @@ export function buildSkuRows(
   const saved = new Map(book.map((r) => [`${r.sku}:${r.tierId}`, r]));
 
   return variants.map((variant): SkuRow => {
-    const listPrice = basePrice === undefined ? 0 : listPriceOf(basePrice, variant.packQuantity);
+    const listPrice = basePrice ?? 0;
     if (variant.status === 'DISCONTINUED') {
       return { key: variant.sku, variant, listPrice, tiers: [], customCount: 0 };
     }
@@ -63,7 +63,7 @@ export function buildSkuRows(
           : null;
       const standardPrice = basePrice === undefined
         ? 0
-        : standardPriceOf(basePrice, variant.packQuantity, tier.discountPercent);
+        : standardPriceOf(basePrice, tier.discountPercent);
       const effective = price ?? standardPrice;
       return {
         key,

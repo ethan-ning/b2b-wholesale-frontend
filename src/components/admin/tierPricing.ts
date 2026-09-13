@@ -8,21 +8,13 @@
  * Kept in one function, and tierPricing.test.ts pins it against the same cases as the
  * Kotlin test for Money.lessDiscount, so a divergence fails here and not in an order.
  */
-export function listPriceOf(basePrice: number, packQuantity: number): number {
-  return roundToCents(basePrice * packQuantity);
-}
-
-export function standardPriceOf(
-  basePrice: number,
-  packQuantity: number,
-  discountPercent: number,
-): number {
+export function standardPriceOf(basePrice: number, discountPercent: number): number {
   // The rate is rounded to two places first, because DiscountPercent is: 12.345% is held
   // as 12.35%, and applying the raw figure gives a different cent.
   const rate = Math.round(discountPercent * 100 + 1e-9) / 100;
-  // The discount comes off the price of the whole SKU. Taking it off the unit price and
-  // multiplying back rounds once per unit, and a twelve-pack drifts by cents.
-  return roundToCents(listPriceOf(basePrice, packQuantity) * (1 - rate / 100));
+  // Pack quantity does not come into it: the base price is what the SKU lists at,
+  // whatever is in the box.
+  return roundToCents(basePrice * (1 - rate / 100));
 }
 
 /**

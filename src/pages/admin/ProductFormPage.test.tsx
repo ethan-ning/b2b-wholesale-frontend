@@ -79,8 +79,8 @@ describe('ProductFormPage', () => {
     await userEvent.click(pricingSection().getAllByRole('button', { name: /expand row/i })[1]);
 
     expect(await pricingSection().findByText('Gold')).toBeInTheDocument();
-    // 9.24 list on a two-pack is 18.48; Silver takes 7% off.
-    expect(pricingSection().getByText('$17.19')).toBeInTheDocument();
+    // 9.24 whatever the pack holds; Silver takes 7% off.
+    expect(pricingSection().getByText('$8.59')).toBeInTheDocument();
     expect(pricingSection().getAllByText('rate').length).toBeGreaterThan(0);
   });
 
@@ -106,16 +106,16 @@ describe('ProductFormPage', () => {
     await waitFor(() => expect(pricingSection().getByText('H1F85N4-H50-1')).toBeInTheDocument());
     // The second SKU, because the first has a hand-set Gold price and so shows a box.
     await userEvent.click(pricingSection().getAllByRole('button', { name: /expand row/i })[1]);
-    // A two-pack at 9.24 lists at 18.48; Gold takes 18% off, giving 15.15.
-    expect(await pricingSection().findByText('$15.15')).toBeInTheDocument();
+    // 9.24 list whatever the pack holds; Gold takes 18% off, giving 7.58.
+    expect(await pricingSection().findByText('$7.58')).toBeInTheDocument();
 
     const price = basePrice();
     await userEvent.clear(price);
     await userEvent.type(price, '100');
 
-    // Nothing saved, nothing refetched — a two-pack at 100 lists at 200, Gold pays 164.
-    await waitFor(() => expect(pricingSection().getByText('$164.00')).toBeInTheDocument());
-    expect(pricingSection().getByText('$186.00')).toBeInTheDocument();
+    // Nothing saved, nothing refetched — 100 less 18% is 82, less 7% is 93.
+    await waitFor(() => expect(pricingSection().getByText('$82.00')).toBeInTheDocument());
+    expect(pricingSection().getByText('$93.00')).toBeInTheDocument();
   });
 
   /** A tier's price comes off the base price, so there is nothing to depart from without one. */
