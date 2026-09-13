@@ -20,17 +20,17 @@ const VISIBILITY_OPTIONS = [
 ];
 
 /**
- * Its own filter rather than another entry in the visibility one — a product is hidden
- * *because* it is unpriced, so the two would otherwise be askable in contradiction.
+ * Whether a product could be shown at all, which is not the same question as whether it
+ * is shown — so it is its own filter rather than another entry in the visibility one.
  *
  * Applied to the page in hand, not by the API: it narrows what you are looking at, but
  * the count and the pager still describe the unfiltered result. Enough to work through a
- * page; if it needs to answer "how many are still unpriced", that has to move server-side.
+ * page; answering "how many across the catalogue" would have to move server-side.
  */
 const PRICING_OPTIONS = [
-  { value: '', label: 'Any pricing' },
-  { value: 'unpriced', label: 'Unpriced only' },
-  { value: 'priced', label: 'Priced only' },
+  { value: '', label: 'Any product' },
+  { value: 'blocked', label: 'Cannot be shown' },
+  { value: 'sellable', label: 'Can be shown' },
 ];
 
 /** The backend caps a page at 200 (domain Page.MAX_SIZE), so these stay well inside it. */
@@ -80,8 +80,8 @@ export default function ProductListPage() {
     sort.field === field ? (sort.direction === 'asc' ? 'ascend' : 'descend') : null;
 
   const rows = (data?.content ?? []).filter((p) => {
-    if (pricingFilter === 'unpriced') return p.sellable === false;
-    if (pricingFilter === 'priced') return p.sellable !== false;
+    if (pricingFilter === 'blocked') return p.sellable === false;
+    if (pricingFilter === 'sellable') return p.sellable !== false;
     return true;
   });
 

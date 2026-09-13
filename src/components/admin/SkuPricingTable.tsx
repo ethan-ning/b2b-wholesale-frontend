@@ -17,11 +17,9 @@ function syncedLabel(iso: string | undefined): string {
 /**
  * One row per SKU: what it lists at, what it advertises at, and what is on the shelf.
  *
- * Tier prices are not here. They used to be — three rows per SKU with everything else
- * merged down across them — which made a four-SKU product a twelve-row grid where the
- * prices were the least of what was being asked about. They are decided by the tier's
- * rate now, so the usual answer is "whatever the rate gives" and showing it twelve times
- * says nothing. It opens underneath a SKU, for the one that needs a different answer.
+ * Tier prices are not here. A tier's rate answers for nearly every SKU, so putting all
+ * of them on screen says the same thing once per row. They open underneath the SKU that
+ * needs a different answer.
  */
 interface Props {
   rows: SkuRow[];

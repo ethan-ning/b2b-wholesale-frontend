@@ -30,8 +30,8 @@ function fileSize(bytes: number | null): string {
  * product shows it, and without somewhere to see that, finding the last product holding
  * a file means opening products one at a time.
  *
- * Paged and searched by the API. Both used to happen here over the whole library, which
- * meant the first paint waited on every row in the catalogue.
+ * Paged and searched by the API, so neither waits on the whole library and a search
+ * reaches rows this page does not hold.
  */
 export default function ImageListPage() {
   const [search, setSearch] = useState('');

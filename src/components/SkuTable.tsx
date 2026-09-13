@@ -14,13 +14,11 @@ interface Props {
   /**
    * Whether each row gets a picture.
    *
-   * `auto` earns the column: it appears only where the SKUs actually look different — a
-   * finish or a colour. On the usual product every SKU shares the one photo, and a column
-   * repeating it six times pushes the prices off a phone for nothing.
+   * `auto` shows it only where the SKUs look different — a finish or a colour. On the
+   * usual product they share one photo, and repeating it pushes prices off a phone.
    *
-   * `always` reserves it, placeholder and all, for the detail page — there a dealer is
-   * comparing the SKUs of one product against each other, and a column that appears on
-   * some products and not others is harder to read than a blank square.
+   * `always` reserves it, placeholder included, for the detail page: comparing one
+   * product's SKUs, a column that comes and goes is harder to read than a blank.
    */
   images?: 'auto' | 'always';
   /** Given a thumbnail to click, so the big image above can follow the row. */

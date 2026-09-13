@@ -44,7 +44,7 @@ export const adminClient = createClient('admin_token', 'admin_user', '/admin/log
  * What the API said went wrong, or [fallback] when it did not say.
  *
  * Worth surfacing verbatim: the refusals that reach a user name the thing they are about
- * — which SPU is unpriced, which sync is already running — and a generic message throws
+ * — which SPU has no price, which sync is already running — and a generic message throws
  * that away. Lives here because this is where the response shape is already known; at the
  * call sites it was four copies of the same cast.
  */

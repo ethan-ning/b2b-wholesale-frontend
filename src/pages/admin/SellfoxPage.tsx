@@ -312,7 +312,8 @@ export default function SellfoxPage() {
         Sellfox is the system of record for what a product is and how many there are. The
         import scope is set once and then left alone — stock refreshes <b>hourly</b> and
         the whole catalog re-imports <b>nightly</b>. Imported products arrive{' '}
-        <b>hidden and unpriced</b>: set tier pricing, then make them visible.
+        <b>hidden</b>, priced by their tier's standing discount off the list price Sellfox
+        supplies. Check the price, then make them visible.
       </Paragraph>
 
       {editing ? (
